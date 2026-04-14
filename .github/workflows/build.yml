@@ -2,9 +2,12 @@ name: Build Windows App
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-win:
@@ -18,15 +21,20 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build Windows installer
-        run: npm run dist
+        run: npm run dist:win
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: print-farm-windows-build
-          path: dist/*
+          path: |
+            dist/*.exe
+            dist/*.msi
+            dist/*.blockmap
+          if-no-files-found: warn
