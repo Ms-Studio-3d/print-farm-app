@@ -6,7 +6,6 @@
     <title>نظام إدارة المزرعة Ultimate - V10</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
-        /* دمج تنسيقات الـ Pro مع الـ Dashboard */
         :root {
             --primary: #6366f1; --primary-hover: #4f46e5;
             --secondary: #10b981; --secondary-hover: #059669;
@@ -22,28 +21,34 @@
 
         .card { background: var(--card-bg); padding: 20px; border-radius: 14px; border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.02); margin-bottom: 20px; }
         h3 { margin-top: 0; color: var(--primary); font-size: 16px; border-bottom: 2px solid var(--border); padding-bottom: 10px; margin-bottom: 15px; }
-        
-        /* تصميم المخزن المتطور */
+
         .stock-item { background: #f8fafc; padding: 12px; border-radius: 10px; margin-bottom: 10px; border-right: 5px solid var(--primary); transition: 0.3s; }
         .stock-item.low { border-right-color: var(--danger); background: #fef2f2; }
         .stock-header { display: flex; justify-content: space-between; font-weight: 800; font-size: 13px; }
         .stock-bar { height: 6px; background: #e2e8f0; border-radius: 3px; margin-top: 8px; overflow: hidden; }
         .stock-progress { height: 100%; background: var(--primary); transition: 0.5s; }
 
-        /* الأقسام الجانبية */
         .results-panel { background: var(--panel-bg); color: white; border-radius: 16px; padding: 25px; position: sticky; top: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
         .res-row { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 12px; color: #cbd5e1; }
         .final-price-box { background: var(--secondary); margin: 20px -25px -25px; padding: 25px; text-align: center; }
         .final-price-box .price { font-size: 40px; font-weight: 800; color: white; }
 
-        input, select, textarea { width: 100%; padding: 10px; border: 1.5px solid var(--border); border-radius: 8px; font-family: 'Cairo'; font-size: 14px; margin-top: 5px; }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            font-family: 'Cairo';
+            font-size: 14px;
+            margin-top: 5px;
+            box-sizing: border-box;
+        }
         label { font-size: 13px; font-weight: 700; color: var(--text-muted); }
 
         .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-family: 'Cairo'; font-weight: 800; transition: 0.2s; }
         .btn-primary { background: var(--primary); color: white; }
         .btn-save { background: white; color: var(--secondary); margin-top: 15px; font-size: 16px; }
 
-        /* الجداول والمودال */
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; padding: 20px; }
         .modal-content { background: white; width: 95%; max-width: 1200px; max-height: 90vh; border-radius: 20px; padding: 30px; overflow-y: auto; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
@@ -105,7 +110,7 @@
             <div class="res-row"><span>إهلاك الماكينة:</span><span id="resDep">0 ج</span></div>
             <div class="res-row"><span>أجرتك اليدوية:</span><span id="resLabor">0 ج</span></div>
             <div class="res-row" style="border-top: 1px dashed #475569; padding-top: 10px;"><span>إجمالي التكلفة عليك:</span><span id="resTotal" style="color:#fca5a5; font-weight:800;">0 ج</span></div>
-            
+
             <div class="form-group" style="margin-top:20px"><label style="color:white">نسبة المكسب (%):</label><input type="number" id="profitMargin" value="100" oninput="calc()" style="background:#334155; color:white; border:none;"></div>
             <div class="form-group"><label style="color:white">تاريخ العملية:</label><input type="date" id="opDate" style="background:#334155; color:white; border:none;"></div>
 
@@ -123,7 +128,7 @@
                 <h2>📊 لوحة تحكم المزرعة والتقارير</h2>
                 <button onclick="closeReports()" style="background:var(--danger); color:white; border:none; padding:10px 15px; border-radius:8px; cursor:pointer;">إغلاق</button>
             </div>
-            
+
             <div id="statsGrid" style="display:grid; grid-template-columns: repeat(4, 1fr); gap:15px; margin-top:20px;">
                 <div class="card" style="text-align:center"><h4>إجمالي الإيراد</h4><div id="statRev" style="font-size:24px; font-weight:800; color:var(--primary)">0</div></div>
                 <div class="card" style="text-align:center"><h4>صافي الربح</h4><div id="statProfit" style="font-size:24px; font-weight:800; color:var(--secondary)">0</div></div>
@@ -132,14 +137,13 @@
             </div>
 
             <table id="salesTable">
-                <thead><tr><th>الكود</th><th>التاريخ</th><th>المجسم</th><th>التكلفة</th><th>البيع</th><th>الربح</th><th>إجراء</th></tr></thead>
+                <thead><tr><th>الكود</th><th>التاريخ</th><th>المجسم</th><th>العميل</th><th>التكلفة</th><th>البيع</th><th>الربح</th><th>إجراء</th></tr></thead>
                 <tbody id="salesTableBody"></tbody>
             </table>
         </div>
     </div>
 
     <script>
-        // قاعدة البيانات الشاملة
         let db = JSON.parse(localStorage.getItem('farmUltimateDB')) || {
             config: { machinePrice: 60000, machineLife: 5000, laborRate: 50, kwPrice: 2 },
             inventory: [
@@ -151,31 +155,39 @@
             sales: []
         };
 
-        function saveDB() { localStorage.setItem('farmUltimateDB', JSON.stringify(db)); }
-        function saveConfig() {
-            db.config.machinePrice = parseFloat(document.getElementById('machinePrice').value);
-            db.config.machineLife = parseFloat(document.getElementById('machineLife').value);
-            db.config.laborRate = parseFloat(document.getElementById('laborRate').value);
-            saveDB();
+        function saveDB() {
+            localStorage.setItem('farmUltimateDB', JSON.stringify(db));
         }
 
-        // تحديث واجهة المستخدم
+        function saveConfig() {
+            db.config.machinePrice = parseFloat(document.getElementById('machinePrice').value) || 0;
+            db.config.machineLife = parseFloat(document.getElementById('machineLife').value) || 1;
+            db.config.laborRate = parseFloat(document.getElementById('laborRate').value) || 0;
+            saveDB();
+            calc();
+        }
+
         function updateUI() {
             const invUI = document.getElementById('inventoryUI');
             const amsInp = document.getElementById('amsInputs');
-            invUI.innerHTML = ''; amsInp.innerHTML = '';
+            invUI.innerHTML = '';
+            amsInp.innerHTML = '';
 
             db.inventory.forEach(item => {
-                const perc = (item.stock / item.weight) * 100;
+                const perc = item.weight > 0 ? (item.stock / item.weight) * 100 : 0;
                 invUI.innerHTML += `
                     <div class="stock-item ${item.stock < 150 ? 'low' : ''}">
                         <div class="stock-header"><span>${item.name}</span><span>${item.stock.toFixed(0)}g</span></div>
-                        <div class="stock-bar"><div class="stock-progress" style="width:${perc}%"></div></div>
+                        <div class="stock-bar"><div class="stock-progress" style="width:${Math.min(100, Math.max(0, perc))}%"></div></div>
                     </div>`;
+
                 amsInp.innerHTML += `
-                    <div class="form-group"><label>${item.name}</label>
-                    <input type="number" class="ams-weight" data-id="${item.id}" placeholder="جرام" oninput="calc()"></div>`;
+                    <div class="form-group">
+                        <label>${item.name}</label>
+                        <input type="number" class="ams-weight" data-id="${item.id}" placeholder="جرام" oninput="calc()">
+                    </div>`;
             });
+
             document.getElementById('nextOrderCode').innerText = db.sales.length + 1001;
         }
 
@@ -183,62 +195,114 @@
 
         function calc() {
             let matCost = 0;
+
             document.querySelectorAll('.ams-weight').forEach(inp => {
                 const id = parseInt(inp.dataset.id);
                 const w = parseFloat(inp.value) || 0;
                 const item = db.inventory.find(x => x.id === id);
-                matCost += w * (item.price / item.weight);
+                if (item) {
+                    matCost += w * (item.price / item.weight);
+                }
             });
 
             const hours = parseFloat(document.getElementById('printHours').value) || 0;
             const manual = parseFloat(document.getElementById('manualMins').value) || 0;
             const margin = parseFloat(document.getElementById('profitMargin').value) || 0;
 
-            const dep = hours * (db.config.machinePrice / db.config.machineLife);
+            const dep = hours * (db.config.machinePrice / Math.max(db.config.machineLife, 1));
             const labor = (manual / 60) * db.config.laborRate;
-            const baseCost = matCost + dep + labor + 10; // 10 ج تغليف
-            const finalCost = baseCost * 1.1; // 10% تأمين فشل
-            const finalPrice = Math.ceil(finalCost + (finalCost * (margin/100)));
+            const baseCost = matCost + dep + labor + 10;
+            const finalCost = baseCost * 1.1;
+            const finalPrice = Math.ceil(finalCost + (finalCost * (margin / 100)));
 
             document.getElementById('resMat').innerText = matCost.toFixed(1) + ' ج';
             document.getElementById('resDep').innerText = dep.toFixed(1) + ' ج';
             document.getElementById('resLabor').innerText = labor.toFixed(1) + ' ج';
             document.getElementById('resTotal').innerText = finalCost.toFixed(1) + ' ج';
             document.getElementById('resFinal').innerText = finalPrice + ' ج';
+
             currentCalc = { cost: finalCost, price: finalPrice };
         }
 
+        function resetOrderForm() {
+            document.getElementById('itemName').value = '';
+            document.getElementById('customerName').value = '';
+            document.getElementById('printHours').value = 0;
+            document.getElementById('manualMins').value = 15;
+            document.getElementById('profitMargin').value = 100;
+            document.getElementById('opDate').valueAsDate = new Date();
+
+            document.querySelectorAll('.ams-weight').forEach(inp => {
+                inp.value = '';
+            });
+
+            calc();
+        }
+
         function saveSale() {
-            const name = document.getElementById('itemName').value;
-            if(!name || currentCalc.price <= 0) return alert("دخل البيانات صح!");
+            const name = document.getElementById('itemName').value.trim();
+            const customerName = document.getElementById('customerName').value.trim();
+            const opDate = document.getElementById('opDate').value;
+
+            if (!name) {
+                alert("اكتب اسم المجسم الأول.");
+                document.getElementById('itemName').focus();
+                return;
+            }
+
+            if (currentCalc.price <= 0) {
+                alert("دخل البيانات صح!");
+                return;
+            }
 
             document.querySelectorAll('.ams-weight').forEach(inp => {
                 const id = parseInt(inp.dataset.id);
                 const w = parseFloat(inp.value) || 0;
                 const item = db.inventory.find(x => x.id === id);
-                item.stock = Math.max(0, item.stock - w);
+                if (item) {
+                    item.stock = Math.max(0, item.stock - w);
+                }
             });
 
             db.sales.push({
                 code: 'ORD-' + (db.sales.length + 1001),
-                date: document.getElementById('opDate').value,
+                date: opDate,
                 name: name,
+                customer: customerName,
                 cost: currentCalc.cost,
                 price: currentCalc.price,
                 profit: currentCalc.price - currentCalc.cost
             });
 
-            saveDB(); updateUI(); alert("تم تسجيل الأوردر وخصم البلاستيك!");
+            saveDB();
+            updateUI();
+            resetOrderForm();
+            alert("تم تسجيل الأوردر وخصم البلاستيك!");
         }
 
         function openReports() {
             document.getElementById('reportsModal').style.display = 'flex';
-            const body = document.getElementById('salesTableBody'); body.innerHTML = '';
+            const body = document.getElementById('salesTableBody');
+            body.innerHTML = '';
+
             let rev = 0, prof = 0, top = 0;
-            
+
             [...db.sales].reverse().forEach(s => {
-                rev += s.price; prof += s.profit; top = Math.max(top, s.price);
-                body.innerHTML += `<tr><td>${s.code}</td><td>${s.date}</td><td>${s.name}</td><td>${s.cost.toFixed(1)}</td><td>${s.price}</td><td style="color:green;font-weight:800">${s.profit.toFixed(1)}</td><td><button onclick="deleteSale('${s.code}')" style="color:red;border:none;background:none;cursor:pointer">X</button></td></tr>`;
+                rev += s.price;
+                prof += s.profit;
+                top = Math.max(top, s.price);
+
+                body.innerHTML += `
+                    <tr>
+                        <td>${s.code}</td>
+                        <td>${s.date || ''}</td>
+                        <td>${s.name}</td>
+                        <td>${s.customer || ''}</td>
+                        <td>${s.cost.toFixed(1)}</td>
+                        <td>${s.price}</td>
+                        <td style="color:green;font-weight:800">${s.profit.toFixed(1)}</td>
+                        <td><button onclick="deleteSale('${s.code}')" style="color:red;border:none;background:none;cursor:pointer">X</button></td>
+                    </tr>`;
             });
 
             document.getElementById('statRev').innerText = Math.round(rev) + ' ج';
@@ -248,42 +312,69 @@
         }
 
         function deleteSale(code) {
-            if(confirm("مسح الأوردر؟")) {
+            if (confirm("مسح الأوردر؟")) {
                 db.sales = db.sales.filter(s => s.code !== code);
-                saveDB(); openReports();
+                saveDB();
+                openReports();
+                updateUI();
             }
         }
 
-        function closeReports() { document.getElementById('reportsModal').style.display = 'none'; }
-        
+        function closeReports() {
+            document.getElementById('reportsModal').style.display = 'none';
+        }
+
         function addStockPrompt() {
             const name = prompt("اسم الخامة:");
             const price = prompt("سعر البكرة:");
             const weight = prompt("وزن البكرة بالجرام (مثلا 1000):");
-            if(name && price && weight) {
-                db.inventory.push({id: Date.now(), name, price: parseFloat(price), weight: parseFloat(weight), stock: parseFloat(weight)});
-                saveDB(); updateUI();
+
+            if (name && price && weight) {
+                db.inventory.push({
+                    id: Date.now(),
+                    name,
+                    price: parseFloat(price),
+                    weight: parseFloat(weight),
+                    stock: parseFloat(weight)
+                });
+                saveDB();
+                updateUI();
+                calc();
             }
         }
 
         function exportBackupJSON() {
             const blob = new Blob([JSON.stringify(db, null, 2)], {type: 'application/json'});
             const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url; a.download = 'farm_backup.json'; a.click();
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'farm_backup.json';
+            a.click();
+            URL.revokeObjectURL(url);
         }
 
         function importBackupJSON(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
             const reader = new FileReader();
             reader.onload = (event) => {
                 db = JSON.parse(event.target.result);
-                saveDB(); updateUI(); alert("تم استيراد البيانات!");
+                saveDB();
+                updateUI();
+                resetOrderForm();
+                alert("تم استيراد البيانات!");
             };
-            reader.readAsText(e.target.files[0]);
+            reader.readAsText(file);
         }
 
         window.onload = () => {
             document.getElementById('opDate').valueAsDate = new Date();
+            document.getElementById('machinePrice').value = db.config.machinePrice;
+            document.getElementById('machineLife').value = db.config.machineLife;
+            document.getElementById('laborRate').value = db.config.laborRate;
             updateUI();
+            calc();
         };
     </script>
 </body>
