@@ -16,22 +16,30 @@
   "build": {
     "appId": "com.msstudio3d.printfarm",
     "productName": "Print Farm App",
+    "artifactName": "${productName} Setup ${version}.${ext}",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
     "files": [
       "index.html",
       "style.css",
       "app.js",
       "main.js",
-      "package.json"
+      "package.json",
+      "build/**"
     ],
-    "directories": {
-      "output": "dist"
-    },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.ico",
+      "publisherName": "Ms-Studio-3d"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "${productName} Setup ${version}.${ext}",
+      "shortcutName": "Print Farm App",
+      "uninstallDisplayName": "Print Farm App"
     },
     "publish": null
   }
