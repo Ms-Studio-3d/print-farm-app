@@ -25,7 +25,6 @@
   "build": {
     "appId": "com.msstudio3d.printfarm",
     "productName": "Print Farm App",
-    "artifactName": "${productName} Setup ${version}.${ext}",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -44,6 +43,12 @@
           "arch": [
             "x64"
           ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "build/icon.ico",
@@ -55,6 +60,9 @@
       "artifactName": "${productName} Setup ${version}.${ext}",
       "shortcutName": "Print Farm App",
       "uninstallDisplayName": "Print Farm App"
+    },
+    "portable": {
+      "artifactName": "${productName} Portable ${version}.${ext}"
     },
     "publish": null
   }
