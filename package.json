@@ -5,9 +5,18 @@
   "main": "main.js",
   "author": "Ms-Studio-3d",
   "license": "MIT",
+  "keywords": [
+    "electron",
+    "3d-printing",
+    "print-farm",
+    "desktop-app",
+    "inventory"
+  ],
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --publish never"
+    "build": "electron-builder --dir",
+    "dist": "electron-builder --publish never",
+    "dist:win": "electron-builder --win --publish never"
   },
   "devDependencies": {
     "electron": "^31.0.2",
@@ -22,15 +31,21 @@
       "buildResources": "build"
     },
     "files": [
-      "index.html",
-      "style.css",
-      "app.js",
-      "main.js",
-      "package.json",
-      "build/**"
+      "**/*",
+      "!dist/**/*",
+      "!.git/**/*",
+      "!.github/**/*",
+      "!node_modules/.cache/**/*"
     ],
     "win": {
-      "target": "nsis",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "build/icon.ico",
       "publisherName": "Ms-Studio-3d"
     },
