@@ -1,81 +1,138 @@
-let db = JSON.parse(localStorage.getItem('farmUltimateDB')) || {
-  config: { machinePrice: 60000, machineLife: 5000, laborRate: 50, kwPrice: 2 },
+const DB_KEY = 'farmUltimateDB';
+
+const DEFAULT_DB = {
+  config: {
+    machinePrice: 60000,
+    machineLife: 5000,
+    laborRate: 50,
+    kwPrice: 2
+  },
   inventory: [
-    { id: 1, name: "PLA Black", price: 800, weight: 1000, stock: 1000 },
-    { id: 2, name: "PLA White", price: 800, weight: 1000, stock: 1000 },
-    { id: 3, name: "PLA Red", price: 800, weight: 1000, stock: 1000 },
-    { id: 4, name: "PLA Silk Gold", price: 1200, weight: 1000, stock: 1000 }
+    { id: 1, name: 'PLA Black', price: 800, weight: 1000, stock: 1000 },
+    { id: 2, name: 'PLA White', price: 800, weight: 1000, stock: 1000 },
+    { id: 3, name: 'PLA Red', price: 800, weight: 1000, stock: 1000 },
+    { id: 4, name: 'PLA Silk Gold', price: 1200, weight: 1000, stock: 1000 }
   ],
   sales: []
 };
 
-let currentCalc = { cost: 0, price: 0, matCost: 0, dep: 0, labor: 0, extras: 0 };
+let db = loadDB();
+let currentCalc = {
+  cost: 0,
+  price: 0,
+  matCost: 0,
+  dep: 0,
+  labor: 0,
+  extras: 0,
+  materialUsage: []
+};
 let editingCode = null;
 
+function loadDB() {
+  try {
+    const raw = localStorage.getItem(DB_KEY);
+    if (!raw) return normalizeDB(DEFAULT_DB);
+
+    const parsed = JSON.parse(raw);
+    return normalizeDB(parsed);
+  } catch {
+    return normalizeDB(DEFAULT_DB);
+  }
+}
+
+function normalizeDB(source) {
+  const safeSource = source && typeof source === 'object' ? source : {};
+
+  const configSource = safeSource.config && typeof safeSource.config === 'object'
+    ? safeSource.config
+    : {};
+
+  const inventorySource = Array.isArray(safeSource.inventory)
+    ? safeSource.inventory
+    : [];
+
+  const salesSource = Array.isArray(safeSource.sales)
+    ? safeSource.sales
+    : [];
+
+  return {
+    config: {
+      machinePrice: toPositiveNumber(configSource.machinePrice, DEFAULT_DB.config.machinePrice),
+      machineLife: Math.max(1, toPositiveNumber(configSource.machineLife, DEFAULT_DB.config.machineLife)),
+      laborRate: toPositiveNumber(configSource.laborRate, DEFAULT_DB.config.laborRate),
+      kwPrice: toPositiveNumber(configSource.kwPrice, DEFAULT_DB.config.kwPrice)
+    },
+    inventory: inventorySource.length
+      ? inventorySource.map(normalizeInventoryItem).filter(Boolean)
+      : DEFAULT_DB.inventory.map(item => ({ ...item })),
+    sales: salesSource.map(normalizeSale).filter(Boolean)
+  };
+}
+
+function normalizeInventoryItem(item) {
+  if (!item || typeof item !== 'object') return null;
+
+  const id = item.id ?? Date.now() + Math.floor(Math.random() * 1000);
+  const name = String(item.name ?? '').trim();
+  const price = toPositiveNumber(item.price, 0);
+  const weight = toPositiveNumber(item.weight, 0);
+  const stock = clampNumber(toPositiveNumber(item.stock, weight), 0, weight || Number.MAX_SAFE_INTEGER);
+
+  if (!name) return null;
+
+  return {
+    id,
+    name,
+    price,
+    weight,
+    stock
+  };
+}
+
+function normalizeSale(item) {
+  if (!item || typeof item !== 'object') return null;
+
+  const code = String(item.code ?? '').trim();
+  const name = String(item.name ?? '').trim();
+
+  if (!code || !name) return null;
+
+  const cost = toPositiveNumber(item.cost, 0);
+  const price = toPositiveNumber(item.price, 0);
+  const profit = Number((price - cost).toFixed(2));
+
+  return {
+    code,
+    date: String(item.date ?? '').trim(),
+    name,
+    customer: String(item.customer ?? '').trim(),
+    notes: String(item.notes ?? '').trim(),
+    cost: Number(cost.toFixed(2)),
+    price: Number(price.toFixed(2)),
+    profit
+  };
+}
+
+function toNumber(value, fallback = 0) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
+function toPositiveNumber(value, fallback = 0) {
+  const num = toNumber(value, fallback);
+  return num >= 0 ? num : fallback;
+}
+
+function clampNumber(value, min = 0, max = Number.MAX_SAFE_INTEGER) {
+  return Math.min(max, Math.max(min, toNumber(value, min)));
+}
+
 function saveDB() {
-  localStorage.setItem('farmUltimateDB', JSON.stringify(db));
+  localStorage.setItem(DB_KEY, JSON.stringify(db));
 }
 
 function formatMoney(value) {
   return `${Number(value || 0).toFixed(1)} ج`;
-}
-
-function showToast(message, type = 'success') {
-  const oldToast = document.getElementById('toastMsg');
-  if (oldToast) oldToast.remove();
-
-  const toast = document.createElement('div');
-  toast.id = 'toastMsg';
-  toast.className = `toast ${type}`;
-  toast.innerText = message;
-  document.body.appendChild(toast);
-
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateY(-8px)';
-  }, 2200);
-
-  setTimeout(() => toast.remove(), 2600);
-}
-
-function saveConfig() {
-  db.config.machinePrice = parseFloat(document.getElementById('machinePrice').value) || 0;
-  db.config.machineLife = parseFloat(document.getElementById('machineLife').value) || 1;
-  db.config.laborRate = parseFloat(document.getElementById('laborRate').value) || 0;
-  saveDB();
-  calc();
-}
-
-function updateUI() {
-  const invUI = document.getElementById('inventoryUI');
-  const amsInp = document.getElementById('amsInputs');
-  invUI.innerHTML = '';
-  amsInp.innerHTML = '';
-
-  db.inventory.forEach(item => {
-    const perc = item.weight > 0 ? (item.stock / item.weight) * 100 : 0;
-
-    invUI.innerHTML += `
-      <div class="stock-item ${item.stock < 150 ? 'low' : ''}">
-        <div class="stock-header">
-          <span>${escapeHtml(item.name)}</span>
-          <span>${item.stock.toFixed(0)}g</span>
-        </div>
-        <div class="stock-bar">
-          <div class="stock-progress" style="width:${Math.min(100, Math.max(0, perc))}%"></div>
-        </div>
-      </div>
-    `;
-
-    amsInp.innerHTML += `
-      <div class="form-group">
-        <label>${escapeHtml(item.name)}</label>
-        <input type="number" class="ams-weight" data-id="${item.id}" placeholder="جرام" oninput="calc()">
-      </div>
-    `;
-  });
-
-  document.getElementById('nextOrderCode').innerText = db.sales.length + 1001;
 }
 
 function escapeHtml(value) {
@@ -87,104 +144,284 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-function calc() {
-  let matCost = 0;
+function escapeJsString(value) {
+  return String(value ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'");
+}
 
-  document.querySelectorAll('.ams-weight').forEach(inp => {
-    const id = parseInt(inp.dataset.id, 10);
-    const w = parseFloat(inp.value) || 0;
-    const item = db.inventory.find(x => x.id === id);
+function showToast(message, type = 'success') {
+  const oldToast = document.getElementById('toastMsg');
+  if (oldToast) oldToast.remove();
 
-    if (item && item.weight > 0) {
-      matCost += w * (item.price / item.weight);
+  const toast = document.createElement('div');
+  toast.id = 'toastMsg';
+  toast.className = `toast ${type}`;
+  toast.innerText = message;
+
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(-8px)';
+  }, 2200);
+
+  setTimeout(() => {
+    if (toast.parentNode) toast.remove();
+  }, 2600);
+}
+
+function getNextOrderCode() {
+  let maxNumber = 1000;
+
+  db.sales.forEach(sale => {
+    const match = String(sale.code || '').match(/ORD-(\d+)/);
+    if (match) {
+      maxNumber = Math.max(maxNumber, Number(match[1]));
     }
   });
 
-  const hours = parseFloat(document.getElementById('printHours').value) || 0;
-  const manual = parseFloat(document.getElementById('manualMins').value) || 0;
-  const margin = parseFloat(document.getElementById('profitMargin').value) || 0;
+  return `ORD-${maxNumber + 1}`;
+}
 
-  const dep = hours * (db.config.machinePrice / Math.max(db.config.machineLife, 1));
-  const labor = (manual / 60) * db.config.laborRate;
+function saveConfig() {
+  db.config.machinePrice = toPositiveNumber(document.getElementById('machinePrice').value, 0);
+  db.config.machineLife = Math.max(1, toPositiveNumber(document.getElementById('machineLife').value, 1));
+  db.config.laborRate = toPositiveNumber(document.getElementById('laborRate').value, 0);
+
+  saveDB();
+  calc();
+}
+
+function updateUI() {
+  const invUI = document.getElementById('inventoryUI');
+  const amsInp = document.getElementById('amsInputs');
+  const nextOrderCode = document.getElementById('nextOrderCode');
+
+  if (!invUI || !amsInp || !nextOrderCode) return;
+
+  invUI.innerHTML = '';
+  amsInp.innerHTML = '';
+
+  if (!db.inventory.length) {
+    invUI.innerHTML = `<div class="empty-state">لا توجد خامات مضافة حاليًا.</div>`;
+    amsInp.innerHTML = `<div class="empty-state">أضف خامة أولًا لكي يظهر إدخال الاستهلاك.</div>`;
+    nextOrderCode.innerText = getNextOrderCode().replace('ORD-', '');
+    return;
+  }
+
+  db.inventory.forEach(item => {
+    const weight = Math.max(item.weight, 1);
+    const percentage = clampNumber((item.stock / weight) * 100, 0, 100);
+
+    invUI.innerHTML += `
+      <div class="stock-item ${item.stock < 150 ? 'low' : ''}">
+        <div class="stock-header">
+          <span>${escapeHtml(item.name)}</span>
+          <span>${item.stock.toFixed(0)}g / ${item.weight.toFixed(0)}g</span>
+        </div>
+        <div class="stock-bar">
+          <div class="stock-progress" style="width:${percentage}%"></div>
+        </div>
+      </div>
+    `;
+
+    amsInp.innerHTML += `
+      <div class="form-group">
+        <label>${escapeHtml(item.name)}</label>
+        <input
+          type="number"
+          class="ams-weight"
+          data-id="${escapeHtml(item.id)}"
+          placeholder="جرام"
+          min="0"
+          step="0.1"
+          oninput="calc()"
+        >
+      </div>
+    `;
+  });
+
+  nextOrderCode.innerText = getNextOrderCode().replace('ORD-', '');
+}
+
+function getMaterialUsageFromInputs() {
+  const usage = [];
+
+  document.querySelectorAll('.ams-weight').forEach(input => {
+    const id = input.dataset.id;
+    const grams = toPositiveNumber(input.value, 0);
+    const item = db.inventory.find(x => String(x.id) === String(id));
+
+    if (item && grams > 0) {
+      usage.push({
+        id: item.id,
+        name: item.name,
+        grams,
+        pricePerGram: item.weight > 0 ? item.price / item.weight : 0,
+        stock: item.stock
+      });
+    }
+  });
+
+  return usage;
+}
+
+function calc() {
+  const materialUsage = getMaterialUsageFromInputs();
+
+  let matCost = 0;
+  materialUsage.forEach(entry => {
+    matCost += entry.grams * entry.pricePerGram;
+  });
+
+  const hours = toPositiveNumber(document.getElementById('printHours')?.value, 0);
+  const manual = toPositiveNumber(document.getElementById('manualMins')?.value, 0);
+  const margin = toPositiveNumber(document.getElementById('profitMargin')?.value, 0);
+
+  const machineLife = Math.max(1, toPositiveNumber(db.config.machineLife, 1));
+  const dep = hours * (toPositiveNumber(db.config.machinePrice, 0) / machineLife);
+  const labor = (manual / 60) * toPositiveNumber(db.config.laborRate, 0);
+
   const packaging = 10;
   const failRate = 0.10;
-  const extras = packaging + ((matCost + dep + labor + packaging) * failRate);
-
   const baseCost = matCost + dep + labor + packaging;
+  const extras = packaging + (baseCost * failRate);
   const finalCost = baseCost * (1 + failRate);
   const finalPrice = Math.ceil(finalCost + (finalCost * (margin / 100)));
 
-  document.getElementById('resMat').innerText = formatMoney(matCost);
-  document.getElementById('resDep').innerText = formatMoney(dep);
-  document.getElementById('resLabor').innerText = formatMoney(labor);
-  document.getElementById('resExtras').innerText = formatMoney(extras);
-  document.getElementById('resTotal').innerText = formatMoney(finalCost);
-  document.getElementById('resFinal').innerText = `${finalPrice} ج`;
+  setText('resMat', formatMoney(matCost));
+  setText('resDep', formatMoney(dep));
+  setText('resLabor', formatMoney(labor));
+  setText('resExtras', formatMoney(extras));
+  setText('resTotal', formatMoney(finalCost));
+  setText('resFinal', `${finalPrice} ج`);
 
   currentCalc = {
-    cost: finalCost,
-    price: finalPrice,
-    matCost,
-    dep,
-    labor,
-    extras
+    cost: Number(finalCost.toFixed(2)),
+    price: Number(finalPrice.toFixed(2)),
+    matCost: Number(matCost.toFixed(2)),
+    dep: Number(dep.toFixed(2)),
+    labor: Number(labor.toFixed(2)),
+    extras: Number(extras.toFixed(2)),
+    materialUsage
   };
 }
 
-function resetOrderForm() {
-  document.getElementById('itemName').value = '';
-  document.getElementById('customerName').value = '';
-  document.getElementById('orderNotes').value = '';
-  document.getElementById('printHours').value = '';
-  document.getElementById('manualMins').value = '15';
-  document.getElementById('profitMargin').value = '100';
-  document.getElementById('opDate').valueAsDate = new Date();
-
-  document.querySelectorAll('.ams-weight').forEach(inp => {
-    inp.value = '';
-  });
-
-  currentCalc = { cost: 0, price: 0, matCost: 0, dep: 0, labor: 0, extras: 0 };
-  document.getElementById('resMat').innerText = '0 ج';
-  document.getElementById('resDep').innerText = '0 ج';
-  document.getElementById('resLabor').innerText = '0 ج';
-  document.getElementById('resExtras').innerText = '0 ج';
-  document.getElementById('resTotal').innerText = '0 ج';
-  document.getElementById('resFinal').innerText = '0 ج';
-
-  updateUI();
-  document.getElementById('itemName').focus();
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.innerText = value;
 }
 
-function saveSale() {
-  const name = document.getElementById('itemName').value.trim();
-  const customerName = document.getElementById('customerName').value.trim();
-  const notes = document.getElementById('orderNotes').value.trim();
-  const opDate = document.getElementById('opDate').value;
+function resetResultsPanel() {
+  setText('resMat', '0 ج');
+  setText('resDep', '0 ج');
+  setText('resLabor', '0 ج');
+  setText('resExtras', '0 ج');
+  setText('resTotal', '0 ج');
+  setText('resFinal', '0 ج');
+}
+
+function resetOrderForm() {
+  const itemName = document.getElementById('itemName');
+  const customerName = document.getElementById('customerName');
+  const orderNotes = document.getElementById('orderNotes');
+  const printHours = document.getElementById('printHours');
+  const manualMins = document.getElementById('manualMins');
+  const profitMargin = document.getElementById('profitMargin');
+  const opDate = document.getElementById('opDate');
+
+  if (itemName) itemName.value = '';
+  if (customerName) customerName.value = '';
+  if (orderNotes) orderNotes.value = '';
+  if (printHours) printHours.value = '';
+  if (manualMins) manualMins.value = '15';
+  if (profitMargin) profitMargin.value = '100';
+  if (opDate) opDate.valueAsDate = new Date();
+
+  document.querySelectorAll('.ams-weight').forEach(input => {
+    input.value = '';
+  });
+
+  currentCalc = {
+    cost: 0,
+    price: 0,
+    matCost: 0,
+    dep: 0,
+    labor: 0,
+    extras: 0,
+    materialUsage: []
+  };
+
+  resetResultsPanel();
+  updateUI();
+
+  if (itemName) itemName.focus();
+}
+
+function validateOrderBeforeSave() {
+  const name = document.getElementById('itemName')?.value.trim() || '';
+  const printHours = toPositiveNumber(document.getElementById('printHours')?.value, 0);
+  const materialUsage = getMaterialUsageFromInputs();
 
   if (!name) {
     showToast('اكتب اسم المجسم الأول', 'error');
-    document.getElementById('itemName').focus();
-    return;
+    document.getElementById('itemName')?.focus();
+    return { valid: false };
   }
 
-  if (currentCalc.price <= 0) {
+  if (printHours <= 0) {
+    showToast('اكتب وقت الطباعة بشكل صحيح', 'error');
+    document.getElementById('printHours')?.focus();
+    return { valid: false };
+  }
+
+  if (!materialUsage.length) {
+    showToast('أدخل استهلاك خامة واحد على الأقل', 'error');
+    return { valid: false };
+  }
+
+  if (currentCalc.price <= 0 || currentCalc.cost <= 0) {
     showToast('دخل بيانات الأوردر بشكل صحيح الأول', 'error');
-    return;
+    return { valid: false };
   }
 
-  document.querySelectorAll('.ams-weight').forEach(inp => {
-    const id = parseInt(inp.dataset.id, 10);
-    const w = parseFloat(inp.value) || 0;
-    const item = db.inventory.find(x => x.id === id);
+  for (const entry of materialUsage) {
+    const item = db.inventory.find(x => x.id === entry.id);
+    if (!item) {
+      showToast(`الخامة ${entry.name} غير موجودة`, 'error');
+      return { valid: false };
+    }
 
+    if (entry.grams > item.stock) {
+      showToast(`المخزون غير كافٍ في ${entry.name}`, 'error');
+      return { valid: false };
+    }
+  }
+
+  return { valid: true, name, materialUsage };
+}
+
+function saveSale() {
+  const validation = validateOrderBeforeSave();
+  if (!validation.valid) return;
+
+  const name = validation.name;
+  const customerName = document.getElementById('customerName')?.value.trim() || '';
+  const notes = document.getElementById('orderNotes')?.value.trim() || '';
+  const opDate = document.getElementById('opDate')?.value || new Date().toISOString().slice(0, 10);
+  const code = getNextOrderCode();
+
+  validation.materialUsage.forEach(entry => {
+    const item = db.inventory.find(x => x.id === entry.id);
     if (item) {
-      item.stock = Math.max(0, item.stock - w);
+      item.stock = Number((item.stock - entry.grams).toFixed(2));
+      if (item.stock < 0) item.stock = 0;
     }
   });
 
   db.sales.push({
-    code: 'ORD-' + (db.sales.length + 1001),
+    code,
     date: opDate,
     name,
     customer: customerName,
@@ -196,6 +433,7 @@ function saveSale() {
 
   saveDB();
   resetOrderForm();
+  calc();
   showToast('تم تسجيل الأوردر وخصم المخزن بنجاح');
 }
 
@@ -205,50 +443,78 @@ function getFilteredSales() {
   const to = document.getElementById('filterTo')?.value || '';
 
   return [...db.sales]
-    .filter(s => {
-      const code = (s.code || '').toLowerCase();
-      const name = (s.name || '').toLowerCase();
-      const customer = (s.customer || '').toLowerCase();
-      const matchesSearch = !search || code.includes(search) || name.includes(search) || customer.includes(search);
-      const matchesFrom = !from || (s.date && s.date >= from);
-      const matchesTo = !to || (s.date && s.date <= to);
+    .filter(sale => {
+      const code = (sale.code || '').toLowerCase();
+      const name = (sale.name || '').toLowerCase();
+      const customer = (sale.customer || '').toLowerCase();
+      const notes = (sale.notes || '').toLowerCase();
+
+      const matchesSearch =
+        !search ||
+        code.includes(search) ||
+        name.includes(search) ||
+        customer.includes(search) ||
+        notes.includes(search);
+
+      const matchesFrom = !from || (sale.date && sale.date >= from);
+      const matchesTo = !to || (sale.date && sale.date <= to);
+
       return matchesSearch && matchesFrom && matchesTo;
     })
-    .reverse();
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || String(b.code || '').localeCompare(String(a.code || '')));
 }
 
 function openReports() {
-  document.getElementById('reportsModal').style.display = 'flex';
+  const modal = document.getElementById('reportsModal');
+  if (!modal) return;
+
+  modal.style.display = 'flex';
+  modal.setAttribute('aria-hidden', 'false');
   renderReportsTable();
+}
+
+function closeReports() {
+  const modal = document.getElementById('reportsModal');
+  if (!modal) return;
+
+  modal.style.display = 'none';
+  modal.setAttribute('aria-hidden', 'true');
 }
 
 function renderReportsTable() {
   const body = document.getElementById('salesTableBody');
+  if (!body) return;
+
   body.innerHTML = '';
 
   const filteredSales = getFilteredSales();
+
   let rev = 0;
   let prof = 0;
   let top = 0;
 
-  filteredSales.forEach(s => {
-    rev += Number(s.price || 0);
-    prof += Number(s.profit || 0);
-    top = Math.max(top, Number(s.price || 0));
+  filteredSales.forEach(sale => {
+    const price = toPositiveNumber(sale.price, 0);
+    const cost = toPositiveNumber(sale.cost, 0);
+    const profit = Number((price - cost).toFixed(2));
+
+    rev += price;
+    prof += profit;
+    top = Math.max(top, price);
 
     body.innerHTML += `
       <tr>
-        <td>${escapeHtml(s.code)}</td>
-        <td>${escapeHtml(s.date || '')}</td>
-        <td>${escapeHtml(s.name)}</td>
-        <td>${escapeHtml(s.customer || '')}</td>
-        <td>${escapeHtml(s.notes || '')}</td>
-        <td>${formatMoney(s.cost)}</td>
-        <td>${formatMoney(s.price)}</td>
-        <td class="tag-profit">${formatMoney(s.profit)}</td>
+        <td>${escapeHtml(sale.code)}</td>
+        <td>${escapeHtml(sale.date || '')}</td>
+        <td>${escapeHtml(sale.name)}</td>
+        <td>${escapeHtml(sale.customer || '')}</td>
+        <td>${escapeHtml(sale.notes || '')}</td>
+        <td>${formatMoney(cost)}</td>
+        <td>${formatMoney(price)}</td>
+        <td class="tag-profit">${formatMoney(profit)}</td>
         <td>
-          <button class="action-btn edit" onclick="openEditSale('${escapeJsString(s.code)}')">تعديل</button>
-          <button class="action-btn delete" onclick="deleteSale('${escapeJsString(s.code)}')">حذف</button>
+          <button class="action-btn edit" onclick="openEditSale('${escapeJsString(sale.code)}')">تعديل</button>
+          <button class="action-btn delete" onclick="deleteSale('${escapeJsString(sale.code)}')">حذف</button>
         </td>
       </tr>
     `;
@@ -264,30 +530,44 @@ function renderReportsTable() {
     `;
   }
 
-  document.getElementById('statRev').innerText = `${Math.round(rev)} ج`;
-  document.getElementById('statProfit').innerText = `${Math.round(prof)} ج`;
-  document.getElementById('statCount').innerText = filteredSales.length;
-  document.getElementById('statTop').innerText = `${Math.round(top)} ج`;
+  setText('statRev', `${Math.round(rev)} ج`);
+  setText('statProfit', `${Math.round(prof)} ج`);
+  setText('statCount', String(filteredSales.length));
+  setText('statTop', `${Math.round(top)} ج`);
 }
 
-function escapeJsString(value) {
-  return String(value ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+function renderReportsTableSafe() {
+  const modal = document.getElementById('reportsModal');
+  if (modal && modal.style.display === 'flex') {
+    renderReportsTable();
+  }
 }
 
 function deleteSale(code) {
+  const exists = db.sales.some(sale => sale.code === code);
+  if (!exists) {
+    showToast('الأوردر غير موجود', 'error');
+    return;
+  }
+
   if (!confirm('مسح الأوردر؟')) return;
-  db.sales = db.sales.filter(s => s.code !== code);
+
+  db.sales = db.sales.filter(sale => sale.code !== code);
   saveDB();
   updateUI();
-  renderReportsTable();
+  renderReportsTableSafe();
   showToast('تم حذف الأوردر', 'success');
 }
 
 function openEditSale(code) {
   const sale = db.sales.find(s => s.code === code);
-  if (!sale) return;
+  if (!sale) {
+    showToast('الأوردر غير موجود', 'error');
+    return;
+  }
 
   editingCode = code;
+
   document.getElementById('editCode').value = sale.code || '';
   document.getElementById('editDate').value = sale.date || '';
   document.getElementById('editName').value = sale.name || '';
@@ -296,11 +576,18 @@ function openEditSale(code) {
   document.getElementById('editCost').value = sale.cost ?? 0;
   document.getElementById('editPrice').value = sale.price ?? 0;
 
-  document.getElementById('editModal').style.display = 'flex';
+  const modal = document.getElementById('editModal');
+  modal.style.display = 'flex';
+  modal.setAttribute('aria-hidden', 'false');
 }
 
 function closeEditModal() {
-  document.getElementById('editModal').style.display = 'none';
+  const modal = document.getElementById('editModal');
+  if (modal) {
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
   editingCode = null;
 }
 
@@ -315,11 +602,12 @@ function saveEditedSale() {
   const name = document.getElementById('editName').value.trim();
   const customer = document.getElementById('editCustomer').value.trim();
   const notes = document.getElementById('editNotes').value.trim();
-  const cost = parseFloat(document.getElementById('editCost').value);
-  const price = parseFloat(document.getElementById('editPrice').value);
+  const cost = toNumber(document.getElementById('editCost').value, NaN);
+  const price = toNumber(document.getElementById('editPrice').value, NaN);
 
   if (!name) {
     showToast('اسم المجسم مطلوب', 'error');
+    document.getElementById('editName').focus();
     return;
   }
 
@@ -338,24 +626,29 @@ function saveEditedSale() {
 
   saveDB();
   closeEditModal();
-  renderReportsTable();
+  renderReportsTableSafe();
   updateUI();
   showToast('تم تعديل الأوردر بنجاح');
 }
 
-function closeReports() {
-  document.getElementById('reportsModal').style.display = 'none';
-}
-
 function addStockPrompt() {
   const name = prompt('اسم الخامة:');
+  if (name === null) return;
+
   const price = prompt('سعر البكرة:');
+  if (price === null) return;
+
   const weight = prompt('وزن البكرة بالجرام (مثلا 1000):');
+  if (weight === null) return;
 
-  if (!name || !price || !weight) return;
+  const cleanName = String(name).trim();
+  const priceNum = toNumber(price, NaN);
+  const weightNum = toNumber(weight, NaN);
 
-  const priceNum = parseFloat(price);
-  const weightNum = parseFloat(weight);
+  if (!cleanName) {
+    showToast('اسم الخامة مطلوب', 'error');
+    return;
+  }
 
   if (!Number.isFinite(priceNum) || priceNum <= 0 || !Number.isFinite(weightNum) || weightNum <= 0) {
     showToast('بيانات الخامة غير صحيحة', 'error');
@@ -364,10 +657,10 @@ function addStockPrompt() {
 
   db.inventory.push({
     id: Date.now(),
-    name: name.trim(),
-    price: priceNum,
-    weight: weightNum,
-    stock: weightNum
+    name: cleanName,
+    price: Number(priceNum.toFixed(2)),
+    weight: Number(weightNum.toFixed(2)),
+    stock: Number(weightNum.toFixed(2))
   });
 
   saveDB();
@@ -379,28 +672,32 @@ function addStockPrompt() {
 function exportBackupJSON() {
   const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'farm_backup.json';
-  a.click();
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = `farm_backup_${new Date().toISOString().slice(0, 10)}.json`;
+  link.click();
+
   URL.revokeObjectURL(url);
   showToast('تم تحميل النسخة الاحتياطية');
 }
 
-function importBackupJSON(e) {
-  const file = e.target.files[0];
+function importBackupJSON(event) {
+  const file = event.target.files?.[0];
   if (!file) return;
 
   const reader = new FileReader();
-  reader.onload = (event) => {
-    try {
-      const parsed = JSON.parse(event.target.result);
 
-      if (!parsed || !Array.isArray(parsed.inventory) || !Array.isArray(parsed.sales) || !parsed.config) {
+  reader.onload = (e) => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      const normalized = normalizeDB(parsed);
+
+      if (!normalized.config || !Array.isArray(normalized.inventory) || !Array.isArray(normalized.sales)) {
         throw new Error('invalid');
       }
 
-      db = parsed;
+      db = normalized;
       saveDB();
       updateUI();
       resetOrderForm();
@@ -409,16 +706,11 @@ function importBackupJSON(e) {
     } catch {
       showToast('ملف الاستيراد غير صالح', 'error');
     } finally {
-      e.target.value = '';
+      event.target.value = '';
     }
   };
-  reader.readAsText(file);
-}
 
-function renderReportsTableSafe() {
-  if (document.getElementById('reportsModal').style.display === 'flex') {
-    renderReportsTable();
-  }
+  reader.readAsText(file);
 }
 
 window.onclick = function(event) {
@@ -430,10 +722,13 @@ window.onclick = function(event) {
 };
 
 window.onload = () => {
-  document.getElementById('opDate').valueAsDate = new Date();
+  const opDate = document.getElementById('opDate');
+  if (opDate) opDate.valueAsDate = new Date();
+
   document.getElementById('machinePrice').value = db.config.machinePrice ?? 60000;
   document.getElementById('machineLife').value = db.config.machineLife ?? 5000;
   document.getElementById('laborRate').value = db.config.laborRate ?? 50;
+
   updateUI();
   calc();
 };
