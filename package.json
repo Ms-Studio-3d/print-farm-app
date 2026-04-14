@@ -1,0 +1,14 @@
+{
+  "name": "print-farm-app",
+  "version": "1.0.0",
+  "description": "Desktop app for 3D print farm management",
+  "main": "main.js",
+  "author": "Ms-Studio-3d",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^31.0.2"
+  }
+}
