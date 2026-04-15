@@ -73,11 +73,12 @@ function createMainWindow() {
   }
 
   mainWindow = new BrowserWindow({
-    width: 1600,
-    height: 950,
-    minWidth: 1200,
-    minHeight: 750,
+    width: 980,
+    height: 720,
+    minWidth: 900,
+    minHeight: 640,
     show: false,
+    center: true,
     autoHideMenuBar: true,
     backgroundColor: '#f1f5f9',
     title: '3D Printing Business Manager',
@@ -94,7 +95,6 @@ function createMainWindow() {
 
   mainWindow.once('ready-to-show', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
-    mainWindow.maximize();
     mainWindow.show();
   });
 
