@@ -4,37 +4,83 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Print Farm App</title>
-  <meta name="description" content="تطبيق لإدارة مزرعة الطباعة ثلاثية الأبعاد والمخزون والمبيعات والتسعير" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <meta
+    name="description"
+    content="تطبيق لإدارة مزرعة الطباعة ثلاثية الأبعاد والطابعات والمخزون والتسعير والمبيعات والتقارير"
+  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="app-shell">
     <header class="topbar">
       <div>
         <h1 class="app-title">Print Farm App</h1>
-        <p class="app-subtitle">إدارة الطباعة ثلاثية الأبعاد والمخزون والتسعير والمبيعات</p>
+        <p class="app-subtitle">
+          إدارة الطابعات والمخزون والتسعير والأوردرات والمبيعات والتقارير
+        </p>
       </div>
+
       <div class="topbar-actions">
-        <button class="btn btn-dark" onclick="openReports()">📊 لوحة التقارير</button>
+        <button class="btn btn-dark" onclick="openSettingsModal()">⚙️ الإعدادات</button>
+        <button class="btn btn-dark" onclick="openReports()">📊 التقارير</button>
       </div>
     </header>
 
-    <main class="grid-main">
-      <aside class="side-panel">
+    <main class="dashboard-layout">
+      <aside class="left-column">
         <section class="card">
           <div class="section-head">
-            <h3>📦 حالة المخزن الذكي</h3>
+            <h3>🖨️ الطابعات</h3>
+            <span class="section-badge">Printers</span>
+          </div>
+
+          <div class="kpi-grid">
+            <div class="mini-kpi">
+              <span>إجمالي الطابعات</span>
+              <strong id="printersCount">0</strong>
+            </div>
+            <div class="mini-kpi">
+              <span>الشغالة الآن</span>
+              <strong id="activePrintersCount">0</strong>
+            </div>
+          </div>
+
+          <div id="printersList" class="stack-list"></div>
+
+          <button class="btn btn-primary" style="margin-top: 12px;" onclick="openPrinterModal()">
+            + إضافة طابعة
+          </button>
+        </section>
+
+        <section class="card">
+          <div class="section-head">
+            <h3>📦 المخزون</h3>
             <span class="section-badge">Inventory</span>
           </div>
 
-          <div id="inventoryUI"></div>
+          <div class="kpi-grid">
+            <div class="mini-kpi">
+              <span>عدد الخامات</span>
+              <strong id="materialsCount">0</strong>
+            </div>
+            <div class="mini-kpi">
+              <span>منخفضة المخزون</span>
+              <strong id="lowStockCount">0</strong>
+            </div>
+          </div>
 
-          <button class="btn btn-primary" style="margin-top:10px" onclick="addStockPrompt()">
-            + شراء بكرة جديدة
-          </button>
+          <div id="inventoryUI" class="stack-list"></div>
+
+          <div class="inline-actions" style="margin-top: 12px;">
+            <button class="btn btn-primary" onclick="openMaterialModal()">+ إضافة خامة</button>
+            <button class="btn btn-secondary" onclick="openStockMovementsModal()">📜 حركة المخزون</button>
+          </div>
         </section>
 
         <section class="card">
@@ -44,8 +90,9 @@
           </div>
 
           <div class="inline-actions" style="margin-top: 10px;">
-            <button class="btn btn-primary" style="font-size:12px" onclick="exportBackupJSON()">تصدير JSON</button>
-            <label class="btn btn-primary" style="font-size:12px; text-align:center; cursor:pointer">
+            <button class="btn btn-primary" onclick="exportBackupJSON()">تصدير JSON</button>
+
+            <label class="btn btn-secondary" style="text-align:center; cursor:pointer;">
               استيراد JSON
               <input
                 type="file"
@@ -53,61 +100,81 @@
                 hidden
                 onchange="importBackupJSON(event)"
                 accept="application/json"
-              >
+              />
             </label>
           </div>
         </section>
       </aside>
 
-      <section class="center-panel">
+      <section class="center-column">
         <section class="card">
           <div class="section-head">
-            <h3>📝 بيانات المشروع</h3>
-            <span class="section-badge">ORD-<span id="nextOrderCode">...</span></span>
+            <h3>📝 تسجيل أوردر جديد</h3>
+            <span class="section-badge">
+              ORD-<span id="nextOrderCode">...</span>
+            </span>
           </div>
 
-          <div class="grid-2">
+          <div class="grid-3">
             <div class="form-group">
               <label for="itemName">اسم المجسم *</label>
-              <input type="text" id="itemName" placeholder="مثال: تنين مفصلي">
+              <input type="text" id="itemName" placeholder="مثال: تنين مفصلي" />
             </div>
 
             <div class="form-group">
               <label for="customerName">اسم العميل</label>
-              <input type="text" id="customerName" placeholder="اختياري">
+              <input type="text" id="customerName" placeholder="اختياري" />
+            </div>
+
+            <div class="form-group">
+              <label for="selectedPrinter">الطابعة المستخدمة *</label>
+              <select id="selectedPrinter" onchange="calc()"></select>
             </div>
           </div>
 
-          <div class="grid-2" style="margin-top: 10px;">
+          <div class="grid-3" style="margin-top: 10px;">
             <div class="form-group">
               <label for="printHours">وقت الطباعة (ساعات) *</label>
-              <input type="number" id="printHours" value="0" step="0.1" min="0" oninput="calc()">
+              <input type="number" id="printHours" value="0" step="0.1" min="0" oninput="calc()" />
             </div>
 
             <div class="form-group">
               <label for="manualMins">شغل يدوي (دقائق)</label>
-              <input type="number" id="manualMins" value="15" min="0" oninput="calc()">
+              <input type="number" id="manualMins" value="15" min="0" oninput="calc()" />
+            </div>
+
+            <div class="form-group">
+              <label for="opDate">تاريخ العملية</label>
+              <input type="date" id="opDate" onchange="calc()" />
             </div>
           </div>
 
           <div class="grid-2" style="margin-top: 10px;">
             <div class="form-group">
-              <label for="orderNotes">ملاحظات الأوردر</label>
-              <textarea id="orderNotes" placeholder="اختياري"></textarea>
+              <label for="orderStatus">حالة الأوردر</label>
+              <select id="orderStatus">
+                <option value="new">جديد</option>
+                <option value="printing">قيد الطباعة</option>
+                <option value="finished">جاهز</option>
+                <option value="delivered">تم التسليم</option>
+                <option value="cancelled">ملغي</option>
+              </select>
             </div>
 
             <div class="form-group">
-              <label>ملاحظات مهمة</label>
-              <div class="field-note">
-                بعد الحفظ سيتم تصفير بيانات الأوردر الحالي فقط، بدون المساس بالمخزن أو الإعدادات.
-              </div>
+              <label for="orderNotes">ملاحظات الأوردر</label>
+              <textarea id="orderNotes" placeholder="اختياري"></textarea>
             </div>
+          </div>
+
+          <div class="field-note" style="margin-top: 12px;">
+            بعد الحفظ، الأوردر هيتسجل في المبيعات، والخامات هتتخصم من المخزون، وحركة المخزون هتتحفظ تلقائيًا.
           </div>
         </section>
 
         <section class="card">
           <div class="section-head">
-            <h3>🎨 استهلاك الألوان من الـ AMS</h3>
+            <h3>🎨 استهلاك الخامات</h3>
             <span class="section-badge">Materials</span>
           </div>
 
@@ -116,104 +183,174 @@
 
         <section class="card">
           <div class="section-head">
-            <h3>⚙️ ثوابت التشغيل</h3>
-            <span class="section-badge">Auto Save</span>
+            <h3>⚙️ إعدادات التسعير</h3>
+            <span class="section-badge">Pricing Rules</span>
           </div>
 
           <div class="grid-3">
             <div class="form-group">
-              <label for="machinePrice">سعر الماكينة</label>
-              <input type="number" id="machinePrice" value="60000" min="0" onchange="saveConfig()">
-            </div>
-
-            <div class="form-group">
-              <label for="machineLife">العمر (ساعة)</label>
-              <input type="number" id="machineLife" value="5000" min="1" onchange="saveConfig()">
-            </div>
-
-            <div class="form-group">
               <label for="laborRate">أجرتك (ساعة)</label>
-              <input type="number" id="laborRate" value="50" min="0" onchange="saveConfig()">
+              <input type="number" id="laborRate" value="50" min="0" onchange="saveConfig(); calc();" />
+            </div>
+
+            <div class="form-group">
+              <label for="electricityCostPerHour">كهرباء/ساعة</label>
+              <input
+                type="number"
+                id="electricityCostPerHour"
+                value="3"
+                min="0"
+                step="0.01"
+                onchange="saveConfig(); calc();"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="packagingCost">التغليف</label>
+              <input
+                type="number"
+                id="packagingCost"
+                value="10"
+                min="0"
+                step="0.01"
+                onchange="saveConfig(); calc();"
+              />
+            </div>
+          </div>
+
+          <div class="grid-3" style="margin-top: 10px;">
+            <div class="form-group">
+              <label for="failurePercent">نسبة الهالك / المخاطرة (%)</label>
+              <input
+                type="number"
+                id="failurePercent"
+                value="10"
+                min="0"
+                step="0.01"
+                onchange="saveConfig(); calc();"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="shippingCost">الشحن/مصاريف إضافية</label>
+              <input
+                type="number"
+                id="shippingCost"
+                value="0"
+                min="0"
+                step="0.01"
+                onchange="saveConfig(); calc();"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="profitMargin">نسبة المكسب (%)</label>
+              <input
+                type="number"
+                id="profitMargin"
+                value="100"
+                min="0"
+                step="0.01"
+                oninput="calc()"
+              />
             </div>
           </div>
         </section>
+
+        <section class="card">
+          <div class="section-head">
+            <h3>📋 آخر الأوردرات</h3>
+            <span class="section-badge">Recent Orders</span>
+          </div>
+
+          <div id="recentOrdersList" class="stack-list"></div>
+        </section>
       </section>
 
-      <aside class="results-panel">
-        <div class="results-panel-inner">
+      <aside class="right-column">
+        <section class="card result-card sticky-card">
           <div class="section-head section-head-light">
-            <h3>💰 ملخص التكاليف</h3>
-            <span class="section-badge section-badge-light">Pricing</span>
+            <h3>💰 ملخص التسعير</h3>
+            <span class="section-badge section-badge-light">Live</span>
           </div>
 
           <div class="res-row">
-            <span>تكلفة البلاستيك:</span>
+            <span>تكلفة الخامات</span>
             <span id="resMat">0 ج</span>
           </div>
 
           <div class="res-row">
-            <span>إهلاك الماكينة:</span>
+            <span>إهلاك الطابعة</span>
             <span id="resDep">0 ج</span>
           </div>
 
           <div class="res-row">
-            <span>أجرتك اليدوية:</span>
+            <span>الكهرباء</span>
+            <span id="resElectricity">0 ج</span>
+          </div>
+
+          <div class="res-row">
+            <span>الشغل اليدوي</span>
             <span id="resLabor">0 ج</span>
           </div>
 
           <div class="res-row">
-            <span>تغليف + تأمين:</span>
-            <span id="resExtras">0 ج</span>
+            <span>التغليف</span>
+            <span id="resPackaging">0 ج</span>
+          </div>
+
+          <div class="res-row">
+            <span>الشحن / الإضافات</span>
+            <span id="resShipping">0 ج</span>
+          </div>
+
+          <div class="res-row">
+            <span>الهالك / المخاطرة</span>
+            <span id="resRisk">0 ج</span>
           </div>
 
           <div class="res-row total-row">
-            <span>إجمالي التكلفة عليك:</span>
+            <span>إجمالي التكلفة</span>
             <span id="resTotal" class="total-value">0 ج</span>
           </div>
 
-          <div class="form-group" style="margin-top:20px">
-            <label for="profitMargin" class="light-label">نسبة المكسب (%)</label>
-            <input
-              type="number"
-              id="profitMargin"
-              value="100"
-              min="0"
-              oninput="calc()"
-              style="background:#334155; color:white; border:none;"
-            >
-          </div>
-
-          <div class="form-group">
-            <label for="opDate" class="light-label">تاريخ العملية</label>
-            <input type="date" id="opDate" style="background:#334155; color:white; border:none;">
-          </div>
-
           <div class="final-price-box">
-            <h4 style="margin:0;color:#ecfdf5;">السعر المقترح للبيع</h4>
+            <h4 style="margin:0;color:#ecfdf5;">سعر البيع المقترح</h4>
             <div class="price" id="resFinal">0 ج</div>
-            <button class="btn btn-save" onclick="saveSale()">🚀 تسجيل وخصم المخزن</button>
+            <button class="btn btn-save" onclick="saveSale()">🚀 تسجيل الأوردر وخصم المخزون</button>
           </div>
-        </div>
+        </section>
+
+        <section class="card">
+          <div class="section-head">
+            <h3>🚨 تنبيهات سريعة</h3>
+            <span class="section-badge">Alerts</span>
+          </div>
+
+          <div id="alertsList" class="stack-list"></div>
+        </section>
       </aside>
     </main>
   </div>
 
   <div class="modal" id="reportsModal" aria-hidden="true">
-    <div class="modal-content">
+    <div class="modal-content modal-xl">
       <div class="modal-head">
-        <h2 style="margin:0;">📊 لوحة تحكم المزرعة والتقارير</h2>
-        <button onclick="closeReports()" class="btn btn-danger" style="width:auto; padding:10px 18px;">إغلاق</button>
+        <h2 style="margin:0;">📊 التقارير والمبيعات</h2>
+        <button onclick="closeReports()" class="btn btn-danger" style="width:auto; padding:10px 18px;">
+          إغلاق
+        </button>
       </div>
 
       <div class="stats-grid">
         <div class="stat-box">
           <h4>إجمالي الإيراد</h4>
-          <div id="statRev" style="color:var(--primary)">0</div>
+          <div id="statRev">0</div>
         </div>
 
         <div class="stat-box">
           <h4>صافي الربح</h4>
-          <div id="statProfit" style="color:var(--secondary)">0</div>
+          <div id="statProfit">0</div>
         </div>
 
         <div class="stat-box">
@@ -223,29 +360,51 @@
 
         <div class="stat-box">
           <h4>أعلى بيعة</h4>
-          <div id="statTop" style="color:var(--warning)">0</div>
+          <div id="statTop">0</div>
+        </div>
+
+        <div class="stat-box">
+          <h4>طلبات ملغية</h4>
+          <div id="statCancelled">0</div>
+        </div>
+
+        <div class="stat-box">
+          <h4>أقل خامة متبقية</h4>
+          <div id="statLowestStock">-</div>
         </div>
       </div>
 
-      <div class="toolbar">
+      <div class="toolbar toolbar-wrap">
         <div class="form-group" style="margin:0;">
-          <label for="salesSearch">بحث داخل المبيعات</label>
+          <label for="salesSearch">بحث</label>
           <input
             type="text"
             id="salesSearch"
-            placeholder="ابحث بالكود أو اسم المجسم أو اسم العميل"
+            placeholder="ابحث بالكود أو الاسم أو العميل أو الملاحظات"
             oninput="renderReportsTable()"
-          >
+          />
+        </div>
+
+        <div class="form-group" style="margin:0;">
+          <label for="filterStatus">الحالة</label>
+          <select id="filterStatus" oninput="renderReportsTable()">
+            <option value="">الكل</option>
+            <option value="new">جديد</option>
+            <option value="printing">قيد الطباعة</option>
+            <option value="finished">جاهز</option>
+            <option value="delivered">تم التسليم</option>
+            <option value="cancelled">ملغي</option>
+          </select>
         </div>
 
         <div class="form-group" style="margin:0;">
           <label for="filterFrom">من تاريخ</label>
-          <input type="date" id="filterFrom" oninput="renderReportsTable()">
+          <input type="date" id="filterFrom" oninput="renderReportsTable()" />
         </div>
 
         <div class="form-group" style="margin:0;">
           <label for="filterTo">إلى تاريخ</label>
-          <input type="date" id="filterTo" oninput="renderReportsTable()">
+          <input type="date" id="filterTo" oninput="renderReportsTable()" />
         </div>
       </div>
 
@@ -257,7 +416,8 @@
               <th>التاريخ</th>
               <th>المجسم</th>
               <th>العميل</th>
-              <th>ملاحظات</th>
+              <th>الطابعة</th>
+              <th>الحالة</th>
               <th>التكلفة</th>
               <th>البيع</th>
               <th>الربح</th>
@@ -271,52 +431,245 @@
   </div>
 
   <div class="modal" id="editModal" aria-hidden="true">
-    <div class="modal-content modal-sm">
+    <div class="modal-content modal-lg">
       <div class="modal-head">
         <h2 style="margin:0;">✏️ تعديل الأوردر</h2>
-        <button onclick="closeEditModal()" class="btn btn-danger" style="width:auto; padding:10px 18px;">إغلاق</button>
+        <button onclick="closeEditModal()" class="btn btn-danger" style="width:auto; padding:10px 18px;">
+          إغلاق
+        </button>
       </div>
 
-      <div class="grid-2" style="margin-top: 18px;">
+      <div class="grid-3" style="margin-top: 18px;">
         <div class="form-group">
           <label for="editDate">التاريخ</label>
-          <input type="date" id="editDate">
+          <input type="date" id="editDate" />
         </div>
 
         <div class="form-group">
           <label for="editCode">الكود</label>
-          <input type="text" id="editCode" readonly>
+          <input type="text" id="editCode" readonly />
+        </div>
+
+        <div class="form-group">
+          <label for="editStatus">الحالة</label>
+          <select id="editStatus">
+            <option value="new">جديد</option>
+            <option value="printing">قيد الطباعة</option>
+            <option value="finished">جاهز</option>
+            <option value="delivered">تم التسليم</option>
+            <option value="cancelled">ملغي</option>
+          </select>
         </div>
       </div>
 
-      <div class="form-group">
-        <label for="editName">اسم المجسم</label>
-        <input type="text" id="editName">
+      <div class="grid-2">
+        <div class="form-group">
+          <label for="editName">اسم المجسم</label>
+          <input type="text" id="editName" />
+        </div>
+
+        <div class="form-group">
+          <label for="editCustomer">اسم العميل</label>
+          <input type="text" id="editCustomer" />
+        </div>
       </div>
 
-      <div class="form-group">
-        <label for="editCustomer">اسم العميل</label>
-        <input type="text" id="editCustomer">
-      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label for="editPrinter">الطابعة</label>
+          <select id="editPrinter"></select>
+        </div>
 
-      <div class="form-group">
-        <label for="editNotes">ملاحظات</label>
-        <textarea id="editNotes"></textarea>
+        <div class="form-group">
+          <label for="editNotes">ملاحظات</label>
+          <textarea id="editNotes"></textarea>
+        </div>
       </div>
 
       <div class="grid-2">
         <div class="form-group">
           <label for="editCost">التكلفة</label>
-          <input type="number" id="editCost" step="0.01" min="0">
+          <input type="number" id="editCost" step="0.01" min="0" />
         </div>
 
         <div class="form-group">
           <label for="editPrice">البيع</label>
-          <input type="number" id="editPrice" step="0.01" min="0">
+          <input type="number" id="editPrice" step="0.01" min="0" />
         </div>
       </div>
 
-      <button class="btn btn-primary" style="margin-top: 10px;" onclick="saveEditedSale()">✅ حفظ التعديل</button>
+      <button class="btn btn-primary" style="margin-top: 10px;" onclick="saveEditedSale()">
+        ✅ حفظ التعديل
+      </button>
+    </div>
+  </div>
+
+  <div class="modal" id="printerModal" aria-hidden="true">
+    <div class="modal-content modal-md">
+      <div class="modal-head">
+        <h2 style="margin:0;">🖨️ إضافة / تعديل طابعة</h2>
+        <button onclick="closePrinterModal()" class="btn btn-danger" style="width:auto; padding:10px 18px;">
+          إغلاق
+        </button>
+      </div>
+
+      <input type="hidden" id="printerId" />
+
+      <div class="grid-2" style="margin-top: 18px;">
+        <div class="form-group">
+          <label for="printerName">اسم الطابعة</label>
+          <input type="text" id="printerName" />
+        </div>
+
+        <div class="form-group">
+          <label for="printerStatus">الحالة</label>
+          <select id="printerStatus">
+            <option value="idle">متاحة</option>
+            <option value="printing">تطبع الآن</option>
+            <option value="maintenance">صيانة</option>
+            <option value="offline">متوقفة</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label for="printerModel">الموديل</label>
+          <input type="text" id="printerModel" />
+        </div>
+
+        <div class="form-group">
+          <label for="printerHourlyDepreciation">إهلاك/ساعة</label>
+          <input type="number" id="printerHourlyDepreciation" min="0" step="0.01" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="printerNotes">ملاحظات</label>
+        <textarea id="printerNotes"></textarea>
+      </div>
+
+      <button class="btn btn-primary" onclick="savePrinter()">💾 حفظ الطابعة</button>
+    </div>
+  </div>
+
+  <div class="modal" id="materialModal" aria-hidden="true">
+    <div class="modal-content modal-md">
+      <div class="modal-head">
+        <h2 style="margin:0;">🎨 إضافة / تعديل خامة</h2>
+        <button onclick="closeMaterialModal()" class="btn btn-danger" style="width:auto; padding:10px 18px;">
+          إغلاق
+        </button>
+      </div>
+
+      <input type="hidden" id="materialId" />
+
+      <div class="grid-2" style="margin-top: 18px;">
+        <div class="form-group">
+          <label for="materialName">اسم الخامة</label>
+          <input type="text" id="materialName" />
+        </div>
+
+        <div class="form-group">
+          <label for="materialType">النوع</label>
+          <input type="text" id="materialType" placeholder="PLA / PETG / ABS..." />
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div class="form-group">
+          <label for="materialColor">اللون</label>
+          <input type="text" id="materialColor" />
+        </div>
+
+        <div class="form-group">
+          <label for="materialWeight">الوزن الكلي (جرام)</label>
+          <input type="number" id="materialWeight" min="1" step="0.01" />
+        </div>
+
+        <div class="form-group">
+          <label for="materialRemaining">المتبقي الحالي (جرام)</label>
+          <input type="number" id="materialRemaining" min="0" step="0.01" />
+        </div>
+      </div>
+
+      <div class="grid-3">
+        <div class="form-group">
+          <label for="materialPrice">سعر الشراء</label>
+          <input type="number" id="materialPrice" min="0" step="0.01" />
+        </div>
+
+        <div class="form-group">
+          <label for="materialLowStock">حد التنبيه</label>
+          <input type="number" id="materialLowStock" min="0" step="0.01" />
+        </div>
+
+        <div class="form-group">
+          <label for="materialSupplier">المورد</label>
+          <input type="text" id="materialSupplier" />
+        </div>
+      </div>
+
+      <button class="btn btn-primary" onclick="saveMaterial()">💾 حفظ الخامة</button>
+    </div>
+  </div>
+
+  <div class="modal" id="stockMovementsModal" aria-hidden="true">
+    <div class="modal-content modal-xl">
+      <div class="modal-head">
+        <h2 style="margin:0;">📜 حركة المخزون</h2>
+        <button onclick="closeStockMovementsModal()" class="btn btn-danger" style="width:auto; padding:10px 18px;">
+          إغلاق
+        </button>
+      </div>
+
+      <div class="table-wrap" style="margin-top: 18px;">
+        <table>
+          <thead>
+            <tr>
+              <th>التاريخ</th>
+              <th>الخامة</th>
+              <th>النوع</th>
+              <th>الكمية</th>
+              <th>السبب</th>
+              <th>المرجع</th>
+            </tr>
+          </thead>
+          <tbody id="stockMovementsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="settingsModal" aria-hidden="true">
+    <div class="modal-content modal-lg">
+      <div class="modal-head">
+        <h2 style="margin:0;">⚙️ إعدادات عامة</h2>
+        <button onclick="closeSettingsModal()" class="btn btn-danger" style="width:auto; padding:10px 18px;">
+          إغلاق
+        </button>
+      </div>
+
+      <div class="grid-3" style="margin-top: 18px;">
+        <div class="form-group">
+          <label for="farmName">اسم المشروع</label>
+          <input type="text" id="farmName" onchange="saveConfig()" />
+        </div>
+
+        <div class="form-group">
+          <label for="currencyName">العملة</label>
+          <input type="text" id="currencyName" value="ج" onchange="saveConfig()" />
+        </div>
+
+        <div class="form-group">
+          <label for="defaultTaxPercent">الضريبة (%)</label>
+          <input type="number" id="defaultTaxPercent" value="0" min="0" step="0.01" onchange="saveConfig(); calc();" />
+        </div>
+      </div>
+
+      <div class="field-note">
+        الإعدادات دي عامة على البرنامج كله، ولسه هنربطها بالكامل في `app.js` الجديد.
+      </div>
     </div>
   </div>
 
