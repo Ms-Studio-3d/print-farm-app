@@ -160,10 +160,17 @@ label {
   display: block;
 }
 
+.home-section-grid {
+  display: grid;
+  grid-template-columns: 1.08fr 0.92fr;
+  gap: 10px;
+  align-items: start;
+}
+
 .order-main-card,
 .order-materials-card,
 .order-summary-card {
-  margin-bottom: 10px;
+  margin-bottom: 0;
 }
 
 .card {
@@ -785,6 +792,7 @@ tbody tr:hover {
     padding: 12px;
   }
 
+  .home-section-grid,
   .grid-2,
   .grid-3,
   .compact-grid,
