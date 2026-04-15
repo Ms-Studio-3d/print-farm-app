@@ -1,5 +1,5 @@
 {
-  "name": "print-farm-app",
+  "name": "3D Printing Business Manager",
   "version": "1.0.0",
   "description": "Desktop app for 3D print farm management",
   "main": "main.js",
@@ -32,7 +32,7 @@
   },
   "build": {
     "appId": "com.msstudio3d.printfarm",
-    "productName": "Print Farm App",
+    "productName": "3D Printing Business Manager",
     "asar": true,
     "artifactName": "${productName}-${version}-${target}.${ext}",
     "directories": {
@@ -72,8 +72,8 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "artifactName": "${productName}-Setup-${version}.${ext}",
-      "shortcutName": "Print Farm App",
-      "uninstallDisplayName": "Print Farm App",
+      "shortcutName": "3D Printing Business Manager",
+      "uninstallDisplayName": "3D Printing Business Manager",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "runAfterFinish": true,
