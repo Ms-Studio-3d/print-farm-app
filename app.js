@@ -575,6 +575,7 @@ function calc() {
   setText('resRisk', formatMoney(riskCost + taxCost));
   setText('resTotal', formatMoney(totalCost));
   setText('resFinal', formatMoney(finalPrice));
+  setText('resProfit', formatMoney(profit));
 
   currentCalc = {
     materialCost: Number(materialCost.toFixed(2)),
@@ -601,6 +602,7 @@ function resetResultsPanel() {
   setText('resRisk', formatMoney(0));
   setText('resTotal', formatMoney(0));
   setText('resFinal', formatMoney(0));
+  setText('resProfit', formatMoney(0));
 }
 
 function resetOrderForm() {
