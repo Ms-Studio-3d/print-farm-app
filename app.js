@@ -23,7 +23,7 @@ let currentCalc = {
 let editingOrderCode = null;
 
 const DEFAULT_CONFIG = {
-  farmName: 'Print Farm App',
+  farmName: '3D Printing Business Manager',
   currencyName: 'ج',
   laborRate: 50,
   electricityCostPerHour: 3,
@@ -33,8 +33,19 @@ const DEFAULT_CONFIG = {
   defaultTaxPercent: 0
 };
 
+function normalizeDigits(value) {
+  return String(value ?? '')
+    .replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+    .replace(/[٫]/g, '.')
+    .replace(/[٬]/g, '')
+    .replace(/,/g, '.')
+    .trim();
+}
+
 function toNumber(value, fallback = 0) {
-  const num = Number(value);
+  const normalized = normalizeDigits(value);
+  if (normalized === '') return fallback;
+  const num = Number(normalized);
   return Number.isFinite(num) ? num : fallback;
 }
 
@@ -120,11 +131,9 @@ async function loadDashboardData() {
   renderPrinterSelects();
   renderInventory();
   renderMaterialUsageInputs();
-  renderRecentOrders();
-  renderAlerts();
   renderReportsTableSafe();
   renderStockMovementsTableSafe();
-  setNextOrderCode();
+  await setNextOrderCode();
   calc();
 }
 
@@ -140,19 +149,21 @@ function applyConfigToInputs() {
 
   if (farmName) farmName.value = dashboardData.config.farmName || DEFAULT_CONFIG.farmName;
   if (currencyName) currencyName.value = dashboardData.config.currencyName || DEFAULT_CONFIG.currencyName;
-  if (defaultTaxPercent) defaultTaxPercent.value = toPositiveNumber(dashboardData.config.defaultTaxPercent, DEFAULT_CONFIG.defaultTaxPercent);
-  if (laborRate) laborRate.value = toPositiveNumber(dashboardData.config.laborRate, DEFAULT_CONFIG.laborRate);
-  if (electricityCostPerHour) electricityCostPerHour.value = toPositiveNumber(dashboardData.config.electricityCostPerHour, DEFAULT_CONFIG.electricityCostPerHour);
-  if (packagingCost) packagingCost.value = toPositiveNumber(dashboardData.config.packagingCost, DEFAULT_CONFIG.packagingCost);
-  if (failurePercent) failurePercent.value = toPositiveNumber(dashboardData.config.failurePercent, DEFAULT_CONFIG.failurePercent);
-  if (shippingCost) shippingCost.value = toPositiveNumber(dashboardData.config.shippingCost, DEFAULT_CONFIG.shippingCost);
+  if (defaultTaxPercent) defaultTaxPercent.value = String(toPositiveNumber(dashboardData.config.defaultTaxPercent, DEFAULT_CONFIG.defaultTaxPercent));
+  if (laborRate) laborRate.value = String(toPositiveNumber(dashboardData.config.laborRate, DEFAULT_CONFIG.laborRate));
+  if (electricityCostPerHour) electricityCostPerHour.value = String(toPositiveNumber(dashboardData.config.electricityCostPerHour, DEFAULT_CONFIG.electricityCostPerHour));
+  if (packagingCost) packagingCost.value = String(toPositiveNumber(dashboardData.config.packagingCost, DEFAULT_CONFIG.packagingCost));
+  if (failurePercent) failurePercent.value = String(toPositiveNumber(dashboardData.config.failurePercent, DEFAULT_CONFIG.failurePercent));
+  if (shippingCost) shippingCost.value = String(toPositiveNumber(dashboardData.config.shippingCost, DEFAULT_CONFIG.shippingCost));
 }
 
 function updateTopTitle() {
   const appTitle = document.querySelector('.app-title');
   if (appTitle) {
-    appTitle.innerText = dashboardData.config.farmName || 'Print Farm App';
+    appTitle.innerText = dashboardData.config.farmName || DEFAULT_CONFIG.farmName;
   }
+
+  document.title = dashboardData.config.farmName || DEFAULT_CONFIG.farmName;
 }
 
 async function setNextOrderCode() {
@@ -225,7 +236,7 @@ function getPrinterStatusText(status) {
 
 function renderPrinterSelects() {
   const selectedPrinter = document.getElementById('selectedPrinter');
-  const editPrinter = document.getElementById('editPrinter');
+  const editPrinterSelect = document.getElementById('editPrinter');
 
   const options = [
     `<option value="">اختر طابعة</option>`,
@@ -242,11 +253,11 @@ function renderPrinterSelects() {
     }
   }
 
-  if (editPrinter) {
-    const oldValue = editPrinter.value;
-    editPrinter.innerHTML = options;
-    if ([...editPrinter.options].some((opt) => opt.value === oldValue)) {
-      editPrinter.value = oldValue;
+  if (editPrinterSelect) {
+    const oldValue = editPrinterSelect.value;
+    editPrinterSelect.innerHTML = options;
+    if ([...editPrinterSelect.options].some((opt) => opt.value === oldValue)) {
+      editPrinterSelect.value = oldValue;
     }
   }
 }
@@ -297,6 +308,7 @@ function renderInventory() {
         <div class="list-card-body" style="margin-top:8px;">
           <div>النوع: ${escapeHtml(material.type || '-')}</div>
           <div>اللون: ${escapeHtml(material.color || '-')}</div>
+          <div>المورد: ${escapeHtml(material.supplier || '-')}</div>
           <div>السعر: ${formatMoney(material.price || 0)}</div>
           <div>حد التنبيه: ${toPositiveNumber(material.lowStockThreshold, 0).toFixed(0)}g</div>
         </div>
@@ -335,13 +347,11 @@ function renderMaterialUsageInputs() {
       <div class="form-group">
         <label>${escapeHtml(material.name)} (${toPositiveNumber(material.remaining, 0).toFixed(0)}g)</label>
         <input
-          type="number"
+          type="text"
           class="ams-weight"
           data-id="${Number(material.id)}"
           placeholder="جرام"
-          min="0"
-          step="0.1"
-          oninput="calc()"
+          inputmode="decimal"
         />
         ${lowHint}
       </div>
@@ -353,73 +363,8 @@ function renderMaterialUsageInputs() {
     if (oldValue != null) {
       input.value = oldValue;
     }
-  });
-}
-
-function renderRecentOrders() {
-  const recentOrdersList = document.getElementById('recentOrdersList');
-  if (!recentOrdersList) return;
-
-  recentOrdersList.innerHTML = '';
-
-  const orders = [...dashboardData.orders]
-    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || Number(b.id || 0) - Number(a.id || 0))
-    .slice(0, 8);
-
-  if (!orders.length) {
-    recentOrdersList.innerHTML = `<div class="empty-state">لا توجد أوردرات مسجلة.</div>`;
-    return;
-  }
-
-  orders.forEach((order) => {
-    recentOrdersList.innerHTML += `
-      <div class="list-card">
-        <div class="list-card-head">
-          <strong>${escapeHtml(order.code)}</strong>
-          <span class="section-badge">${escapeHtml(getOrderStatusText(order.status))}</span>
-        </div>
-        <div class="list-card-body">
-          <div>المجسم: ${escapeHtml(order.itemName || '-')}</div>
-          <div>العميل: ${escapeHtml(order.customerName || '-')}</div>
-          <div>الطابعة: ${escapeHtml(order.printerName || '-')}</div>
-          <div>التاريخ: ${escapeHtml(order.date || '-')}</div>
-          <div>السعر: ${formatMoney(order.finalPrice || 0)}</div>
-        </div>
-      </div>
-    `;
-  });
-}
-
-function renderAlerts() {
-  const alertsList = document.getElementById('alertsList');
-  if (!alertsList) return;
-
-  alertsList.innerHTML = '';
-
-  const alerts = [];
-
-  dashboardData.materials.forEach((material) => {
-    if (Number(material.remaining || 0) <= Number(material.lowStockThreshold || 0)) {
-      alerts.push(`الخامة ${material.name} وصلت لمخزون منخفض`);
-    }
-  });
-
-  dashboardData.printers.forEach((printer) => {
-    if (printer.status === 'maintenance') {
-      alerts.push(`الطابعة ${printer.name} في حالة صيانة`);
-    }
-    if (printer.status === 'offline') {
-      alerts.push(`الطابعة ${printer.name} متوقفة`);
-    }
-  });
-
-  if (!alerts.length) {
-    alertsList.innerHTML = `<div class="empty-state">لا توجد تنبيهات حاليًا.</div>`;
-    return;
-  }
-
-  alerts.forEach((alertText) => {
-    alertsList.innerHTML += `<div class="alert-item">${escapeHtml(alertText)}</div>`;
+    input.addEventListener('input', calc);
+    input.addEventListener('change', calc);
   });
 }
 
@@ -463,8 +408,14 @@ function calc() {
     document.getElementById('electricityCostPerHour')?.value,
     getConfigNumber('electricityCostPerHour')
   );
-  const failurePercent = toPositiveNumber(document.getElementById('failurePercent')?.value, getConfigNumber('failurePercent'));
-  const defaultTaxPercent = toPositiveNumber(document.getElementById('defaultTaxPercent')?.value, getConfigNumber('defaultTaxPercent'));
+  const failurePercent = toPositiveNumber(
+    document.getElementById('failurePercent')?.value,
+    getConfigNumber('failurePercent')
+  );
+  const defaultTaxPercent = toPositiveNumber(
+    document.getElementById('defaultTaxPercent')?.value,
+    getConfigNumber('defaultTaxPercent')
+  );
 
   let materialCost = 0;
   materialUsage.forEach((entry) => {
@@ -556,6 +507,8 @@ function resetOrderForm() {
     input.value = '';
   });
 
+  applyConfigToInputs();
+
   currentCalc = {
     materialCost: 0,
     depreciationCost: 0,
@@ -572,6 +525,7 @@ function resetOrderForm() {
 
   resetResultsPanel();
   setNextOrderCode();
+  calc();
 }
 
 function validateOrderBeforeSave() {
@@ -664,8 +618,8 @@ async function saveSale() {
   }
 
   showToast('تم تسجيل الأوردر وخصم المخزون بنجاح');
-  resetOrderForm();
   await loadDashboardData();
+  resetOrderForm();
 }
 
 function getFilteredOrders() {
@@ -825,8 +779,8 @@ function openEditSale(code) {
   if (editCustomer) editCustomer.value = order.customerName || '';
   if (editPrinter) editPrinter.value = order.printerId ? String(order.printerId) : '';
   if (editNotes) editNotes.value = order.notes || '';
-  if (editCost) editCost.value = Number(order.totalCost || 0);
-  if (editPrice) editPrice.value = Number(order.finalPrice || 0);
+  if (editCost) editCost.value = String(toPositiveNumber(order.totalCost, 0));
+  if (editPrice) editPrice.value = String(toPositiveNumber(order.finalPrice, 0));
 
   const modal = document.getElementById('editModal');
   if (modal) {
@@ -898,6 +852,40 @@ async function deleteSale(code) {
   await loadDashboardData();
 }
 
+function openPrintersManagerModal() {
+  const modal = document.getElementById('printersManagerModal');
+  if (!modal) return;
+
+  renderPrinters();
+  modal.style.display = 'flex';
+  modal.setAttribute('aria-hidden', 'false');
+}
+
+function closePrintersManagerModal() {
+  const modal = document.getElementById('printersManagerModal');
+  if (!modal) return;
+
+  modal.style.display = 'none';
+  modal.setAttribute('aria-hidden', 'true');
+}
+
+function openMaterialsManagerModal() {
+  const modal = document.getElementById('materialsManagerModal');
+  if (!modal) return;
+
+  renderInventory();
+  modal.style.display = 'flex';
+  modal.setAttribute('aria-hidden', 'false');
+}
+
+function closeMaterialsManagerModal() {
+  const modal = document.getElementById('materialsManagerModal');
+  if (!modal) return;
+
+  modal.style.display = 'none';
+  modal.setAttribute('aria-hidden', 'true');
+}
+
 function openPrinterModal() {
   const printerId = document.getElementById('printerId');
   const printerName = document.getElementById('printerName');
@@ -939,7 +927,7 @@ function editPrinter(id) {
   document.getElementById('printerName').value = printer.name || '';
   document.getElementById('printerStatus').value = printer.status || 'idle';
   document.getElementById('printerModel').value = printer.model || '';
-  document.getElementById('printerHourlyDepreciation').value = toPositiveNumber(printer.hourlyDepreciation, 0);
+  document.getElementById('printerHourlyDepreciation').value = String(toPositiveNumber(printer.hourlyDepreciation, 0));
   document.getElementById('printerNotes').value = printer.notes || '';
 
   const modal = document.getElementById('printerModal');
@@ -972,6 +960,7 @@ async function savePrinter() {
   closePrinterModal();
   showToast('تم حفظ الطابعة بنجاح');
   await loadDashboardData();
+  openPrintersManagerModal();
 }
 
 async function deletePrinterAction(id) {
@@ -986,6 +975,7 @@ async function deletePrinterAction(id) {
 
   showToast('تم حذف الطابعة');
   await loadDashboardData();
+  openPrintersManagerModal();
 }
 
 function openMaterialModal() {
@@ -1035,10 +1025,10 @@ function editMaterial(id) {
   document.getElementById('materialName').value = material.name || '';
   document.getElementById('materialType').value = material.type || '';
   document.getElementById('materialColor').value = material.color || '';
-  document.getElementById('materialWeight').value = toPositiveNumber(material.weight, 1000);
-  document.getElementById('materialRemaining').value = toPositiveNumber(material.remaining, 0);
-  document.getElementById('materialPrice').value = toPositiveNumber(material.price, 0);
-  document.getElementById('materialLowStock').value = toPositiveNumber(material.lowStockThreshold, 150);
+  document.getElementById('materialWeight').value = String(toPositiveNumber(material.weight, 1000));
+  document.getElementById('materialRemaining').value = String(toPositiveNumber(material.remaining, 0));
+  document.getElementById('materialPrice').value = String(toPositiveNumber(material.price, 0));
+  document.getElementById('materialLowStock').value = String(toPositiveNumber(material.lowStockThreshold, 150));
   document.getElementById('materialSupplier').value = material.supplier || '';
 
   const modal = document.getElementById('materialModal');
@@ -1079,6 +1069,7 @@ async function saveMaterial() {
   closeMaterialModal();
   showToast('تم حفظ الخامة بنجاح');
   await loadDashboardData();
+  openMaterialsManagerModal();
 }
 
 async function deleteMaterialAction(id) {
@@ -1093,6 +1084,7 @@ async function deleteMaterialAction(id) {
 
   showToast('تم حذف الخامة');
   await loadDashboardData();
+  openMaterialsManagerModal();
 }
 
 function openStockMovementsModal() {
@@ -1204,6 +1196,7 @@ async function saveConfig() {
 
   showToast('تم حفظ الإعدادات');
   await loadDashboardData();
+  closeSettingsModal();
 }
 
 async function exportBackupJSON() {
@@ -1219,7 +1212,7 @@ async function exportBackupJSON() {
   const link = document.createElement('a');
 
   link.href = url;
-  link.download = `print-farm-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  link.download = `3d-printing-business-manager-backup-${new Date().toISOString().slice(0, 10)}.json`;
   link.click();
 
   URL.revokeObjectURL(url);
@@ -1243,8 +1236,8 @@ function importBackupJSON(event) {
       }
 
       showToast('تم استيراد النسخة الاحتياطية بنجاح');
-      resetOrderForm();
       await loadDashboardData();
+      resetOrderForm();
     } catch {
       showToast('ملف الاستيراد غير صالح', 'error');
     } finally {
@@ -1285,6 +1278,8 @@ window.onclick = function(event) {
   const materialModal = document.getElementById('materialModal');
   const stockMovementsModal = document.getElementById('stockMovementsModal');
   const settingsModal = document.getElementById('settingsModal');
+  const printersManagerModal = document.getElementById('printersManagerModal');
+  const materialsManagerModal = document.getElementById('materialsManagerModal');
 
   if (event.target === reportsModal) closeReports();
   if (event.target === editModal) closeEditModal();
@@ -1292,6 +1287,8 @@ window.onclick = function(event) {
   if (event.target === materialModal) closeMaterialModal();
   if (event.target === stockMovementsModal) closeStockMovementsModal();
   if (event.target === settingsModal) closeSettingsModal();
+  if (event.target === printersManagerModal) closePrintersManagerModal();
+  if (event.target === materialsManagerModal) closeMaterialsManagerModal();
 };
 
 window.openReports = openReports;
@@ -1300,25 +1297,35 @@ window.openEditSale = openEditSale;
 window.closeEditModal = closeEditModal;
 window.saveEditedSale = saveEditedSale;
 window.deleteSale = deleteSale;
+
+window.openPrintersManagerModal = openPrintersManagerModal;
+window.closePrintersManagerModal = closePrintersManagerModal;
 window.openPrinterModal = openPrinterModal;
 window.closePrinterModal = closePrinterModal;
 window.editPrinter = editPrinter;
 window.savePrinter = savePrinter;
 window.deletePrinterAction = deletePrinterAction;
+
+window.openMaterialsManagerModal = openMaterialsManagerModal;
+window.closeMaterialsManagerModal = closeMaterialsManagerModal;
 window.openMaterialModal = openMaterialModal;
 window.closeMaterialModal = closeMaterialModal;
 window.editMaterial = editMaterial;
 window.saveMaterial = saveMaterial;
 window.deleteMaterialAction = deleteMaterialAction;
+
 window.openStockMovementsModal = openStockMovementsModal;
 window.closeStockMovementsModal = closeStockMovementsModal;
+
 window.openSettingsModal = openSettingsModal;
 window.closeSettingsModal = closeSettingsModal;
 window.saveConfig = saveConfig;
+
 window.exportBackupJSON = exportBackupJSON;
 window.importBackupJSON = importBackupJSON;
 window.calc = calc;
 window.saveSale = saveSale;
+window.renderReportsTable = renderReportsTable;
 
 window.onload = async () => {
   const opDate = document.getElementById('opDate');
