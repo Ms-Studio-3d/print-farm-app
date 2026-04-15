@@ -1,14 +1,14 @@
 {
-  "name": "3D Printing Business Manager",
+  "name": "printing-business-manager",
   "version": "1.0.0",
-  "description": "Desktop app for 3D print farm management",
+  "description": "Desktop app for 3D printing business management",
   "main": "main.js",
   "author": "Ms-Studio-3d",
   "license": "MIT",
   "keywords": [
     "electron",
     "3d-printing",
-    "print-farm",
+    "business-manager",
     "desktop-app",
     "inventory",
     "sqlite"
@@ -31,7 +31,7 @@
     "electron-builder": "^24.13.3"
   },
   "build": {
-    "appId": "com.msstudio3d.printfarm",
+    "appId": "com.msstudio3d.businessmanager",
     "productName": "3D Printing Business Manager",
     "asar": true,
     "artifactName": "${productName}-${version}-${target}.${ext}",
