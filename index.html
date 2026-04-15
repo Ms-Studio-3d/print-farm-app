@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Print Farm App</title>
+  <title>3D Printing Business Manager</title>
   <meta
     name="description"
-    content="تطبيق لإدارة مزرعة الطباعة ثلاثية الأبعاد والطابعات والمخزون والتسعير والمبيعات والتقارير"
+    content="برنامج لإدارة أعمال الطباعة ثلاثية الأبعاد والتسعير والأوردرات والمخزون والطابعات"
   />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -18,107 +18,38 @@
 </head>
 <body>
   <div class="app-shell">
-    <header class="topbar">
+    <header class="topbar compact-topbar">
       <div>
-        <h1 class="app-title">Print Farm App</h1>
+        <h1 class="app-title">3D Printing Business Manager</h1>
         <p class="app-subtitle">
-          إدارة الطابعات والمخزون والتسعير والأوردرات والمبيعات والتقارير
+          إدارة الأوردرات والتسعير والطابعات والخامات بشكل احترافي
         </p>
       </div>
 
       <div class="topbar-actions">
-        <button class="btn btn-dark" onclick="openSettingsModal()">⚙️ الإعدادات</button>
-        <button class="btn btn-dark" onclick="openReports()">📊 التقارير</button>
+        <button class="btn btn-dark" onclick="openReports()">التقارير</button>
+        <button class="btn btn-dark" onclick="openStockMovementsModal()">حركة المخزون</button>
+        <button class="btn btn-dark" onclick="openPrintersManagerModal()">الطابعات</button>
+        <button class="btn btn-dark" onclick="openMaterialsManagerModal()">الخامات</button>
+        <button class="btn btn-dark" onclick="openSettingsModal()">الإعدادات</button>
       </div>
     </header>
 
-    <main class="dashboard-layout">
-      <aside class="left-column">
-        <section class="card">
+    <main class="order-layout">
+      <section class="main-order-column">
+        <section class="card hero-order-card">
           <div class="section-head">
-            <h3>🖨️ الطابعات</h3>
-            <span class="section-badge">Printers</span>
-          </div>
-
-          <div class="kpi-grid">
-            <div class="mini-kpi">
-              <span>إجمالي الطابعات</span>
-              <strong id="printersCount">0</strong>
+            <div>
+              <h3>أوردر جديد</h3>
+              <p class="section-subtext">سجل بيانات الشغل واحسب سعر البيع بسرعة</p>
             </div>
-            <div class="mini-kpi">
-              <span>الشغالة الآن</span>
-              <strong id="activePrintersCount">0</strong>
-            </div>
-          </div>
-
-          <div id="printersList" class="stack-list"></div>
-
-          <button class="btn btn-primary" style="margin-top: 12px;" onclick="openPrinterModal()">
-            + إضافة طابعة
-          </button>
-        </section>
-
-        <section class="card">
-          <div class="section-head">
-            <h3>📦 المخزون</h3>
-            <span class="section-badge">Inventory</span>
-          </div>
-
-          <div class="kpi-grid">
-            <div class="mini-kpi">
-              <span>عدد الخامات</span>
-              <strong id="materialsCount">0</strong>
-            </div>
-            <div class="mini-kpi">
-              <span>منخفضة المخزون</span>
-              <strong id="lowStockCount">0</strong>
-            </div>
-          </div>
-
-          <div id="inventoryUI" class="stack-list"></div>
-
-          <div class="inline-actions" style="margin-top: 12px;">
-            <button class="btn btn-primary" onclick="openMaterialModal()">+ إضافة خامة</button>
-            <button class="btn btn-secondary" onclick="openStockMovementsModal()">📜 حركة المخزون</button>
-          </div>
-        </section>
-
-        <section class="card">
-          <div class="section-head">
-            <h3>💾 النسخ الاحتياطي</h3>
-            <span class="section-badge">Backup</span>
-          </div>
-
-          <div class="inline-actions" style="margin-top: 10px;">
-            <button class="btn btn-primary" onclick="exportBackupJSON()">تصدير JSON</button>
-
-            <label class="btn btn-secondary" style="text-align:center; cursor:pointer;">
-              استيراد JSON
-              <input
-                type="file"
-                id="importInput"
-                hidden
-                onchange="importBackupJSON(event)"
-                accept="application/json"
-              />
-            </label>
-          </div>
-        </section>
-      </aside>
-
-      <section class="center-column">
-        <section class="card">
-          <div class="section-head">
-            <h3>📝 تسجيل أوردر جديد</h3>
-            <span class="section-badge">
-              ORD-<span id="nextOrderCode">...</span>
-            </span>
+            <span class="section-badge">ORD-<span id="nextOrderCode">...</span></span>
           </div>
 
           <div class="grid-3">
             <div class="form-group">
               <label for="itemName">اسم المجسم *</label>
-              <input type="text" id="itemName" placeholder="مثال: تنين مفصلي" />
+              <input type="text" id="itemName" placeholder="مثال: حامل موبايل / تنين مفصلي" />
             </div>
 
             <div class="form-group">
@@ -127,29 +58,17 @@
             </div>
 
             <div class="form-group">
-              <label for="selectedPrinter">الطابعة المستخدمة *</label>
-              <select id="selectedPrinter" onchange="calc()"></select>
-            </div>
-          </div>
-
-          <div class="grid-3" style="margin-top: 10px;">
-            <div class="form-group">
-              <label for="printHours">وقت الطباعة (ساعات) *</label>
-              <input type="number" id="printHours" value="0" step="0.1" min="0" oninput="calc()" />
-            </div>
-
-            <div class="form-group">
-              <label for="manualMins">شغل يدوي (دقائق)</label>
-              <input type="number" id="manualMins" value="15" min="0" oninput="calc()" />
-            </div>
-
-            <div class="form-group">
               <label for="opDate">تاريخ العملية</label>
-              <input type="date" id="opDate" onchange="calc()" />
+              <input type="date" id="opDate" />
             </div>
           </div>
 
-          <div class="grid-2" style="margin-top: 10px;">
+          <div class="grid-3" style="margin-top: 12px;">
+            <div class="form-group">
+              <label for="selectedPrinter">الطابعة المستخدمة *</label>
+              <select id="selectedPrinter"></select>
+            </div>
+
             <div class="form-group">
               <label for="orderStatus">حالة الأوردر</label>
               <select id="orderStatus">
@@ -162,20 +81,36 @@
             </div>
 
             <div class="form-group">
-              <label for="orderNotes">ملاحظات الأوردر</label>
-              <textarea id="orderNotes" placeholder="اختياري"></textarea>
+              <label for="profitMargin">نسبة المكسب (%)</label>
+              <input type="text" id="profitMargin" value="100" inputmode="decimal" />
             </div>
           </div>
 
-          <div class="field-note" style="margin-top: 12px;">
-            بعد الحفظ، الأوردر هيتسجل في المبيعات، والخامات هتتخصم من المخزون، وحركة المخزون هتتحفظ تلقائيًا.
+          <div class="grid-3" style="margin-top: 12px;">
+            <div class="form-group">
+              <label for="printHours">وقت الطباعة (ساعات) *</label>
+              <input type="text" id="printHours" value="0" inputmode="decimal" />
+            </div>
+
+            <div class="form-group">
+              <label for="manualMins">شغل يدوي (دقائق)</label>
+              <input type="text" id="manualMins" value="15" inputmode="decimal" />
+            </div>
+
+            <div class="form-group">
+              <label for="orderNotes">ملاحظات الأوردر</label>
+              <input type="text" id="orderNotes" placeholder="اختياري" />
+            </div>
           </div>
         </section>
 
         <section class="card">
           <div class="section-head">
-            <h3>🎨 استهلاك الخامات</h3>
-            <span class="section-badge">Materials</span>
+            <div>
+              <h3>استهلاك الخامات</h3>
+              <p class="section-subtext">ادخل الجرامات المستخدمة فقط</p>
+            </div>
+            <button class="btn btn-secondary btn-small" onclick="openMaterialsManagerModal()">إدارة الخامات</button>
           </div>
 
           <div id="amsInputs" class="grid-2"></div>
@@ -183,94 +118,59 @@
 
         <section class="card">
           <div class="section-head">
-            <h3>⚙️ إعدادات التسعير</h3>
-            <span class="section-badge">Pricing Rules</span>
+            <div>
+              <h3>تفاصيل التسعير لهذا الأوردر</h3>
+              <p class="section-subtext">قيم هذا القسم تخص الأوردر الحالي فقط</p>
+            </div>
           </div>
 
           <div class="grid-3">
             <div class="form-group">
               <label for="laborRate">أجرتك (ساعة)</label>
-              <input type="number" id="laborRate" value="50" min="0" onchange="saveConfig(); calc();" />
+              <input type="text" id="laborRate" value="50" inputmode="decimal" />
             </div>
 
             <div class="form-group">
               <label for="electricityCostPerHour">كهرباء/ساعة</label>
-              <input
-                type="number"
-                id="electricityCostPerHour"
-                value="3"
-                min="0"
-                step="0.01"
-                onchange="saveConfig(); calc();"
-              />
+              <input type="text" id="electricityCostPerHour" value="3" inputmode="decimal" />
             </div>
 
             <div class="form-group">
               <label for="packagingCost">التغليف</label>
-              <input
-                type="number"
-                id="packagingCost"
-                value="10"
-                min="0"
-                step="0.01"
-                onchange="saveConfig(); calc();"
-              />
+              <input type="text" id="packagingCost" value="10" inputmode="decimal" />
             </div>
           </div>
 
-          <div class="grid-3" style="margin-top: 10px;">
+          <div class="grid-3" style="margin-top: 12px;">
             <div class="form-group">
-              <label for="failurePercent">نسبة الهالك / المخاطرة (%)</label>
-              <input
-                type="number"
-                id="failurePercent"
-                value="10"
-                min="0"
-                step="0.01"
-                onchange="saveConfig(); calc();"
-              />
+              <label for="failurePercent">الهالك / المخاطرة (%)</label>
+              <input type="text" id="failurePercent" value="10" inputmode="decimal" />
             </div>
 
             <div class="form-group">
-              <label for="shippingCost">الشحن/مصاريف إضافية</label>
-              <input
-                type="number"
-                id="shippingCost"
-                value="0"
-                min="0"
-                step="0.01"
-                onchange="saveConfig(); calc();"
-              />
+              <label for="shippingCost">شحن / مصاريف إضافية</label>
+              <input type="text" id="shippingCost" value="0" inputmode="decimal" />
             </div>
 
             <div class="form-group">
-              <label for="profitMargin">نسبة المكسب (%)</label>
-              <input
-                type="number"
-                id="profitMargin"
-                value="100"
-                min="0"
-                step="0.01"
-                oninput="calc()"
-              />
+              <label for="defaultTaxPercent">ضريبة / نسبة إضافية (%)</label>
+              <input type="text" id="defaultTaxPercent" value="0" inputmode="decimal" />
             </div>
           </div>
-        </section>
 
-        <section class="card">
-          <div class="section-head">
-            <h3>📋 آخر الأوردرات</h3>
-            <span class="section-badge">Recent Orders</span>
+          <div class="field-note" style="margin-top: 14px;">
+            القيم دي قابلة للتعديل في كل أوردر بشكل مستقل، ومش لازم تكون ثابتة على كل الشغل.
           </div>
-
-          <div id="recentOrdersList" class="stack-list"></div>
         </section>
       </section>
 
-      <aside class="right-column">
+      <aside class="summary-column">
         <section class="card result-card sticky-card">
           <div class="section-head section-head-light">
-            <h3>💰 ملخص التسعير</h3>
+            <div>
+              <h3>ملخص التسعير</h3>
+              <p class="section-subtext light-text">الحسبة المباشرة للأوردر الحالي</p>
+            </div>
             <span class="section-badge section-badge-light">Live</span>
           </div>
 
@@ -305,7 +205,7 @@
           </div>
 
           <div class="res-row">
-            <span>الهالك / المخاطرة</span>
+            <span>الهالك / النسبة الإضافية</span>
             <span id="resRisk">0 ج</span>
           </div>
 
@@ -317,17 +217,24 @@
           <div class="final-price-box">
             <h4 style="margin:0;color:#ecfdf5;">سعر البيع المقترح</h4>
             <div class="price" id="resFinal">0 ج</div>
-            <button class="btn btn-save" onclick="saveSale()">🚀 تسجيل الأوردر وخصم المخزون</button>
+            <button class="btn btn-save" onclick="saveSale()">تسجيل الأوردر</button>
           </div>
         </section>
 
-        <section class="card">
+        <section class="card quick-card">
           <div class="section-head">
-            <h3>🚨 تنبيهات سريعة</h3>
-            <span class="section-badge">Alerts</span>
+            <div>
+              <h3>اختصارات</h3>
+              <p class="section-subtext">الإدارة في مكان منفصل عن شاشة الأوردر</p>
+            </div>
           </div>
 
-          <div id="alertsList" class="stack-list"></div>
+          <div class="quick-actions-grid">
+            <button class="btn btn-secondary" onclick="openPrintersManagerModal()">إدارة الطابعات</button>
+            <button class="btn btn-secondary" onclick="openMaterialsManagerModal()">إدارة الخامات</button>
+            <button class="btn btn-secondary" onclick="openReports()">المبيعات والتقارير</button>
+            <button class="btn btn-secondary" onclick="openStockMovementsModal()">حركة المخزون</button>
+          </div>
         </section>
       </aside>
     </main>
@@ -336,7 +243,7 @@
   <div class="modal" id="reportsModal" aria-hidden="true">
     <div class="modal-content modal-xl">
       <div class="modal-head">
-        <h2 style="margin:0;">📊 التقارير والمبيعات</h2>
+        <h2 style="margin:0;">التقارير والمبيعات</h2>
         <button onclick="closeReports()" class="btn btn-danger" style="width:auto; padding:10px 18px;">
           إغلاق
         </button>
@@ -433,7 +340,7 @@
   <div class="modal" id="editModal" aria-hidden="true">
     <div class="modal-content modal-lg">
       <div class="modal-head">
-        <h2 style="margin:0;">✏️ تعديل الأوردر</h2>
+        <h2 style="margin:0;">تعديل الأوردر</h2>
         <button onclick="closeEditModal()" class="btn btn-danger" style="width:auto; padding:10px 18px;">
           إغلاق
         </button>
@@ -489,25 +396,94 @@
       <div class="grid-2">
         <div class="form-group">
           <label for="editCost">التكلفة</label>
-          <input type="number" id="editCost" step="0.01" min="0" />
+          <input type="text" id="editCost" inputmode="decimal" />
         </div>
 
         <div class="form-group">
           <label for="editPrice">البيع</label>
-          <input type="number" id="editPrice" step="0.01" min="0" />
+          <input type="text" id="editPrice" inputmode="decimal" />
         </div>
       </div>
 
       <button class="btn btn-primary" style="margin-top: 10px;" onclick="saveEditedSale()">
-        ✅ حفظ التعديل
+        حفظ التعديل
       </button>
+    </div>
+  </div>
+
+  <div class="modal" id="printersManagerModal" aria-hidden="true">
+    <div class="modal-content modal-xl">
+      <div class="modal-head">
+        <h2 style="margin:0;">إدارة الطابعات</h2>
+        <div class="inline-actions">
+          <button class="btn btn-primary" onclick="openPrinterModal()">إضافة طابعة</button>
+          <button onclick="closePrintersManagerModal()" class="btn btn-danger" style="width:auto; padding:10px 18px;">
+            إغلاق
+          </button>
+        </div>
+      </div>
+
+      <div class="kpi-grid" style="margin-bottom: 16px;">
+        <div class="mini-kpi">
+          <span>إجمالي الطابعات</span>
+          <strong id="printersCount">0</strong>
+        </div>
+        <div class="mini-kpi">
+          <span>الشغالة الآن</span>
+          <strong id="activePrintersCount">0</strong>
+        </div>
+      </div>
+
+      <div id="printersList" class="stack-list"></div>
+    </div>
+  </div>
+
+  <div class="modal" id="materialsManagerModal" aria-hidden="true">
+    <div class="modal-content modal-xl">
+      <div class="modal-head">
+        <h2 style="margin:0;">إدارة الخامات</h2>
+        <div class="inline-actions">
+          <button class="btn btn-primary" onclick="openMaterialModal()">إضافة خامة</button>
+          <button onclick="closeMaterialsManagerModal()" class="btn btn-danger" style="width:auto; padding:10px 18px;">
+            إغلاق
+          </button>
+        </div>
+      </div>
+
+      <div class="kpi-grid" style="margin-bottom: 16px;">
+        <div class="mini-kpi">
+          <span>عدد الخامات</span>
+          <strong id="materialsCount">0</strong>
+        </div>
+        <div class="mini-kpi">
+          <span>منخفضة المخزون</span>
+          <strong id="lowStockCount">0</strong>
+        </div>
+      </div>
+
+      <div id="inventoryUI" class="stack-list"></div>
+
+      <div class="inline-actions" style="margin-top: 16px;">
+        <button class="btn btn-secondary" onclick="openStockMovementsModal()">حركة المخزون</button>
+        <button class="btn btn-secondary" onclick="exportBackupJSON()">تصدير JSON</button>
+        <label class="btn btn-secondary" style="text-align:center; cursor:pointer;">
+          استيراد JSON
+          <input
+            type="file"
+            id="importInput"
+            hidden
+            onchange="importBackupJSON(event)"
+            accept="application/json"
+          />
+        </label>
+      </div>
     </div>
   </div>
 
   <div class="modal" id="printerModal" aria-hidden="true">
     <div class="modal-content modal-md">
       <div class="modal-head">
-        <h2 style="margin:0;">🖨️ إضافة / تعديل طابعة</h2>
+        <h2 style="margin:0;">إضافة / تعديل طابعة</h2>
         <button onclick="closePrinterModal()" class="btn btn-danger" style="width:auto; padding:10px 18px;">
           إغلاق
         </button>
@@ -540,7 +516,7 @@
 
         <div class="form-group">
           <label for="printerHourlyDepreciation">إهلاك/ساعة</label>
-          <input type="number" id="printerHourlyDepreciation" min="0" step="0.01" />
+          <input type="text" id="printerHourlyDepreciation" inputmode="decimal" />
         </div>
       </div>
 
@@ -549,14 +525,14 @@
         <textarea id="printerNotes"></textarea>
       </div>
 
-      <button class="btn btn-primary" onclick="savePrinter()">💾 حفظ الطابعة</button>
+      <button class="btn btn-primary" onclick="savePrinter()">حفظ الطابعة</button>
     </div>
   </div>
 
   <div class="modal" id="materialModal" aria-hidden="true">
     <div class="modal-content modal-md">
       <div class="modal-head">
-        <h2 style="margin:0;">🎨 إضافة / تعديل خامة</h2>
+        <h2 style="margin:0;">إضافة / تعديل خامة</h2>
         <button onclick="closeMaterialModal()" class="btn btn-danger" style="width:auto; padding:10px 18px;">
           إغلاق
         </button>
@@ -584,24 +560,24 @@
 
         <div class="form-group">
           <label for="materialWeight">الوزن الكلي (جرام)</label>
-          <input type="number" id="materialWeight" min="1" step="0.01" />
+          <input type="text" id="materialWeight" inputmode="decimal" />
         </div>
 
         <div class="form-group">
           <label for="materialRemaining">المتبقي الحالي (جرام)</label>
-          <input type="number" id="materialRemaining" min="0" step="0.01" />
+          <input type="text" id="materialRemaining" inputmode="decimal" />
         </div>
       </div>
 
       <div class="grid-3">
         <div class="form-group">
           <label for="materialPrice">سعر الشراء</label>
-          <input type="number" id="materialPrice" min="0" step="0.01" />
+          <input type="text" id="materialPrice" inputmode="decimal" />
         </div>
 
         <div class="form-group">
           <label for="materialLowStock">حد التنبيه</label>
-          <input type="number" id="materialLowStock" min="0" step="0.01" />
+          <input type="text" id="materialLowStock" inputmode="decimal" />
         </div>
 
         <div class="form-group">
@@ -610,14 +586,14 @@
         </div>
       </div>
 
-      <button class="btn btn-primary" onclick="saveMaterial()">💾 حفظ الخامة</button>
+      <button class="btn btn-primary" onclick="saveMaterial()">حفظ الخامة</button>
     </div>
   </div>
 
   <div class="modal" id="stockMovementsModal" aria-hidden="true">
     <div class="modal-content modal-xl">
       <div class="modal-head">
-        <h2 style="margin:0;">📜 حركة المخزون</h2>
+        <h2 style="margin:0;">حركة المخزون</h2>
         <button onclick="closeStockMovementsModal()" class="btn btn-danger" style="width:auto; padding:10px 18px;">
           إغلاق
         </button>
@@ -644,7 +620,7 @@
   <div class="modal" id="settingsModal" aria-hidden="true">
     <div class="modal-content modal-lg">
       <div class="modal-head">
-        <h2 style="margin:0;">⚙️ إعدادات عامة</h2>
+        <h2 style="margin:0;">الإعدادات العامة</h2>
         <button onclick="closeSettingsModal()" class="btn btn-danger" style="width:auto; padding:10px 18px;">
           إغلاق
         </button>
@@ -653,22 +629,26 @@
       <div class="grid-3" style="margin-top: 18px;">
         <div class="form-group">
           <label for="farmName">اسم المشروع</label>
-          <input type="text" id="farmName" onchange="saveConfig()" />
+          <input type="text" id="farmName" />
         </div>
 
         <div class="form-group">
           <label for="currencyName">العملة</label>
-          <input type="text" id="currencyName" value="ج" onchange="saveConfig()" />
+          <input type="text" id="currencyName" value="ج" />
         </div>
 
         <div class="form-group">
-          <label for="defaultTaxPercent">الضريبة (%)</label>
-          <input type="number" id="defaultTaxPercent" value="0" min="0" step="0.01" onchange="saveConfig(); calc();" />
+          <label for="defaultTaxPercent">النسبة الافتراضية (%)</label>
+          <input type="text" id="defaultTaxPercent" value="0" inputmode="decimal" />
         </div>
       </div>
 
       <div class="field-note">
-        الإعدادات دي عامة على البرنامج كله، ولسه هنربطها بالكامل في `app.js` الجديد.
+        الإعدادات هنا عامة على البرنامج، بينما تسعير الأوردر نفسه موجود في الصفحة الرئيسية ويتعدل لكل أوردر بشكل مستقل.
+      </div>
+
+      <div class="inline-actions" style="margin-top: 16px;">
+        <button class="btn btn-primary" onclick="saveConfig()">حفظ الإعدادات</button>
       </div>
     </div>
   </div>
