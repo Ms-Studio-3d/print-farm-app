@@ -1,666 +1,824 @@
-<!DOCTYPE html>
-<html dir="rtl" lang="ar">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3D Printing Business Manager</title>
-  <meta
-    name="description"
-    content="برنامج لإدارة أعمال الطباعة ثلاثية الأبعاد والتسعير والأوردرات والمخزون والطابعات"
-  />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap"
-    rel="stylesheet"
-  />
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-  <div class="app-shell tablet-shell">
-    <div class="app-frame">
-      <header class="app-topbar">
-        <div class="app-topbar-copy">
-          <h1 class="app-title">3D Printing Business Manager</h1>
-          <p class="app-subtitle">إدارة الأوردرات والتسعير بشكل سريع ومنظم</p>
-        </div>
-
-        <div class="order-code-chip">
-          <span>ORD-<span id="nextOrderCode">...</span></span>
-        </div>
-      </header>
-
-      <main class="app-content">
-        <section class="screen screen-order active-screen">
-          <section class="home-section-grid home-section-grid-top">
-            <section class="card compact-card order-main-card equal-card">
-              <div class="section-head">
-                <div>
-                  <h3>أوردر جديد</h3>
-                  <p class="section-subtext">البيانات الأساسية للأوردر الحالي</p>
-                </div>
-              </div>
-
-              <div class="grid-2 compact-grid">
-                <div class="form-group">
-                  <label for="itemName">اسم المجسم *</label>
-                  <input type="text" id="itemName" placeholder="مثال: حامل موبايل / تنين مفصلي" />
-                </div>
-
-                <div class="form-group">
-                  <label for="customerName">اسم العميل</label>
-                  <input type="text" id="customerName" placeholder="اختياري" />
-                </div>
-              </div>
-
-              <div class="grid-2 compact-grid section-gap-sm">
-                <div class="form-group">
-                  <label for="selectedPrinter">الطابعة المستخدمة *</label>
-                  <select id="selectedPrinter"></select>
-                </div>
-
-                <div class="form-group">
-                  <label for="orderStatus">حالة الأوردر</label>
-                  <select id="orderStatus">
-                    <option value="new">جديد</option>
-                    <option value="printing">قيد الطباعة</option>
-                    <option value="finished">جاهز</option>
-                    <option value="delivered">تم التسليم</option>
-                    <option value="cancelled">ملغي</option>
-                  </select>
-                </div>
-              </div>
-
-              <div class="grid-3 compact-grid section-gap-sm">
-                <div class="form-group">
-                  <label for="opDate">تاريخ العملية</label>
-                  <input type="date" id="opDate" />
-                </div>
-
-                <div class="form-group">
-                  <label for="printHours">وقت الطباعة (ساعات) *</label>
-                  <input type="text" id="printHours" value="0" inputmode="decimal" />
-                </div>
-
-                <div class="form-group">
-                  <label for="manualMins">شغل يدوي (دقائق)</label>
-                  <input type="text" id="manualMins" value="15" inputmode="decimal" />
-                </div>
-              </div>
-
-              <div class="grid-2 compact-grid section-gap-sm">
-                <div class="form-group">
-                  <label for="profitMargin">نسبة المكسب (%)</label>
-                  <input type="text" id="profitMargin" value="100" inputmode="decimal" />
-                </div>
-
-                <div class="form-group">
-                  <label for="orderNotes">ملاحظات الأوردر</label>
-                  <input type="text" id="orderNotes" placeholder="اختياري" />
-                </div>
-              </div>
-            </section>
-
-            <section class="card compact-card order-materials-card equal-card">
-              <div class="section-head">
-                <div>
-                  <h3>الخامات والتسعير</h3>
-                  <p class="section-subtext">الاستهلاك المباشر للأوردر</p>
-                </div>
-                <div class="inline-actions">
-                  <button class="btn btn-secondary btn-small" onclick="openMaterialsManagerModal()">إدارة الخامات</button>
-                </div>
-              </div>
-
-              <div class="compact-section-block full-height-block">
-                <div class="mini-section-head">
-                  <h4>استهلاك الخامات</h4>
-                  <span>أدخل الجرامات المستخدمة فقط</span>
-                </div>
-                <div id="amsInputs" class="grid-2 compact-grid"></div>
-              </div>
-            </section>
-          </section>
-
-          <section class="home-section-grid home-section-grid-bottom section-gap-lg">
-            <section class="card compact-card equal-card">
-              <div class="section-head">
-                <div>
-                  <h3>تفاصيل التسعير</h3>
-                  <p class="section-subtext">القيم التي تدخل في حساب السعر</p>
-                </div>
-              </div>
-
-              <div class="grid-3 compact-grid">
-                <div class="form-group">
-                  <label for="laborRate">أجرتك (ساعة)</label>
-                  <input type="text" id="laborRate" value="50" inputmode="decimal" />
-                </div>
-
-                <div class="form-group">
-                  <label for="electricityCostPerHour">كهرباء/ساعة</label>
-                  <input type="text" id="electricityCostPerHour" value="3" inputmode="decimal" />
-                </div>
-
-                <div class="form-group">
-                  <label for="packagingCost">التغليف</label>
-                  <input type="text" id="packagingCost" value="10" inputmode="decimal" />
-                </div>
-              </div>
-
-              <div class="grid-3 compact-grid section-gap-sm">
-                <div class="form-group">
-                  <label for="failurePercent">الهالك / المخاطرة (%)</label>
-                  <input type="text" id="failurePercent" value="10" inputmode="decimal" />
-                </div>
-
-                <div class="form-group">
-                  <label for="shippingCost">شحن / مصاريف إضافية</label>
-                  <input type="text" id="shippingCost" value="0" inputmode="decimal" />
-                </div>
-
-                <div class="form-group">
-                  <label for="defaultTaxPercent">ضريبة / نسبة إضافية (%)</label>
-                  <input type="text" id="defaultTaxPercent" value="0" inputmode="decimal" />
-                </div>
-              </div>
-
-              <div class="field-note section-gap-sm">
-                هذه القيم تخص الأوردر الحالي فقط، وتقدر تعدلها قبل الحفظ.
-              </div>
-            </section>
-
-            <section class="card result-card compact-result-card order-summary-card equal-card">
-              <div class="section-head section-head-light">
-                <div>
-                  <h3>ملخص التسعير</h3>
-                  <p class="section-subtext light-text">النتيجة النهائية للأوردر الحالي</p>
-                </div>
-                <span class="section-badge section-badge-light">Live</span>
-              </div>
-
-              <div class="summary-main">
-                <div class="summary-stat">
-                  <span class="summary-label">إجمالي التكلفة</span>
-                  <strong id="resTotal" class="summary-value">0 ج</strong>
-                </div>
-
-                <div class="summary-stat">
-                  <span class="summary-label">سعر البيع المقترح</span>
-                  <strong id="resFinal" class="summary-value">0 ج</strong>
-                </div>
-
-                <div class="summary-stat">
-                  <span class="summary-label">صافي الربح</span>
-                  <strong id="resProfit" class="summary-value">0 ج</strong>
-                </div>
-              </div>
-
-              <div class="final-price-box">
-                <button class="btn btn-save" onclick="saveSale()">تسجيل الأوردر</button>
-              </div>
-            </section>
-          </section>
-        </section>
-      </main>
-
-      <nav class="bottom-nav">
-        <button class="nav-btn nav-btn-active" data-view="order" type="button" aria-label="الأوردر">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M8 3h8l5 5v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.8"/>
-              <path d="M14 3v5h5" stroke="currentColor" stroke-width="1.8"/>
-              <path d="M9 13h6M9 17h6M9 9h2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-            </svg>
-          </span>
-          <span>الأوردر</span>
-        </button>
-
-        <button class="nav-btn" data-view="materials" type="button" onclick="openMaterialsManagerModal()" aria-label="الخامات">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M7 4h10l3 5-8 11L4 9l3-5Z" stroke="currentColor" stroke-width="1.8"/>
-              <path d="M9 4l3 16 3-16" stroke="currentColor" stroke-width="1.8"/>
-            </svg>
-          </span>
-          <span>الخامات</span>
-        </button>
-
-        <button class="nav-btn" data-view="printers" type="button" onclick="openPrintersManagerModal()" aria-label="الطابعات">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M7 8V4h10v4" stroke="currentColor" stroke-width="1.8"/>
-              <rect x="5" y="8" width="14" height="7" rx="2" stroke="currentColor" stroke-width="1.8"/>
-              <path d="M8 15h8v5H8z" stroke="currentColor" stroke-width="1.8"/>
-            </svg>
-          </span>
-          <span>الطابعات</span>
-        </button>
-
-        <button class="nav-btn" data-view="reports" type="button" onclick="openReports()" aria-label="التقارير">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M5 19V10M12 19V5M19 19v-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-            </svg>
-          </span>
-          <span>التقارير</span>
-        </button>
-
-        <button class="nav-btn" data-view="stock" type="button" onclick="openStockMovementsModal()" aria-label="المخزون">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M4 7.5 12 4l8 3.5L12 11 4 7.5Z" stroke="currentColor" stroke-width="1.8"/>
-              <path d="M4 12.5 12 16l8-3.5" stroke="currentColor" stroke-width="1.8"/>
-              <path d="M4 17.5 12 21l8-3.5" stroke="currentColor" stroke-width="1.8"/>
-            </svg>
-          </span>
-          <span>المخزون</span>
-        </button>
-
-        <button class="nav-btn" data-view="settings" type="button" onclick="openSettingsModal()" aria-label="الإعدادات">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.8"/>
-              <path d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a2 2 0 1 1-4 0v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a2 2 0 1 1 0-4h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1 1 0 0 0 1.1.2 1 1 0 0 0 .6-.9V4a2 2 0 1 1 4 0v.2a1 1 0 0 0 .6.9 1 1 0 0 0 1.1-.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1 1 0 0 0-.2 1.1 1 1 0 0 0 .9.6h.2a2 2 0 1 1 0 4h-.2a1 1 0 0 0-.9.6Z" stroke="currentColor" stroke-width="1.4"/>
-            </svg>
-          </span>
-          <span>الإعدادات</span>
-        </button>
-      </nav>
-    </div>
-  </div>
-
-  <div class="modal app-panel" id="reportsModal" aria-hidden="true">
-    <div class="modal-content modal-xl panel-content">
-      <div class="panel-head">
-        <button onclick="closeReports()" class="btn btn-secondary btn-auto">رجوع</button>
-        <h2>التقارير والمبيعات</h2>
-      </div>
-
-      <div class="stats-grid">
-        <div class="stat-box">
-          <h4>إجمالي الإيراد</h4>
-          <div id="statRev">0</div>
-        </div>
-
-        <div class="stat-box">
-          <h4>صافي الربح</h4>
-          <div id="statProfit">0</div>
-        </div>
-
-        <div class="stat-box">
-          <h4>عدد المبيعات</h4>
-          <div id="statCount">0</div>
-        </div>
-
-        <div class="stat-box">
-          <h4>أعلى بيعة</h4>
-          <div id="statTop">0</div>
-        </div>
-
-        <div class="stat-box">
-          <h4>طلبات ملغية</h4>
-          <div id="statCancelled">0</div>
-        </div>
-
-        <div class="stat-box">
-          <h4>أقل خامة متبقية</h4>
-          <div id="statLowestStock">-</div>
-        </div>
-      </div>
-
-      <div class="toolbar toolbar-wrap">
-        <div class="form-group">
-          <label for="salesSearch">بحث</label>
-          <input
-            type="text"
-            id="salesSearch"
-            placeholder="ابحث بالكود أو الاسم أو العميل أو الملاحظات"
-            oninput="renderReportsTable()"
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="filterStatus">الحالة</label>
-          <select id="filterStatus" oninput="renderReportsTable()">
-            <option value="">الكل</option>
-            <option value="new">جديد</option>
-            <option value="printing">قيد الطباعة</option>
-            <option value="finished">جاهز</option>
-            <option value="delivered">تم التسليم</option>
-            <option value="cancelled">ملغي</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="filterFrom">من تاريخ</label>
-          <input type="date" id="filterFrom" oninput="renderReportsTable()" />
-        </div>
-
-        <div class="form-group">
-          <label for="filterTo">إلى تاريخ</label>
-          <input type="date" id="filterTo" oninput="renderReportsTable()" />
-        </div>
-      </div>
-
-      <div class="table-wrap">
-        <table id="salesTable">
-          <thead>
-            <tr>
-              <th>الكود</th>
-              <th>التاريخ</th>
-              <th>المجسم</th>
-              <th>العميل</th>
-              <th>الطابعة</th>
-              <th>الحالة</th>
-              <th>التكلفة</th>
-              <th>البيع</th>
-              <th>الربح</th>
-              <th>إجراء</th>
-            </tr>
-          </thead>
-          <tbody id="salesTableBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal app-panel" id="editModal" aria-hidden="true">
-    <div class="modal-content modal-lg panel-content">
-      <div class="panel-head">
-        <button onclick="closeEditModal()" class="btn btn-secondary btn-auto">رجوع</button>
-        <h2>تعديل الأوردر</h2>
-      </div>
-
-      <div class="grid-3 section-gap-lg">
-        <div class="form-group">
-          <label for="editDate">التاريخ</label>
-          <input type="date" id="editDate" />
-        </div>
-
-        <div class="form-group">
-          <label for="editCode">الكود</label>
-          <input type="text" id="editCode" readonly />
-        </div>
-
-        <div class="form-group">
-          <label for="editStatus">الحالة</label>
-          <select id="editStatus">
-            <option value="new">جديد</option>
-            <option value="printing">قيد الطباعة</option>
-            <option value="finished">جاهز</option>
-            <option value="delivered">تم التسليم</option>
-            <option value="cancelled">ملغي</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="grid-2 section-gap-sm">
-        <div class="form-group">
-          <label for="editName">اسم المجسم</label>
-          <input type="text" id="editName" />
-        </div>
-
-        <div class="form-group">
-          <label for="editCustomer">اسم العميل</label>
-          <input type="text" id="editCustomer" />
-        </div>
-      </div>
-
-      <div class="grid-2 section-gap-sm">
-        <div class="form-group">
-          <label for="editPrinter">الطابعة</label>
-          <select id="editPrinter"></select>
-        </div>
-
-        <div class="form-group">
-          <label for="editNotes">ملاحظات</label>
-          <textarea id="editNotes"></textarea>
-        </div>
-      </div>
-
-      <div class="grid-2 section-gap-sm">
-        <div class="form-group">
-          <label for="editCost">التكلفة</label>
-          <input type="text" id="editCost" inputmode="decimal" />
-        </div>
-
-        <div class="form-group">
-          <label for="editPrice">البيع</label>
-          <input type="text" id="editPrice" inputmode="decimal" />
-        </div>
-      </div>
-
-      <button class="btn btn-primary section-gap-sm" onclick="saveEditedSale()">حفظ التعديل</button>
-    </div>
-  </div>
-
-  <div class="modal app-panel" id="printersManagerModal" aria-hidden="true">
-    <div class="modal-content modal-xl panel-content">
-      <div class="panel-head">
-        <button onclick="closePrintersManagerModal()" class="btn btn-secondary btn-auto">رجوع</button>
-        <h2>إدارة الطابعات</h2>
-        <button class="btn btn-primary btn-auto" onclick="openPrinterModal()">إضافة طابعة</button>
-      </div>
-
-      <div class="kpi-grid section-gap-md">
-        <div class="mini-kpi">
-          <span>إجمالي الطابعات</span>
-          <strong id="printersCount">0</strong>
-        </div>
-        <div class="mini-kpi">
-          <span>الشغالة الآن</span>
-          <strong id="activePrintersCount">0</strong>
-        </div>
-      </div>
-
-      <div id="printersList" class="stack-list"></div>
-    </div>
-  </div>
-
-  <div class="modal app-panel" id="materialsManagerModal" aria-hidden="true">
-    <div class="modal-content modal-xl panel-content">
-      <div class="panel-head">
-        <button onclick="closeMaterialsManagerModal()" class="btn btn-secondary btn-auto">رجوع</button>
-        <h2>إدارة الخامات</h2>
-        <button class="btn btn-primary btn-auto" onclick="openMaterialModal()">إضافة خامة</button>
-      </div>
-
-      <div class="kpi-grid section-gap-md">
-        <div class="mini-kpi">
-          <span>عدد الخامات</span>
-          <strong id="materialsCount">0</strong>
-        </div>
-        <div class="mini-kpi">
-          <span>منخفضة المخزون</span>
-          <strong id="lowStockCount">0</strong>
-        </div>
-      </div>
-
-      <div id="inventoryUI" class="stack-list"></div>
-
-      <div class="inline-actions section-gap-md">
-        <button class="btn btn-secondary" onclick="openStockMovementsModal()">حركة المخزون</button>
-        <button class="btn btn-secondary" onclick="exportBackupJSON()">تصدير JSON</button>
-        <label class="btn btn-secondary import-btn">
-          استيراد JSON
-          <input
-            type="file"
-            id="importInput"
-            hidden
-            onchange="importBackupJSON(event)"
-            accept="application/json"
-          />
-        </label>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal app-panel" id="printerModal" aria-hidden="true">
-    <div class="modal-content modal-md panel-content">
-      <div class="panel-head">
-        <button onclick="closePrinterModal()" class="btn btn-secondary btn-auto">رجوع</button>
-        <h2>إضافة / تعديل طابعة</h2>
-      </div>
-
-      <input type="hidden" id="printerId" />
-
-      <div class="grid-2 section-gap-lg">
-        <div class="form-group">
-          <label for="printerName">اسم الطابعة</label>
-          <input type="text" id="printerName" />
-        </div>
-
-        <div class="form-group">
-          <label for="printerStatus">الحالة</label>
-          <select id="printerStatus">
-            <option value="idle">متاحة</option>
-            <option value="printing">تطبع الآن</option>
-            <option value="maintenance">صيانة</option>
-            <option value="offline">متوقفة</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="grid-2 section-gap-sm">
-        <div class="form-group">
-          <label for="printerModel">الموديل</label>
-          <input type="text" id="printerModel" />
-        </div>
-
-        <div class="form-group">
-          <label for="printerHourlyDepreciation">إهلاك/ساعة</label>
-          <input type="text" id="printerHourlyDepreciation" inputmode="decimal" />
-        </div>
-      </div>
-
-      <div class="form-group section-gap-sm">
-        <label for="printerNotes">ملاحظات</label>
-        <textarea id="printerNotes"></textarea>
-      </div>
-
-      <button class="btn btn-primary" onclick="savePrinter()">حفظ الطابعة</button>
-    </div>
-  </div>
-
-  <div class="modal app-panel" id="materialModal" aria-hidden="true">
-    <div class="modal-content modal-md panel-content">
-      <div class="panel-head">
-        <button onclick="closeMaterialModal()" class="btn btn-secondary btn-auto">رجوع</button>
-        <h2>إضافة / تعديل خامة</h2>
-      </div>
-
-      <input type="hidden" id="materialId" />
-
-      <div class="grid-2 section-gap-lg">
-        <div class="form-group">
-          <label for="materialName">اسم الخامة</label>
-          <input type="text" id="materialName" />
-        </div>
-
-        <div class="form-group">
-          <label for="materialType">النوع</label>
-          <input type="text" id="materialType" placeholder="PLA / PETG / ABS..." />
-        </div>
-      </div>
-
-      <div class="grid-3 section-gap-sm">
-        <div class="form-group">
-          <label for="materialColor">اللون</label>
-          <input type="text" id="materialColor" />
-        </div>
-
-        <div class="form-group">
-          <label for="materialWeight">الوزن الكلي (جرام)</label>
-          <input type="text" id="materialWeight" inputmode="decimal" />
-        </div>
-
-        <div class="form-group">
-          <label for="materialRemaining">المتبقي الحالي (جرام)</label>
-          <input type="text" id="materialRemaining" inputmode="decimal" />
-        </div>
-      </div>
-
-      <div class="grid-3 section-gap-sm">
-        <div class="form-group">
-          <label for="materialPrice">سعر الشراء</label>
-          <input type="text" id="materialPrice" inputmode="decimal" />
-        </div>
-
-        <div class="form-group">
-          <label for="materialLowStock">حد التنبيه</label>
-          <input type="text" id="materialLowStock" inputmode="decimal" />
-        </div>
-
-        <div class="form-group">
-          <label for="materialSupplier">المورد</label>
-          <input type="text" id="materialSupplier" />
-        </div>
-      </div>
-
-      <button class="btn btn-primary section-gap-sm" onclick="saveMaterial()">حفظ الخامة</button>
-    </div>
-  </div>
-
-  <div class="modal app-panel" id="stockMovementsModal" aria-hidden="true">
-    <div class="modal-content modal-xl panel-content">
-      <div class="panel-head">
-        <button onclick="closeStockMovementsModal()" class="btn btn-secondary btn-auto">رجوع</button>
-        <h2>حركة المخزون</h2>
-      </div>
-
-      <div class="table-wrap section-gap-lg">
-        <table>
-          <thead>
-            <tr>
-              <th>التاريخ</th>
-              <th>الخامة</th>
-              <th>النوع</th>
-              <th>الكمية</th>
-              <th>السبب</th>
-              <th>المرجع</th>
-            </tr>
-          </thead>
-          <tbody id="stockMovementsBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal app-panel" id="settingsModal" aria-hidden="true">
-    <div class="modal-content modal-lg panel-content">
-      <div class="panel-head">
-        <button onclick="closeSettingsModal()" class="btn btn-secondary btn-auto">رجوع</button>
-        <h2>الإعدادات العامة</h2>
-      </div>
-
-      <div class="grid-3 section-gap-lg">
-        <div class="form-group">
-          <label for="farmName">اسم المشروع</label>
-          <input type="text" id="farmName" />
-        </div>
-
-        <div class="form-group">
-          <label for="currencyName">العملة</label>
-          <input type="text" id="currencyName" value="ج" />
-        </div>
-
-        <div class="form-group">
-          <label for="defaultTaxPercent">النسبة الافتراضية (%)</label>
-          <input type="text" id="defaultTaxPercent" value="0" inputmode="decimal" />
-        </div>
-      </div>
-
-      <div class="field-note section-gap-sm">
-        الإعدادات عامة على البرنامج، بينما تسعير الأوردر نفسه يتغير لكل أوردر بشكل مستقل.
-      </div>
-
-      <div class="inline-actions section-gap-md">
-        <button class="btn btn-primary" onclick="saveConfig()">حفظ الإعدادات</button>
-      </div>
-    </div>
-  </div>
-
-  <script src="app.js"></script>
-</body>
-</html>
+:root {
+  --bg: #f3f4f6;
+  --panel: #ffffff;
+  --panel-2: #f8fafc;
+  --text: #111827;
+  --text-soft: #6b7280;
+  --primary: #2563eb;
+  --primary-soft: #dbeafe;
+  --success: #16a34a;
+  --danger: #dc2626;
+  --warning: #d97706;
+  --border: #e5e7eb;
+  --shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+  --radius: 16px;
+  --radius-sm: 12px;
+  --radius-xs: 10px;
+  --nav-height: 74px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  font-family: "Cairo", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  font-size: 13px;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text);
+  border-radius: 10px;
+  padding: 9px 11px;
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input,
+select {
+  height: 38px;
+}
+
+textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.10);
+}
+
+label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.app-shell {
+  width: 100%;
+}
+
+.tablet-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.app-frame {
+  width: min(100%, 920px);
+  height: min(92vh, 760px);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.10);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-topbar {
+  flex: 0 0 auto;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.app-topbar-copy {
+  min-width: 0;
+}
+
+.app-title {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.1;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.app-subtitle {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--text-soft);
+}
+
+.order-code-chip {
+  flex: 0 0 auto;
+  border: 1px solid #dbeafe;
+  background: #eff6ff;
+  color: var(--primary);
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.app-content {
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 14px;
+  background: var(--panel-2);
+}
+
+.screen {
+  display: none;
+}
+
+.active-screen {
+  display: block;
+}
+
+.order-main-card,
+.order-materials-card,
+.order-summary-card {
+  margin-bottom: 10px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: var(--shadow);
+}
+
+.compact-card,
+.compact-result-card {
+  padding: 12px;
+}
+
+.result-card {
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
+}
+
+.sticky-card {
+  position: static;
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.section-head h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.section-subtext {
+  margin: 3px 0 0;
+  font-size: 10px;
+  color: var(--text-soft);
+}
+
+.section-head-light .section-subtext,
+.light-text {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.section-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  background: var(--primary-soft);
+  color: var(--primary);
+  border: 1px solid #bfdbfe;
+  white-space: nowrap;
+}
+
+.section-badge-light {
+  background: rgba(255, 255, 255, 0.10);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.grid-2,
+.grid-3,
+.kpi-grid,
+.stats-grid,
+.toolbar,
+.quick-actions-grid,
+.compact-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grid-3,
+.compact-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.kpi-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.stats-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 10px;
+}
+
+.toolbar {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 10px;
+}
+
+.compact-section-block {
+  padding: 10px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid var(--border);
+}
+
+.mini-section-head {
+  margin-bottom: 8px;
+}
+
+.mini-section-head h4 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.mini-section-head span {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--text-soft);
+}
+
+.form-group {
+  margin: 0;
+}
+
+.field-note {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #f9fafb;
+  border: 1px solid var(--border);
+  color: var(--text-soft);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.mini-kpi,
+.stat-box,
+.list-card,
+.stock-item,
+.alert-item {
+  border-radius: 12px;
+}
+
+.mini-kpi,
+.stat-box,
+.list-card,
+.stock-item {
+  background: #fff;
+  border: 1px solid var(--border);
+}
+
+.mini-kpi,
+.stat-box {
+  padding: 10px;
+}
+
+.mini-kpi span,
+.stat-box h4 {
+  display: block;
+  margin: 0 0 4px;
+  font-size: 10px;
+  color: var(--text-soft);
+  font-weight: 700;
+}
+
+.mini-kpi strong,
+.stat-box div {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.stack-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.list-card {
+  padding: 10px;
+}
+
+.list-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.list-card-head strong {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.list-card-body {
+  display: grid;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--text-soft);
+  line-height: 1.45;
+}
+
+.stock-item {
+  padding: 10px;
+}
+
+.stock-item.low {
+  border-color: #fcd34d;
+  background: #fffdf5;
+}
+
+.stock-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  margin-bottom: 7px;
+}
+
+.stock-bar {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+
+.stock-progress {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 999px;
+}
+
+.stock-details {
+  margin-top: 7px;
+}
+
+.inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.card-actions {
+  margin-top: 8px;
+}
+
+.btn,
+.action-btn {
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.btn:hover,
+.action-btn:hover {
+  opacity: 0.96;
+}
+
+.btn:active,
+.action-btn:active {
+  transform: scale(0.99);
+}
+
+.btn {
+  min-height: 34px;
+  border-radius: 10px;
+  padding: 7px 12px;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.btn-small {
+  min-height: 30px;
+  padding: 6px 10px;
+  font-size: 10px;
+}
+
+.btn-auto {
+  width: auto !important;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.btn-secondary {
+  background: #fff;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-dark {
+  background: #1f2937;
+  color: #fff;
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn-save {
+  width: 100%;
+  min-height: 40px;
+  background: var(--success);
+  color: #fff;
+  font-size: 12px;
+}
+
+.action-btn {
+  min-height: 29px;
+  padding: 6px 10px;
+  font-size: 10px;
+  border-radius: 8px;
+  color: #fff;
+}
+
+.action-btn.edit {
+  background: var(--primary);
+}
+
+.action-btn.delete {
+  background: var(--danger);
+}
+
+.res-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.total-row {
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.total-value {
+  font-size: 15px;
+}
+
+.final-price-box {
+  margin-top: 10px;
+  border-radius: 12px;
+  padding: 11px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.summary-box-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  color: #e5e7eb;
+}
+
+.price {
+  margin: 6px 0 10px;
+  font-size: 21px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.alert-item {
+  padding: 8px 10px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.table-wrap {
+  width: 100%;
+  overflow: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f9fafb;
+  color: #374151;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 9px 8px;
+  text-align: right;
+  border-bottom: 1px solid var(--border);
+}
+
+tbody td {
+  font-size: 11px;
+  color: #374151;
+  padding: 8px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+tbody tr:hover {
+  background: #fafafa;
+}
+
+.empty-state {
+  padding: 12px;
+  text-align: center;
+  color: var(--text-soft);
+  font-size: 11px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px dashed var(--border);
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: stretch;
+  justify-content: center;
+  padding: 0;
+  background: rgba(17, 24, 39, 0.14);
+  z-index: 1000;
+}
+
+.app-panel {
+  align-items: stretch;
+  justify-content: center;
+}
+
+.modal-content {
+  width: min(100%, 920px);
+  height: min(92vh, 760px);
+  margin: auto;
+  overflow: auto;
+  background: var(--panel-2);
+  border-radius: 28px;
+  border: 1px solid var(--border);
+  box-shadow: 0 14px 36px rgba(15, 23, 42, 0.10);
+  padding: 14px;
+}
+
+.modal-md,
+.modal-lg,
+.modal-xl {
+  width: min(100%, 920px);
+}
+
+.panel-content {
+  display: block;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.panel-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.toast {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3000;
+  min-width: 200px;
+  max-width: 90vw;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  transition: 0.24s ease;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.14);
+}
+
+.toast.success {
+  background: var(--success);
+}
+
+.toast.error {
+  background: var(--danger);
+}
+
+.bottom-nav {
+  flex: 0 0 auto;
+  height: var(--nav-height);
+  border-top: 1px solid var(--border);
+  background: #fff;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  padding: 8px;
+}
+
+.nav-btn {
+  border: none;
+  background: transparent;
+  border-radius: 14px;
+  color: #6b7280;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nav-btn:hover {
+  background: #f3f4f6;
+}
+
+.nav-btn-active {
+  background: #eff6ff;
+  color: var(--primary);
+}
+
+.nav-icon {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-icon svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.section-gap-sm {
+  margin-top: 8px;
+}
+
+.section-gap-md {
+  margin-top: 10px;
+}
+
+.section-gap-lg {
+  margin-top: 12px;
+}
+
+.import-btn {
+  text-align: center;
+  cursor: pointer;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (max-width: 900px) {
+  .tablet-shell {
+    padding: 0;
+  }
+
+  .app-frame,
+  .modal-content {
+    width: 100%;
+    height: 100vh;
+    max-height: 100vh;
+    border-radius: 0;
+    margin: 0;
+  }
+
+  .app-content {
+    padding: 12px;
+  }
+
+  .grid-2,
+  .grid-3,
+  .compact-grid,
+  .stats-grid,
+  .toolbar,
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-topbar {
+    padding: 12px;
+  }
+
+  .app-title {
+    font-size: 16px;
+  }
+
+  .app-subtitle {
+    display: none;
+  }
+
+  .panel-head,
+  .section-head,
+  .inline-actions,
+  .list-card-head,
+  .res-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn,
+  .action-btn {
+    width: 100%;
+  }
+}
