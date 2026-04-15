@@ -6,7 +6,7 @@ let db = null;
 
 function getDatabasePath() {
   const userDataPath = app.getPath('userData');
-  return path.join(userDataPath, 'print-farm.db');
+  return path.join(userDataPath, '3d-printing-business-manager.db');
 }
 
 function getDb() {
@@ -14,8 +14,11 @@ function getDb() {
 
   db = new Database(getDatabasePath());
   db.pragma('journal_mode = WAL');
+  db.pragma('foreign_keys = ON');
+  db.pragma('synchronous = NORMAL');
 
   createTables();
+  runMigrations();
   seedDefaults();
 
   return db;
@@ -73,63 +76,110 @@ function createTables() {
       final_price REAL NOT NULL DEFAULT 0,
       profit REAL NOT NULL DEFAULT 0,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (printer_id) REFERENCES printers(id)
+      FOREIGN KEY (printer_id) REFERENCES printers(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS order_materials (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       order_id INTEGER NOT NULL,
-      material_id INTEGER NOT NULL,
+      material_id INTEGER,
       material_name TEXT NOT NULL,
       grams REAL NOT NULL DEFAULT 0,
       price_per_gram REAL NOT NULL DEFAULT 0,
       total_cost REAL NOT NULL DEFAULT 0,
       FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-      FOREIGN KEY (material_id) REFERENCES materials(id)
+      FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS stock_movements (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      material_id INTEGER NOT NULL,
+      material_id INTEGER,
       material_name TEXT NOT NULL,
       movement_type TEXT NOT NULL,
       quantity REAL NOT NULL,
       reason TEXT DEFAULT '',
       reference_code TEXT DEFAULT '',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (material_id) REFERENCES materials(id)
+      FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE SET NULL
     );
   `);
 }
 
+function runMigrations() {
+  ensureColumnExists('materials', 'supplier', `ALTER TABLE materials ADD COLUMN supplier TEXT DEFAULT ''`);
+  ensureColumnExists(
+    'materials',
+    'low_stock_threshold',
+    `ALTER TABLE materials ADD COLUMN low_stock_threshold REAL NOT NULL DEFAULT 150`
+  );
+  ensureColumnExists(
+    'printers',
+    'hourly_depreciation',
+    `ALTER TABLE printers ADD COLUMN hourly_depreciation REAL DEFAULT 0`
+  );
+  ensureColumnExists(
+    'orders',
+    'print_hours',
+    `ALTER TABLE orders ADD COLUMN print_hours REAL NOT NULL DEFAULT 0`
+  );
+  ensureColumnExists(
+    'orders',
+    'manual_minutes',
+    `ALTER TABLE orders ADD COLUMN manual_minutes REAL NOT NULL DEFAULT 0`
+  );
+  ensureColumnExists(
+    'orders',
+    'material_cost',
+    `ALTER TABLE orders ADD COLUMN material_cost REAL NOT NULL DEFAULT 0`
+  );
+  ensureColumnExists(
+    'orders',
+    'depreciation_cost',
+    `ALTER TABLE orders ADD COLUMN depreciation_cost REAL NOT NULL DEFAULT 0`
+  );
+  ensureColumnExists(
+    'orders',
+    'electricity_cost',
+    `ALTER TABLE orders ADD COLUMN electricity_cost REAL NOT NULL DEFAULT 0`
+  );
+  ensureColumnExists(
+    'orders',
+    'labor_cost',
+    `ALTER TABLE orders ADD COLUMN labor_cost REAL NOT NULL DEFAULT 0`
+  );
+  ensureColumnExists(
+    'orders',
+    'packaging_cost',
+    `ALTER TABLE orders ADD COLUMN packaging_cost REAL NOT NULL DEFAULT 0`
+  );
+  ensureColumnExists(
+    'orders',
+    'shipping_cost',
+    `ALTER TABLE orders ADD COLUMN shipping_cost REAL NOT NULL DEFAULT 0`
+  );
+  ensureColumnExists(
+    'orders',
+    'risk_cost',
+    `ALTER TABLE orders ADD COLUMN risk_cost REAL NOT NULL DEFAULT 0`
+  );
+}
+
+function ensureColumnExists(tableName, columnName, alterSql) {
+  const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
+  const exists = columns.some((col) => col.name === columnName);
+
+  if (!exists) {
+    db.exec(alterSql);
+  }
+}
+
 function seedDefaults() {
-  const hasPrinters = db.prepare('SELECT COUNT(*) AS count FROM printers').get().count;
-  const hasMaterials = db.prepare('SELECT COUNT(*) AS count FROM materials').get().count;
-
-  if (hasPrinters === 0) {
-    const insertPrinter = db.prepare(`
-      INSERT INTO printers (name, model, status, hourly_depreciation, notes)
-      VALUES (?, ?, ?, ?, ?)
-    `);
-
-    insertPrinter.run('Bambu Lab A1', 'A1', 'idle', 12, '');
-    insertPrinter.run('Bambu Lab P1S', 'P1S', 'idle', 15, '');
-  }
-
-  if (hasMaterials === 0) {
-    const insertMaterial = db.prepare(`
-      INSERT INTO materials (name, type, color, weight, remaining, price, low_stock_threshold, supplier)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    insertMaterial.run('PLA Black', 'PLA', 'Black', 1000, 1000, 800, 150, '');
-    insertMaterial.run('PLA White', 'PLA', 'White', 1000, 1000, 800, 150, '');
-    insertMaterial.run('PLA Red', 'PLA', 'Red', 1000, 1000, 800, 150, '');
-    insertMaterial.run('PLA Silk Gold', 'PLA Silk', 'Gold', 1000, 1000, 1200, 150, '');
-  }
+  const configCount = db.prepare('SELECT COUNT(*) AS count FROM app_config').get().count;
+  const printersCount = db.prepare('SELECT COUNT(*) AS count FROM printers').get().count;
+  const materialsCount = db.prepare('SELECT COUNT(*) AS count FROM materials').get().count;
 
   const defaults = {
-    farmName: 'Print Farm App',
+    farmName: '3D Printing Business Manager',
     currencyName: 'ج',
     laborRate: '50',
     electricityCostPerHour: '3',
@@ -147,6 +197,35 @@ function seedDefaults() {
   Object.entries(defaults).forEach(([key, value]) => {
     insertConfig.run(key, String(value));
   });
+
+  if (configCount > 0) {
+    const currentFarmName = db.prepare(`SELECT value FROM app_config WHERE key = 'farmName'`).get();
+    if (!currentFarmName || !String(currentFarmName.value || '').trim()) {
+      insertConfig.run('farmName', defaults.farmName);
+    }
+  }
+
+  if (printersCount === 0) {
+    const insertPrinter = db.prepare(`
+      INSERT INTO printers (name, model, status, hourly_depreciation, notes)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+
+    insertPrinter.run('Bambu Lab A1', 'A1', 'idle', 0, '');
+    insertPrinter.run('Bambu Lab P1S', 'P1S', 'idle', 0, '');
+  }
+
+  if (materialsCount === 0) {
+    const insertMaterial = db.prepare(`
+      INSERT INTO materials (name, type, color, weight, remaining, price, low_stock_threshold, supplier)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    insertMaterial.run('PLA Black', 'PLA', 'Black', 1000, 1000, 800, 150, '');
+    insertMaterial.run('PLA White', 'PLA', 'White', 1000, 1000, 800, 150, '');
+    insertMaterial.run('PLA Red', 'PLA', 'Red', 1000, 1000, 800, 150, '');
+    insertMaterial.run('PLA Silk Gold', 'PLA Silk', 'Gold', 1000, 1000, 1200, 150, '');
+  }
 }
 
 function getAllConfig() {
@@ -165,12 +244,18 @@ function setConfig(key, value) {
     INSERT INTO app_config (key, value)
     VALUES (?, ?)
     ON CONFLICT(key) DO UPDATE SET value = excluded.value
-  `).run(key, String(value));
+  `).run(String(key), String(value));
 }
 
 function getDashboardData() {
   const printers = db.prepare(`
-    SELECT id, name, model, status, hourly_depreciation AS hourlyDepreciation, notes
+    SELECT
+      id,
+      name,
+      model,
+      status,
+      hourly_depreciation AS hourlyDepreciation,
+      notes
     FROM printers
     ORDER BY id DESC
   `).all();
@@ -230,7 +315,7 @@ function getDashboardData() {
       created_at AS createdAt
     FROM stock_movements
     ORDER BY id DESC
-    LIMIT 300
+    LIMIT 500
   `).all();
 
   return {
@@ -249,14 +334,14 @@ function createPrinter(data) {
   `);
 
   const result = stmt.run(
-    data.name,
-    data.model || '',
-    data.status || 'idle',
+    String(data.name || '').trim(),
+    String(data.model || '').trim(),
+    String(data.status || 'idle').trim(),
     Number(data.hourlyDepreciation || 0),
-    data.notes || ''
+    String(data.notes || '').trim()
   );
 
-  return result.lastInsertRowid;
+  return Number(result.lastInsertRowid);
 }
 
 function updatePrinter(data) {
@@ -270,18 +355,19 @@ function updatePrinter(data) {
       notes = ?
     WHERE id = ?
   `).run(
-    data.name,
-    data.model || '',
-    data.status || 'idle',
+    String(data.name || '').trim(),
+    String(data.model || '').trim(),
+    String(data.status || 'idle').trim(),
     Number(data.hourlyDepreciation || 0),
-    data.notes || '',
+    String(data.notes || '').trim(),
     Number(data.id)
   );
 }
 
 function deletePrinter(id) {
-  db.prepare('UPDATE orders SET printer_id = NULL WHERE printer_id = ?').run(Number(id));
-  db.prepare('DELETE FROM printers WHERE id = ?').run(Number(id));
+  const printerId = Number(id);
+  db.prepare('UPDATE orders SET printer_id = NULL WHERE printer_id = ?').run(printerId);
+  db.prepare('DELETE FROM printers WHERE id = ?').run(printerId);
 }
 
 function createMaterial(data) {
@@ -291,34 +377,39 @@ function createMaterial(data) {
   `);
 
   const result = stmt.run(
-    data.name,
-    data.type || '',
-    data.color || '',
+    String(data.name || '').trim(),
+    String(data.type || '').trim(),
+    String(data.color || '').trim(),
     Number(data.weight || 0),
     Number(data.remaining || 0),
     Number(data.price || 0),
     Number(data.lowStockThreshold || 0),
-    data.supplier || ''
+    String(data.supplier || '').trim()
   );
+
+  const materialId = Number(result.lastInsertRowid);
 
   db.prepare(`
     INSERT INTO stock_movements (material_id, material_name, movement_type, quantity, reason, reference_code)
     VALUES (?, ?, ?, ?, ?, ?)
   `).run(
-    result.lastInsertRowid,
-    data.name,
+    materialId,
+    String(data.name || '').trim(),
     'in',
     Number(data.remaining || 0),
     'إضافة خامة جديدة',
     ''
   );
 
-  return result.lastInsertRowid;
+  return materialId;
 }
 
 function updateMaterial(data) {
-  const oldMaterial = db.prepare('SELECT * FROM materials WHERE id = ?').get(Number(data.id));
+  const materialId = Number(data.id);
+  const oldMaterial = db.prepare('SELECT * FROM materials WHERE id = ?').get(materialId);
   if (!oldMaterial) return;
+
+  const newName = String(data.name || '').trim();
 
   db.prepare(`
     UPDATE materials
@@ -333,16 +424,30 @@ function updateMaterial(data) {
       supplier = ?
     WHERE id = ?
   `).run(
-    data.name,
-    data.type || '',
-    data.color || '',
+    newName,
+    String(data.type || '').trim(),
+    String(data.color || '').trim(),
     Number(data.weight || 0),
     Number(data.remaining || 0),
     Number(data.price || 0),
     Number(data.lowStockThreshold || 0),
-    data.supplier || '',
-    Number(data.id)
+    String(data.supplier || '').trim(),
+    materialId
   );
+
+  if (String(oldMaterial.name || '') !== newName) {
+    db.prepare(`
+      UPDATE order_materials
+      SET material_name = ?
+      WHERE material_id = ?
+    `).run(newName, materialId);
+
+    db.prepare(`
+      UPDATE stock_movements
+      SET material_name = ?
+      WHERE material_id = ?
+    `).run(newName, materialId);
+  }
 
   const difference = Number(data.remaining || 0) - Number(oldMaterial.remaining || 0);
 
@@ -351,8 +456,8 @@ function updateMaterial(data) {
       INSERT INTO stock_movements (material_id, material_name, movement_type, quantity, reason, reference_code)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(
-      Number(data.id),
-      data.name,
+      materialId,
+      newName,
       difference > 0 ? 'adjust_in' : 'adjust_out',
       Math.abs(difference),
       'تعديل يدوي على المخزون',
@@ -362,8 +467,10 @@ function updateMaterial(data) {
 }
 
 function deleteMaterial(id) {
-  db.prepare('DELETE FROM stock_movements WHERE material_id = ?').run(Number(id));
-  db.prepare('DELETE FROM materials WHERE id = ?').run(Number(id));
+  const materialId = Number(id);
+  db.prepare('DELETE FROM stock_movements WHERE material_id = ?').run(materialId);
+  db.prepare('DELETE FROM order_materials WHERE material_id = ?').run(materialId);
+  db.prepare('DELETE FROM materials WHERE id = ?').run(materialId);
 }
 
 function getNextOrderCode() {
@@ -454,15 +561,15 @@ function createOrder(payload) {
     }
 
     const orderResult = insertOrder.run(
-      data.code,
-      data.itemName,
-      data.customerName || '',
+      String(data.code || '').trim(),
+      String(data.itemName || '').trim(),
+      String(data.customerName || '').trim(),
       data.printerId ? Number(data.printerId) : null,
-      data.status || 'new',
+      String(data.status || 'new').trim(),
       Number(data.printHours || 0),
       Number(data.manualMinutes || 0),
-      data.notes || '',
-      data.date,
+      String(data.notes || '').trim(),
+      String(data.date || '').trim(),
       Number(data.materialCost || 0),
       Number(data.depreciationCost || 0),
       Number(data.electricityCost || 0),
@@ -475,36 +582,42 @@ function createOrder(payload) {
       Number(data.profit || 0)
     );
 
-    const orderId = orderResult.lastInsertRowid;
+    const orderId = Number(orderResult.lastInsertRowid);
 
     for (const item of data.materialUsage) {
-      updateMaterialStock.run(
+      const result = updateMaterialStock.run(
         Number(item.grams),
         Number(item.materialId),
         Number(item.grams)
       );
 
+      if (result.changes === 0) {
+        throw new Error(`تعذر خصم المخزون من: ${item.materialName}`);
+      }
+
       insertMaterialUsage.run(
-        Number(orderId),
+        orderId,
         Number(item.materialId),
-        item.materialName,
-        Number(item.grams),
+        String(item.materialName || '').trim(),
+        Number(item.grams || 0),
         Number(item.pricePerGram || 0),
         Number(item.totalCost || 0)
       );
 
       insertStockMovement.run(
         Number(item.materialId),
-        item.materialName,
+        String(item.materialName || '').trim(),
         'out',
-        Number(item.grams),
+        Number(item.grams || 0),
         'استهلاك في أوردر',
-        data.code
+        String(data.code || '').trim()
       );
     }
+
+    return orderId;
   });
 
-  transaction(payload);
+  return transaction(payload);
 }
 
 function updateOrder(payload) {
@@ -522,21 +635,21 @@ function updateOrder(payload) {
       profit = ?
     WHERE code = ?
   `).run(
-    payload.itemName,
-    payload.customerName || '',
+    String(payload.itemName || '').trim(),
+    String(payload.customerName || '').trim(),
     payload.printerId ? Number(payload.printerId) : null,
-    payload.status || 'new',
-    payload.notes || '',
-    payload.date,
+    String(payload.status || 'new').trim(),
+    String(payload.notes || '').trim(),
+    String(payload.date || '').trim(),
     Number(payload.totalCost || 0),
     Number(payload.finalPrice || 0),
     Number(payload.profit || 0),
-    payload.code
+    String(payload.code || '').trim()
   );
 }
 
 function deleteOrder(code) {
-  const order = db.prepare('SELECT id, code FROM orders WHERE code = ?').get(code);
+  const order = db.prepare('SELECT id, code FROM orders WHERE code = ?').get(String(code || '').trim());
   if (!order) return;
 
   const materials = db.prepare(`
@@ -547,11 +660,13 @@ function deleteOrder(code) {
 
   const transaction = db.transaction(() => {
     for (const item of materials) {
-      db.prepare(`
-        UPDATE materials
-        SET remaining = remaining + ?
-        WHERE id = ?
-      `).run(Number(item.grams), Number(item.materialId));
+      if (item.materialId) {
+        db.prepare(`
+          UPDATE materials
+          SET remaining = remaining + ?
+          WHERE id = ?
+        `).run(Number(item.grams), Number(item.materialId));
+      }
 
       db.prepare(`
         INSERT INTO stock_movements (
@@ -564,12 +679,12 @@ function deleteOrder(code) {
         )
         VALUES (?, ?, ?, ?, ?, ?)
       `).run(
-        Number(item.materialId),
-        item.materialName,
+        item.materialId ? Number(item.materialId) : null,
+        String(item.materialName || '').trim(),
         'return',
-        Number(item.grams),
+        Number(item.grams || 0),
         'استرجاع بعد حذف أوردر',
-        order.code
+        String(order.code || '').trim()
       );
     }
 
@@ -581,7 +696,9 @@ function deleteOrder(code) {
 }
 
 function replaceAllData(data) {
-  const transaction = db.transaction((payload) => {
+  const payload = data && typeof data === 'object' ? data : {};
+
+  const transaction = db.transaction(() => {
     db.exec(`
       DELETE FROM order_materials;
       DELETE FROM stock_movements;
@@ -589,6 +706,7 @@ function replaceAllData(data) {
       DELETE FROM materials;
       DELETE FROM printers;
       DELETE FROM app_config;
+      DELETE FROM sqlite_sequence WHERE name IN ('printers', 'materials', 'orders', 'order_materials', 'stock_movements');
     `);
 
     const insertConfig = db.prepare(`
@@ -643,44 +761,72 @@ function replaceAllData(data) {
       VALUES (?, ?, ?, ?, ?, ?)
     `);
 
+    const insertOrderMaterial = db.prepare(`
+      INSERT INTO order_materials (
+        order_id,
+        material_id,
+        material_name,
+        grams,
+        price_per_gram,
+        total_cost
+      )
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
     Object.entries(payload.config || {}).forEach(([key, value]) => {
       insertConfig.run(String(key), String(value));
     });
 
+    const printerIdMap = new Map();
+    const materialIdMap = new Map();
+    const orderIdMap = new Map();
+
     (payload.printers || []).forEach((printer) => {
-      insertPrinter.run(
-        printer.name,
-        printer.model || '',
-        printer.status || 'idle',
+      const result = insertPrinter.run(
+        String(printer.name || '').trim(),
+        String(printer.model || '').trim(),
+        String(printer.status || 'idle').trim(),
         Number(printer.hourlyDepreciation || 0),
-        printer.notes || ''
+        String(printer.notes || '').trim()
       );
+
+      if (printer.id != null) {
+        printerIdMap.set(Number(printer.id), Number(result.lastInsertRowid));
+      }
     });
 
     (payload.materials || []).forEach((material) => {
-      insertMaterial.run(
-        material.name,
-        material.type || '',
-        material.color || '',
+      const result = insertMaterial.run(
+        String(material.name || '').trim(),
+        String(material.type || '').trim(),
+        String(material.color || '').trim(),
         Number(material.weight || 0),
         Number(material.remaining || 0),
         Number(material.price || 0),
         Number(material.lowStockThreshold || 0),
-        material.supplier || ''
+        String(material.supplier || '').trim()
       );
+
+      if (material.id != null) {
+        materialIdMap.set(Number(material.id), Number(result.lastInsertRowid));
+      }
     });
 
     (payload.orders || []).forEach((order) => {
-      insertOrder.run(
-        order.code,
-        order.itemName,
-        order.customerName || '',
-        order.printerId ? Number(order.printerId) : null,
-        order.status || 'new',
+      const mappedPrinterId = order.printerId != null
+        ? (printerIdMap.get(Number(order.printerId)) ?? null)
+        : null;
+
+      const result = insertOrder.run(
+        String(order.code || '').trim(),
+        String(order.itemName || '').trim(),
+        String(order.customerName || '').trim(),
+        mappedPrinterId,
+        String(order.status || 'new').trim(),
         Number(order.printHours || 0),
         Number(order.manualMinutes || 0),
-        order.notes || '',
-        order.date,
+        String(order.notes || '').trim(),
+        String(order.date || '').trim(),
         Number(order.materialCost || 0),
         Number(order.depreciationCost || 0),
         Number(order.electricityCost || 0),
@@ -692,25 +838,71 @@ function replaceAllData(data) {
         Number(order.finalPrice || 0),
         Number(order.profit || 0)
       );
+
+      if (order.id != null) {
+        orderIdMap.set(Number(order.id), Number(result.lastInsertRowid));
+      }
+    });
+
+    (payload.orderMaterials || []).forEach((item) => {
+      const mappedOrderId = orderIdMap.get(Number(item.orderId));
+      if (!mappedOrderId) return;
+
+      const mappedMaterialId = item.materialId != null
+        ? (materialIdMap.get(Number(item.materialId)) ?? null)
+        : null;
+
+      insertOrderMaterial.run(
+        mappedOrderId,
+        mappedMaterialId,
+        String(item.materialName || '').trim(),
+        Number(item.grams || 0),
+        Number(item.pricePerGram || 0),
+        Number(item.totalCost || 0)
+      );
     });
 
     (payload.stockMovements || []).forEach((movement) => {
+      const mappedMaterialId = movement.materialId != null
+        ? (materialIdMap.get(Number(movement.materialId)) ?? null)
+        : null;
+
       insertMovement.run(
-        Number(movement.materialId || 0),
-        movement.materialName || '',
-        movement.movementType || 'adjust_in',
+        mappedMaterialId,
+        String(movement.materialName || '').trim(),
+        String(movement.movementType || 'adjust_in').trim(),
         Number(movement.quantity || 0),
-        movement.reason || '',
-        movement.referenceCode || ''
+        String(movement.reason || '').trim(),
+        String(movement.referenceCode || '').trim()
       );
     });
+
+    seedDefaults();
   });
 
-  transaction(data);
+  transaction();
 }
 
 function exportBackupData() {
-  return getDashboardData();
+  const data = getDashboardData();
+
+  const orderMaterials = db.prepare(`
+    SELECT
+      id,
+      order_id AS orderId,
+      material_id AS materialId,
+      material_name AS materialName,
+      grams,
+      price_per_gram AS pricePerGram,
+      total_cost AS totalCost
+    FROM order_materials
+    ORDER BY id ASC
+  `).all();
+
+  return {
+    ...data,
+    orderMaterials
+  };
 }
 
 module.exports = {
