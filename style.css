@@ -692,7 +692,7 @@ tbody tr:hover {
   border-top: 1px solid var(--border);
   background: #fff;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 4px;
   padding: 8px;
 }
@@ -707,7 +707,7 @@ tbody tr:hover {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
