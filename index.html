@@ -220,7 +220,7 @@
       </main>
 
       <nav class="bottom-nav">
-        <button class="nav-btn nav-btn-active" type="button" aria-label="الأوردر">
+        <button class="nav-btn nav-btn-active" data-view="order" type="button" aria-label="الأوردر">
           <span class="nav-icon">
             <svg viewBox="0 0 24 24" fill="none">
               <path d="M8 3h8l5 5v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.8"/>
@@ -231,7 +231,7 @@
           <span>الأوردر</span>
         </button>
 
-        <button class="nav-btn" type="button" onclick="openMaterialsManagerModal()" aria-label="الخامات">
+        <button class="nav-btn" data-view="materials" type="button" onclick="openMaterialsManagerModal()" aria-label="الخامات">
           <span class="nav-icon">
             <svg viewBox="0 0 24 24" fill="none">
               <path d="M7 4h10l3 5-8 11L4 9l3-5Z" stroke="currentColor" stroke-width="1.8"/>
@@ -241,7 +241,7 @@
           <span>الخامات</span>
         </button>
 
-        <button class="nav-btn" type="button" onclick="openPrintersManagerModal()" aria-label="الطابعات">
+        <button class="nav-btn" data-view="printers" type="button" onclick="openPrintersManagerModal()" aria-label="الطابعات">
           <span class="nav-icon">
             <svg viewBox="0 0 24 24" fill="none">
               <path d="M7 8V4h10v4" stroke="currentColor" stroke-width="1.8"/>
@@ -252,7 +252,7 @@
           <span>الطابعات</span>
         </button>
 
-        <button class="nav-btn" type="button" onclick="openReports()" aria-label="التقارير">
+        <button class="nav-btn" data-view="reports" type="button" onclick="openReports()" aria-label="التقارير">
           <span class="nav-icon">
             <svg viewBox="0 0 24 24" fill="none">
               <path d="M5 19V10M12 19V5M19 19v-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
@@ -261,7 +261,18 @@
           <span>التقارير</span>
         </button>
 
-        <button class="nav-btn" type="button" onclick="openSettingsModal()" aria-label="الإعدادات">
+        <button class="nav-btn" data-view="stock" type="button" onclick="openStockMovementsModal()" aria-label="المخزون">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M4 7.5 12 4l8 3.5L12 11 4 7.5Z" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M4 12.5 12 16l8-3.5" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M4 17.5 12 21l8-3.5" stroke="currentColor" stroke-width="1.8"/>
+            </svg>
+          </span>
+          <span>المخزون</span>
+        </button>
+
+        <button class="nav-btn" data-view="settings" type="button" onclick="openSettingsModal()" aria-label="الإعدادات">
           <span class="nav-icon">
             <svg viewBox="0 0 24 24" fill="none">
               <path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.8"/>
