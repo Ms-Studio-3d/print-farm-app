@@ -1,39 +1,37 @@
 name: Build Windows App
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
-
-permissions:
-  contents: read
+      - master
+  workflow_dispatch:
 
 jobs:
-  build-win:
+  build-windows:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
+      - name: Checkout project
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
       - name: Install dependencies
         run: npm install
 
-      - name: Build Windows installer
-        run: npm run dist:win
+      - name: Rebuild native dependencies
+        run: npm run rebuild
+
+      - name: Build Windows installer and portable
+        run: npm run dist
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         with:
-          name: print-farm-windows-build
-          path: |
-            dist/*.exe
-            dist/*.msi
-            dist/*.blockmap
-          if-no-files-found: warn
+          name: print-farm-app-windows-build
+          path: dist/**
