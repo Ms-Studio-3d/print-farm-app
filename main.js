@@ -3,7 +3,7 @@ const path = require('path');
 
 let mainWindow = null;
 
-function createWindow() {
+function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1600,
     height: 950,
@@ -15,27 +15,38 @@ function createWindow() {
     title: 'Print Farm App',
     webPreferences: {
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      sandbox: true,
+      devTools: true
     }
   });
 
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
 
   mainWindow.once('ready-to-show', () => {
+    if (!mainWindow) return;
+    mainWindow.maximize();
     mainWindow.show();
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
+      shell.openExternal(url);
+    }
     return { action: 'deny' };
   });
 
   mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (!mainWindow) return;
+
     const currentUrl = mainWindow.webContents.getURL();
 
     if (url !== currentUrl) {
       event.preventDefault();
-      shell.openExternal(url);
+
+      if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
+        shell.openExternal(url);
+      }
     }
   });
 
@@ -44,13 +55,21 @@ function createWindow() {
   });
 }
 
+app.disableHardwareAcceleration();
+
 app.whenReady().then(() => {
-  createWindow();
+  createMainWindow();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+      createMainWindow();
     }
+  });
+});
+
+app.on('web-contents-created', (_, contents) => {
+  contents.on('will-attach-webview', (event) => {
+    event.preventDefault();
   });
 });
 
