@@ -118,6 +118,10 @@ label {
   padding-bottom: 11px;
 }
 
+.topbar-copy {
+  min-width: 0;
+}
+
 .app-title,
 .app-subtitle,
 .topbar-actions {
@@ -523,6 +527,10 @@ label {
   font-size: 12px;
 }
 
+.btn-auto {
+  width: auto !important;
+}
+
 .action-btn {
   min-height: 29px;
   padding: 6px 9px;
@@ -567,6 +575,13 @@ label {
   padding: 11px;
   background: linear-gradient(180deg, rgba(16, 185, 129, 0.12), rgba(37, 99, 235, 0.09));
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.summary-box-title {
+  margin: 0;
+  color: #ecfdf5;
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .price {
@@ -729,110 +744,22 @@ tbody tr:hover {
   background: linear-gradient(135deg, #ef4444, #dc2626);
 }
 
+.section-gap-sm {
+  margin-top: 8px;
+}
+
+.section-gap-md {
+  margin-top: 10px;
+}
+
+.section-gap-lg {
+  margin-top: 12px;
+}
+
+.import-btn {
+  text-align: center;
+  cursor: pointer;
+}
+
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.42);
-  border-radius: 999px;
-  border: 2px solid rgba(255, 255, 255, 0.65);
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-@media (max-width: 1450px) {
-  .order-layout,
-  .compact-order-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .sticky-card {
-    position: static;
-  }
-
-  .compact-dual-section {
-    grid-template-columns: 1fr;
-  }
-
-  .stats-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .toolbar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .quick-actions-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 992px) {
-  body {
-    padding: 8px;
-  }
-
-  .topbar {
-    flex-direction: column;
-    align-items: stretch;
-    border-radius: 14px;
-    padding: 12px;
-  }
-
-  .grid-2,
-  .grid-3,
-  .kpi-grid,
-  .stats-grid,
-  .toolbar,
-  .quick-actions-grid,
-  .compact-grid,
-  .quick-actions-strip {
-    grid-template-columns: 1fr;
-  }
-
-  .card,
-  .modal-content,
-  .compact-card {
-    padding: 11px;
-    border-radius: 14px;
-  }
-
-  .app-title {
-    font-size: 18px;
-  }
-
-  .price {
-    font-size: 19px;
-  }
-
-  .modal {
-    padding: 8px;
-  }
-}
-
-@media (max-width: 640px) {
-  .topbar-actions,
-  .inline-actions,
-  .modal-head,
-  .section-head,
-  .list-card-head,
-  .res-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .btn,
-  .action-btn {
-    width: 100%;
-  }
-
-  input,
-  select,
-  textarea {
-    font-size: 12px;
-  }
-}
+  width: 8
