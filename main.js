@@ -19,8 +19,13 @@ const {
 } = require('./database');
 
 let mainWindow = null;
+let ipcHandlersRegistered = false;
 
 function createMainWindow() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    return mainWindow;
+  }
+
   mainWindow = new BrowserWindow({
     width: 1600,
     height: 950,
@@ -29,7 +34,7 @@ function createMainWindow() {
     show: false,
     autoHideMenuBar: true,
     backgroundColor: '#f1f5f9',
-    title: 'Print Farm App',
+    title: '3D Printing Business Manager',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -72,36 +77,37 @@ function createMainWindow() {
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
+
+  return mainWindow;
+}
+
+function ok(data = null) {
+  return { success: true, data };
+}
+
+function fail(message) {
+  return { success: false, message };
 }
 
 function registerIpcHandlers() {
+  if (ipcHandlersRegistered) return;
+  ipcHandlersRegistered = true;
+
   ipcMain.handle('db:getDashboardData', async () => {
     try {
       getDb();
-      return {
-        success: true,
-        data: getDashboardData()
-      };
+      return ok(getDashboardData());
     } catch (error) {
-      return {
-        success: false,
-        message: error.message || 'فشل في تحميل البيانات'
-      };
+      return fail(error?.message || 'فشل في تحميل البيانات');
     }
   });
 
   ipcMain.handle('db:getNextOrderCode', async () => {
     try {
       getDb();
-      return {
-        success: true,
-        data: getNextOrderCode()
-      };
+      return ok(getNextOrderCode());
     } catch (error) {
-      return {
-        success: false,
-        message: error.message || 'فشل في إنشاء كود الأوردر'
-      };
+      return fail(error?.message || 'فشل في إنشاء كود الأوردر');
     }
   });
 
@@ -111,18 +117,13 @@ function registerIpcHandlers() {
 
       const safePayload = payload && typeof payload === 'object' ? payload : {};
 
-      Object.entries(safePayload).forEach(([key, value]) => {
-        setConfig(key, value);
-      });
+      for (const [key, value] of Object.entries(safePayload)) {
+        setConfig(String(key), value);
+      }
 
-      return {
-        success: true
-      };
+      return ok();
     } catch (error) {
-      return {
-        success: false,
-        message: error.message || 'فشل في حفظ الإعدادات'
-      };
+      return fail(error?.message || 'فشل في حفظ الإعدادات');
     }
   });
 
@@ -134,15 +135,12 @@ function registerIpcHandlers() {
       const name = String(data.name || '').trim();
 
       if (!name) {
-        return {
-          success: false,
-          message: 'اسم الطابعة مطلوب'
-        };
+        return fail('اسم الطابعة مطلوب');
       }
 
       if (data.id) {
         updatePrinter({
-          id: data.id,
+          id: Number(data.id),
           name,
           model: String(data.model || '').trim(),
           status: String(data.status || 'idle').trim(),
@@ -159,30 +157,24 @@ function registerIpcHandlers() {
         });
       }
 
-      return {
-        success: true
-      };
+      return ok();
     } catch (error) {
-      return {
-        success: false,
-        message: error.message || 'فشل في حفظ الطابعة'
-      };
+      return fail(error?.message || 'فشل في حفظ الطابعة');
     }
   });
 
   ipcMain.handle('db:deletePrinter', async (_, payload) => {
     try {
       getDb();
-      deletePrinter(payload?.id);
 
-      return {
-        success: true
-      };
+      if (!payload?.id) {
+        return fail('معرف الطابعة غير موجود');
+      }
+
+      deletePrinter(Number(payload.id));
+      return ok();
     } catch (error) {
-      return {
-        success: false,
-        message: error.message || 'فشل في حذف الطابعة'
-      };
+      return fail(error?.message || 'فشل في حذف الطابعة');
     }
   });
 
@@ -194,22 +186,16 @@ function registerIpcHandlers() {
       const name = String(data.name || '').trim();
 
       if (!name) {
-        return {
-          success: false,
-          message: 'اسم الخامة مطلوب'
-        };
+        return fail('اسم الخامة مطلوب');
       }
 
       if (Number(data.weight || 0) <= 0) {
-        return {
-          success: false,
-          message: 'وزن الخامة لازم يكون أكبر من صفر'
-        };
+        return fail('وزن الخامة لازم يكون أكبر من صفر');
       }
 
       if (data.id) {
         updateMaterial({
-          id: data.id,
+          id: Number(data.id),
           name,
           type: String(data.type || '').trim(),
           color: String(data.color || '').trim(),
@@ -232,30 +218,24 @@ function registerIpcHandlers() {
         });
       }
 
-      return {
-        success: true
-      };
+      return ok();
     } catch (error) {
-      return {
-        success: false,
-        message: error.message || 'فشل في حفظ الخامة'
-      };
+      return fail(error?.message || 'فشل في حفظ الخامة');
     }
   });
 
   ipcMain.handle('db:deleteMaterial', async (_, payload) => {
     try {
       getDb();
-      deleteMaterial(payload?.id);
 
-      return {
-        success: true
-      };
+      if (!payload?.id) {
+        return fail('معرف الخامة غير موجود');
+      }
+
+      deleteMaterial(Number(payload.id));
+      return ok();
     } catch (error) {
-      return {
-        success: false,
-        message: error.message || 'فشل في حذف الخامة'
-      };
+      return fail(error?.message || 'فشل في حذف الخامة');
     }
   });
 
@@ -267,24 +247,18 @@ function registerIpcHandlers() {
       const itemName = String(data.itemName || '').trim();
 
       if (!itemName) {
-        return {
-          success: false,
-          message: 'اسم المجسم مطلوب'
-        };
+        return fail('اسم المجسم مطلوب');
       }
 
       if (!Array.isArray(data.materialUsage) || data.materialUsage.length === 0) {
-        return {
-          success: false,
-          message: 'لازم تضيف استهلاك خامة واحد على الأقل'
-        };
+        return fail('لازم تضيف استهلاك خامة واحد على الأقل');
       }
 
       createOrder({
         code: String(data.code || '').trim(),
         itemName,
         customerName: String(data.customerName || '').trim(),
-        printerId: data.printerId || null,
+        printerId: data.printerId ? Number(data.printerId) : null,
         status: String(data.status || 'new').trim(),
         printHours: Number(data.printHours || 0),
         manualMinutes: Number(data.manualMinutes || 0),
@@ -309,14 +283,9 @@ function registerIpcHandlers() {
         }))
       });
 
-      return {
-        success: true
-      };
+      return ok();
     } catch (error) {
-      return {
-        success: false,
-        message: error.message || 'فشل في حفظ الأوردر'
-      };
+      return fail(error?.message || 'فشل في حفظ الأوردر');
     }
   });
 
@@ -328,17 +297,14 @@ function registerIpcHandlers() {
       const code = String(data.code || '').trim();
 
       if (!code) {
-        return {
-          success: false,
-          message: 'كود الأوردر غير موجود'
-        };
+        return fail('كود الأوردر غير موجود');
       }
 
       updateOrder({
         code,
         itemName: String(data.itemName || '').trim(),
         customerName: String(data.customerName || '').trim(),
-        printerId: data.printerId || null,
+        printerId: data.printerId ? Number(data.printerId) : null,
         status: String(data.status || 'new').trim(),
         notes: String(data.notes || '').trim(),
         date: String(data.date || '').trim(),
@@ -347,45 +313,34 @@ function registerIpcHandlers() {
         profit: Number(data.profit || 0)
       });
 
-      return {
-        success: true
-      };
+      return ok();
     } catch (error) {
-      return {
-        success: false,
-        message: error.message || 'فشل في تعديل الأوردر'
-      };
+      return fail(error?.message || 'فشل في تعديل الأوردر');
     }
   });
 
   ipcMain.handle('db:deleteOrder', async (_, payload) => {
     try {
       getDb();
-      deleteOrder(payload?.code);
 
-      return {
-        success: true
-      };
+      const code = String(payload?.code || '').trim();
+      if (!code) {
+        return fail('كود الأوردر غير موجود');
+      }
+
+      deleteOrder(code);
+      return ok();
     } catch (error) {
-      return {
-        success: false,
-        message: error.message || 'فشل في حذف الأوردر'
-      };
+      return fail(error?.message || 'فشل في حذف الأوردر');
     }
   });
 
   ipcMain.handle('db:exportBackup', async () => {
     try {
       getDb();
-      return {
-        success: true,
-        data: exportBackupData()
-      };
+      return ok(exportBackupData());
     } catch (error) {
-      return {
-        success: false,
-        message: error.message || 'فشل في تصدير النسخة الاحتياطية'
-      };
+      return fail(error?.message || 'فشل في تصدير النسخة الاحتياطية');
     }
   });
 
@@ -394,39 +349,34 @@ function registerIpcHandlers() {
       getDb();
 
       if (!payload || typeof payload !== 'object') {
-        return {
-          success: false,
-          message: 'ملف النسخة الاحتياطية غير صالح'
-        };
+        return fail('ملف النسخة الاحتياطية غير صالح');
       }
 
       replaceAllData(payload);
-
-      return {
-        success: true
-      };
+      return ok();
     } catch (error) {
-      return {
-        success: false,
-        message: error.message || 'فشل في استيراد النسخة الاحتياطية'
-      };
+      return fail(error?.message || 'فشل في استيراد النسخة الاحتياطية');
     }
   });
 
   ipcMain.handle('dialog:confirm', async (_, payload) => {
-    const result = await dialog.showMessageBox({
-      type: 'question',
-      buttons: ['نعم', 'إلغاء'],
-      defaultId: 0,
-      cancelId: 1,
-      title: 'تأكيد',
-      message: String(payload?.message || 'هل أنت متأكد؟')
-    });
+    try {
+      const result = await dialog.showMessageBox({
+        type: 'question',
+        buttons: ['نعم', 'إلغاء'],
+        defaultId: 0,
+        cancelId: 1,
+        title: 'تأكيد',
+        message: String(payload?.message || 'هل أنت متأكد؟')
+      });
 
-    return {
-      success: true,
-      confirmed: result.response === 0
-    };
+      return {
+        success: true,
+        confirmed: result.response === 0
+      };
+    } catch (error) {
+      return fail(error?.message || 'تعذر فتح نافذة التأكيد');
+    }
   });
 }
 
