@@ -1,77 +1,43 @@
-{
-  "name": "printing-business-manager",
-  "version": "1.0.0",
-  "description": "Desktop app for 3D printing business management",
-  "main": "main.js",
-  "author": "Ms-Studio-3d",
-  "license": "MIT",
-  "keywords": [
-    "electron",
-    "3d-printing",
-    "business-manager",
-    "desktop-app",
-    "inventory",
-    "sqlite"
-  ],
-  "scripts": {
-    "start": "electron .",
-    "dev": "electron .",
-    "rebuild": "electron-builder install-app-deps",
-    "build": "electron-builder --dir",
-    "dist": "electron-builder --win nsis --publish never",
-    "dist:win": "electron-builder --win nsis --publish never",
-    "dist:installer": "electron-builder --win nsis --publish never"
-  },
-  "dependencies": {
-    "better-sqlite3": "^11.8.1"
-  },
-  "devDependencies": {
-    "electron": "^31.0.2",
-    "electron-builder": "^24.13.3"
-  },
-  "build": {
-    "appId": "com.msstudio3d.businessmanager",
-    "productName": "3D Printing Business Manager",
-    "asar": true,
-    "artifactName": "${productName}-${version}.${ext}",
-    "directories": {
-      "output": "dist",
-      "buildResources": "build"
-    },
-    "files": [
-      "**/*",
-      "!dist/**/*",
-      "!.git/**/*",
-      "!.github/**/*",
-      "!node_modules/.cache/**/*",
-      "!README.md"
-    ],
-    "extraMetadata": {
-      "main": "main.js"
-    },
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "icon": "build/icon.ico",
-      "publisherName": "Ms-Studio-3d"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "artifactName": "${productName}-Setup-${version}.${ext}",
-      "shortcutName": "3D Printing Business Manager",
-      "uninstallDisplayName": "3D Printing Business Manager",
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "runAfterFinish": true,
-      "deleteAppDataOnUninstall": false
-    },
-    "publish": null
-  }
-}
+name: Build Windows App
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Rebuild native dependencies
+        run: npm run rebuild
+
+      - name: Build installer
+        run: npm run dist
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: |
+            dist/*.exe
+            dist/*.yml
+            dist/*.blockmap
+          if-no-files-found: warn
