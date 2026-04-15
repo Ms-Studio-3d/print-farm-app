@@ -32,97 +32,103 @@
 
       <main class="app-content">
         <section class="screen screen-order active-screen">
-          <section class="card compact-card order-main-card">
-            <div class="section-head">
-              <div>
-                <h3>أوردر جديد</h3>
-                <p class="section-subtext">البيانات الأساسية للأوردر الحالي</p>
-              </div>
-            </div>
-
-            <div class="grid-2 compact-grid">
-              <div class="form-group">
-                <label for="itemName">اسم المجسم *</label>
-                <input type="text" id="itemName" placeholder="مثال: حامل موبايل / تنين مفصلي" />
+          <section class="home-section-grid">
+            <section class="card compact-card order-main-card">
+              <div class="section-head">
+                <div>
+                  <h3>أوردر جديد</h3>
+                  <p class="section-subtext">البيانات الأساسية للأوردر الحالي</p>
+                </div>
               </div>
 
-              <div class="form-group">
-                <label for="customerName">اسم العميل</label>
-                <input type="text" id="customerName" placeholder="اختياري" />
-              </div>
-            </div>
+              <div class="grid-2 compact-grid">
+                <div class="form-group">
+                  <label for="itemName">اسم المجسم *</label>
+                  <input type="text" id="itemName" placeholder="مثال: حامل موبايل / تنين مفصلي" />
+                </div>
 
-            <div class="grid-2 compact-grid section-gap-sm">
-              <div class="form-group">
-                <label for="selectedPrinter">الطابعة المستخدمة *</label>
-                <select id="selectedPrinter"></select>
-              </div>
-
-              <div class="form-group">
-                <label for="orderStatus">حالة الأوردر</label>
-                <select id="orderStatus">
-                  <option value="new">جديد</option>
-                  <option value="printing">قيد الطباعة</option>
-                  <option value="finished">جاهز</option>
-                  <option value="delivered">تم التسليم</option>
-                  <option value="cancelled">ملغي</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="grid-3 compact-grid section-gap-sm">
-              <div class="form-group">
-                <label for="opDate">تاريخ العملية</label>
-                <input type="date" id="opDate" />
+                <div class="form-group">
+                  <label for="customerName">اسم العميل</label>
+                  <input type="text" id="customerName" placeholder="اختياري" />
+                </div>
               </div>
 
-              <div class="form-group">
-                <label for="printHours">وقت الطباعة (ساعات) *</label>
-                <input type="text" id="printHours" value="0" inputmode="decimal" />
+              <div class="grid-2 compact-grid section-gap-sm">
+                <div class="form-group">
+                  <label for="selectedPrinter">الطابعة المستخدمة *</label>
+                  <select id="selectedPrinter"></select>
+                </div>
+
+                <div class="form-group">
+                  <label for="orderStatus">حالة الأوردر</label>
+                  <select id="orderStatus">
+                    <option value="new">جديد</option>
+                    <option value="printing">قيد الطباعة</option>
+                    <option value="finished">جاهز</option>
+                    <option value="delivered">تم التسليم</option>
+                    <option value="cancelled">ملغي</option>
+                  </select>
+                </div>
               </div>
 
-              <div class="form-group">
-                <label for="manualMins">شغل يدوي (دقائق)</label>
-                <input type="text" id="manualMins" value="15" inputmode="decimal" />
-              </div>
-            </div>
+              <div class="grid-3 compact-grid section-gap-sm">
+                <div class="form-group">
+                  <label for="opDate">تاريخ العملية</label>
+                  <input type="date" id="opDate" />
+                </div>
 
-            <div class="grid-2 compact-grid section-gap-sm">
-              <div class="form-group">
-                <label for="profitMargin">نسبة المكسب (%)</label>
-                <input type="text" id="profitMargin" value="100" inputmode="decimal" />
+                <div class="form-group">
+                  <label for="printHours">وقت الطباعة (ساعات) *</label>
+                  <input type="text" id="printHours" value="0" inputmode="decimal" />
+                </div>
+
+                <div class="form-group">
+                  <label for="manualMins">شغل يدوي (دقائق)</label>
+                  <input type="text" id="manualMins" value="15" inputmode="decimal" />
+                </div>
               </div>
 
-              <div class="form-group">
-                <label for="orderNotes">ملاحظات الأوردر</label>
-                <input type="text" id="orderNotes" placeholder="اختياري" />
+              <div class="grid-2 compact-grid section-gap-sm">
+                <div class="form-group">
+                  <label for="profitMargin">نسبة المكسب (%)</label>
+                  <input type="text" id="profitMargin" value="100" inputmode="decimal" />
+                </div>
+
+                <div class="form-group">
+                  <label for="orderNotes">ملاحظات الأوردر</label>
+                  <input type="text" id="orderNotes" placeholder="اختياري" />
+                </div>
               </div>
-            </div>
+            </section>
+
+            <section class="card compact-card order-materials-card">
+              <div class="section-head">
+                <div>
+                  <h3>الخامات والتسعير</h3>
+                  <p class="section-subtext">الاستهلاك المباشر للأوردر</p>
+                </div>
+                <div class="inline-actions">
+                  <button class="btn btn-secondary btn-small" onclick="openMaterialsManagerModal()">إدارة الخامات</button>
+                </div>
+              </div>
+
+              <div class="compact-section-block">
+                <div class="mini-section-head">
+                  <h4>استهلاك الخامات</h4>
+                  <span>أدخل الجرامات المستخدمة فقط</span>
+                </div>
+                <div id="amsInputs" class="grid-2 compact-grid"></div>
+              </div>
+            </section>
           </section>
 
-          <section class="card compact-card order-materials-card">
-            <div class="section-head">
-              <div>
-                <h3>الخامات والتسعير</h3>
-                <p class="section-subtext">كل ما يخص الأوردر الحالي</p>
-              </div>
-              <div class="inline-actions">
-                <button class="btn btn-secondary btn-small" onclick="openMaterialsManagerModal()">إدارة الخامات</button>
-              </div>
-            </div>
-
-            <div class="compact-section-block">
-              <div class="mini-section-head">
-                <h4>استهلاك الخامات</h4>
-                <span>أدخل الجرامات المستخدمة فقط</span>
-              </div>
-              <div id="amsInputs" class="grid-2 compact-grid"></div>
-            </div>
-
-            <div class="compact-section-block section-gap-sm">
-              <div class="mini-section-head">
-                <h4>تفاصيل التسعير</h4>
-                <span>هذه القيم تخص الأوردر الحالي فقط</span>
+          <section class="home-section-grid section-gap-lg">
+            <section class="card compact-card">
+              <div class="section-head">
+                <div>
+                  <h3>تفاصيل التسعير</h3>
+                  <p class="section-subtext">القيم التي تدخل في حساب السعر</p>
+                </div>
               </div>
 
               <div class="grid-3 compact-grid">
@@ -158,63 +164,67 @@
                   <input type="text" id="defaultTaxPercent" value="0" inputmode="decimal" />
                 </div>
               </div>
-            </div>
-          </section>
 
-          <section class="card result-card compact-result-card order-summary-card">
-            <div class="section-head section-head-light">
-              <div>
-                <h3>ملخص التسعير</h3>
-                <p class="section-subtext light-text">الحسبة المباشرة للأوردر الحالي</p>
+              <div class="field-note section-gap-sm">
+                هذه القيم تخص الأوردر الحالي فقط، وتقدر تعدلها قبل الحفظ.
               </div>
-              <span class="section-badge section-badge-light">Live</span>
-            </div>
+            </section>
 
-            <div class="res-row">
-              <span>تكلفة الخامات</span>
-              <span id="resMat">0 ج</span>
-            </div>
+            <section class="card result-card compact-result-card order-summary-card">
+              <div class="section-head section-head-light">
+                <div>
+                  <h3>ملخص التسعير</h3>
+                  <p class="section-subtext light-text">الحسبة المباشرة للأوردر الحالي</p>
+                </div>
+                <span class="section-badge section-badge-light">Live</span>
+              </div>
 
-            <div class="res-row">
-              <span>إهلاك الطابعة</span>
-              <span id="resDep">0 ج</span>
-            </div>
+              <div class="res-row">
+                <span>تكلفة الخامات</span>
+                <span id="resMat">0 ج</span>
+              </div>
 
-            <div class="res-row">
-              <span>الكهرباء</span>
-              <span id="resElectricity">0 ج</span>
-            </div>
+              <div class="res-row">
+                <span>إهلاك الطابعة</span>
+                <span id="resDep">0 ج</span>
+              </div>
 
-            <div class="res-row">
-              <span>الشغل اليدوي</span>
-              <span id="resLabor">0 ج</span>
-            </div>
+              <div class="res-row">
+                <span>الكهرباء</span>
+                <span id="resElectricity">0 ج</span>
+              </div>
 
-            <div class="res-row">
-              <span>التغليف</span>
-              <span id="resPackaging">0 ج</span>
-            </div>
+              <div class="res-row">
+                <span>الشغل اليدوي</span>
+                <span id="resLabor">0 ج</span>
+              </div>
 
-            <div class="res-row">
-              <span>الشحن / الإضافات</span>
-              <span id="resShipping">0 ج</span>
-            </div>
+              <div class="res-row">
+                <span>التغليف</span>
+                <span id="resPackaging">0 ج</span>
+              </div>
 
-            <div class="res-row">
-              <span>الهالك / النسبة الإضافية</span>
-              <span id="resRisk">0 ج</span>
-            </div>
+              <div class="res-row">
+                <span>الشحن / الإضافات</span>
+                <span id="resShipping">0 ج</span>
+              </div>
 
-            <div class="res-row total-row">
-              <span>إجمالي التكلفة</span>
-              <span id="resTotal" class="total-value">0 ج</span>
-            </div>
+              <div class="res-row">
+                <span>الهالك / النسبة الإضافية</span>
+                <span id="resRisk">0 ج</span>
+              </div>
 
-            <div class="final-price-box">
-              <h4 class="summary-box-title">سعر البيع المقترح</h4>
-              <div class="price" id="resFinal">0 ج</div>
-              <button class="btn btn-save" onclick="saveSale()">تسجيل الأوردر</button>
-            </div>
+              <div class="res-row total-row">
+                <span>إجمالي التكلفة</span>
+                <span id="resTotal" class="total-value">0 ج</span>
+              </div>
+
+              <div class="final-price-box">
+                <h4 class="summary-box-title">سعر البيع المقترح</h4>
+                <div class="price" id="resFinal">0 ج</div>
+                <button class="btn btn-save" onclick="saveSale()">تسجيل الأوردر</button>
+              </div>
+            </section>
           </section>
         </section>
       </main>
