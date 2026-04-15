@@ -27,17 +27,17 @@
       </div>
 
       <div class="topbar-actions">
-        <button class="btn btn-dark" onclick="openReports()">التقارير</button>
-        <button class="btn btn-dark" onclick="openStockMovementsModal()">حركة المخزون</button>
-        <button class="btn btn-dark" onclick="openPrintersManagerModal()">الطابعات</button>
-        <button class="btn btn-dark" onclick="openMaterialsManagerModal()">الخامات</button>
-        <button class="btn btn-dark" onclick="openSettingsModal()">الإعدادات</button>
+        <button class="btn btn-dark btn-small" onclick="openReports()">التقارير</button>
+        <button class="btn btn-dark btn-small" onclick="openStockMovementsModal()">حركة المخزون</button>
+        <button class="btn btn-dark btn-small" onclick="openPrintersManagerModal()">الطابعات</button>
+        <button class="btn btn-dark btn-small" onclick="openMaterialsManagerModal()">الخامات</button>
+        <button class="btn btn-dark btn-small" onclick="openSettingsModal()">الإعدادات</button>
       </div>
     </header>
 
-    <main class="order-layout">
+    <main class="order-layout compact-order-layout">
       <section class="main-order-column">
-        <section class="card hero-order-card">
+        <section class="card hero-order-card compact-card">
           <div class="section-head">
             <div>
               <h3>أوردر جديد</h3>
@@ -46,7 +46,7 @@
             <span class="section-badge">ORD-<span id="nextOrderCode">...</span></span>
           </div>
 
-          <div class="grid-3">
+          <div class="grid-3 compact-grid">
             <div class="form-group">
               <label for="itemName">اسم المجسم *</label>
               <input type="text" id="itemName" placeholder="مثال: حامل موبايل / تنين مفصلي" />
@@ -58,15 +58,15 @@
             </div>
 
             <div class="form-group">
-              <label for="opDate">تاريخ العملية</label>
-              <input type="date" id="opDate" />
+              <label for="selectedPrinter">الطابعة المستخدمة *</label>
+              <select id="selectedPrinter"></select>
             </div>
           </div>
 
-          <div class="grid-3" style="margin-top: 12px;">
+          <div class="grid-3 compact-grid" style="margin-top: 10px;">
             <div class="form-group">
-              <label for="selectedPrinter">الطابعة المستخدمة *</label>
-              <select id="selectedPrinter"></select>
+              <label for="opDate">تاريخ العملية</label>
+              <input type="date" id="opDate" />
             </div>
 
             <div class="form-group">
@@ -86,7 +86,7 @@
             </div>
           </div>
 
-          <div class="grid-3" style="margin-top: 12px;">
+          <div class="grid-3 compact-grid" style="margin-top: 10px;">
             <div class="form-group">
               <label for="printHours">وقت الطباعة (ساعات) *</label>
               <input type="text" id="printHours" value="0" inputmode="decimal" />
@@ -104,68 +104,92 @@
           </div>
         </section>
 
-        <section class="card">
+        <section class="card compact-card">
           <div class="section-head">
             <div>
-              <h3>استهلاك الخامات</h3>
-              <p class="section-subtext">ادخل الجرامات المستخدمة فقط</p>
+              <h3>الخامات والتسعير</h3>
+              <p class="section-subtext">كل ما يخص الأوردر الحالي في مكان واحد</p>
             </div>
-            <button class="btn btn-secondary btn-small" onclick="openMaterialsManagerModal()">إدارة الخامات</button>
+            <div class="inline-actions">
+              <button class="btn btn-secondary btn-small" onclick="openMaterialsManagerModal()">إدارة الخامات</button>
+            </div>
           </div>
 
-          <div id="amsInputs" class="grid-2"></div>
+          <div class="compact-dual-section">
+            <div class="compact-section-block">
+              <div class="mini-section-head">
+                <h4>استهلاك الخامات</h4>
+                <span>أدخل الجرامات المستخدمة فقط</span>
+              </div>
+              <div id="amsInputs" class="grid-2 compact-grid"></div>
+            </div>
+
+            <div class="compact-section-block">
+              <div class="mini-section-head">
+                <h4>تفاصيل التسعير</h4>
+                <span>قيم هذا القسم تخص الأوردر الحالي فقط</span>
+              </div>
+
+              <div class="grid-3 compact-grid">
+                <div class="form-group">
+                  <label for="laborRate">أجرتك (ساعة)</label>
+                  <input type="text" id="laborRate" value="50" inputmode="decimal" />
+                </div>
+
+                <div class="form-group">
+                  <label for="electricityCostPerHour">كهرباء/ساعة</label>
+                  <input type="text" id="electricityCostPerHour" value="3" inputmode="decimal" />
+                </div>
+
+                <div class="form-group">
+                  <label for="packagingCost">التغليف</label>
+                  <input type="text" id="packagingCost" value="10" inputmode="decimal" />
+                </div>
+              </div>
+
+              <div class="grid-3 compact-grid" style="margin-top: 10px;">
+                <div class="form-group">
+                  <label for="failurePercent">الهالك / المخاطرة (%)</label>
+                  <input type="text" id="failurePercent" value="10" inputmode="decimal" />
+                </div>
+
+                <div class="form-group">
+                  <label for="shippingCost">شحن / مصاريف إضافية</label>
+                  <input type="text" id="shippingCost" value="0" inputmode="decimal" />
+                </div>
+
+                <div class="form-group">
+                  <label for="defaultTaxPercent">ضريبة / نسبة إضافية (%)</label>
+                  <input type="text" id="defaultTaxPercent" value="0" inputmode="decimal" />
+                </div>
+              </div>
+
+              <div class="field-note" style="margin-top: 12px;">
+                القيم دي قابلة للتعديل في كل أوردر بشكل مستقل.
+              </div>
+            </div>
+          </div>
         </section>
 
-        <section class="card">
+        <section class="card compact-card shortcuts-strip-card">
           <div class="section-head">
             <div>
-              <h3>تفاصيل التسعير لهذا الأوردر</h3>
-              <p class="section-subtext">قيم هذا القسم تخص الأوردر الحالي فقط</p>
+              <h3>اختصارات سريعة</h3>
+              <p class="section-subtext">الإدارة في مكان منفصل عن شاشة الأوردر</p>
             </div>
           </div>
 
-          <div class="grid-3">
-            <div class="form-group">
-              <label for="laborRate">أجرتك (ساعة)</label>
-              <input type="text" id="laborRate" value="50" inputmode="decimal" />
-            </div>
-
-            <div class="form-group">
-              <label for="electricityCostPerHour">كهرباء/ساعة</label>
-              <input type="text" id="electricityCostPerHour" value="3" inputmode="decimal" />
-            </div>
-
-            <div class="form-group">
-              <label for="packagingCost">التغليف</label>
-              <input type="text" id="packagingCost" value="10" inputmode="decimal" />
-            </div>
-          </div>
-
-          <div class="grid-3" style="margin-top: 12px;">
-            <div class="form-group">
-              <label for="failurePercent">الهالك / المخاطرة (%)</label>
-              <input type="text" id="failurePercent" value="10" inputmode="decimal" />
-            </div>
-
-            <div class="form-group">
-              <label for="shippingCost">شحن / مصاريف إضافية</label>
-              <input type="text" id="shippingCost" value="0" inputmode="decimal" />
-            </div>
-
-            <div class="form-group">
-              <label for="defaultTaxPercent">ضريبة / نسبة إضافية (%)</label>
-              <input type="text" id="defaultTaxPercent" value="0" inputmode="decimal" />
-            </div>
-          </div>
-
-          <div class="field-note" style="margin-top: 14px;">
-            القيم دي قابلة للتعديل في كل أوردر بشكل مستقل، ومش لازم تكون ثابتة على كل الشغل.
+          <div class="quick-actions-grid quick-actions-strip">
+            <button class="btn btn-secondary btn-small" onclick="openPrintersManagerModal()">إدارة الطابعات</button>
+            <button class="btn btn-secondary btn-small" onclick="openMaterialsManagerModal()">إدارة الخامات</button>
+            <button class="btn btn-secondary btn-small" onclick="openReports()">المبيعات والتقارير</button>
+            <button class="btn btn-secondary btn-small" onclick="openStockMovementsModal()">حركة المخزون</button>
           </div>
         </section>
       </section>
 
       <aside class="summary-column">
-        <section class="card result-card sticky-card">
+        <section class="card result-card sticky-card compact-result-card">
           <div class="section-head section-head-light">
             <div>
               <h3>ملخص التسعير</h3>
@@ -218,22 +242,6 @@
             <h4 style="margin:0;color:#ecfdf5;">سعر البيع المقترح</h4>
             <div class="price" id="resFinal">0 ج</div>
             <button class="btn btn-save" onclick="saveSale()">تسجيل الأوردر</button>
-          </div>
-        </section>
-
-        <section class="card quick-card">
-          <div class="section-head">
-            <div>
-              <h3>اختصارات</h3>
-              <p class="section-subtext">الإدارة في مكان منفصل عن شاشة الأوردر</p>
-            </div>
-          </div>
-
-          <div class="quick-actions-grid">
-            <button class="btn btn-secondary" onclick="openPrintersManagerModal()">إدارة الطابعات</button>
-            <button class="btn btn-secondary" onclick="openMaterialsManagerModal()">إدارة الخامات</button>
-            <button class="btn btn-secondary" onclick="openReports()">المبيعات والتقارير</button>
-            <button class="btn btn-secondary" onclick="openStockMovementsModal()">حركة المخزون</button>
           </div>
         </section>
       </aside>
