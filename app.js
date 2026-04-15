@@ -6,20 +6,7 @@ let dashboardData = {
   stockMovements: []
 };
 
-let currentCalc = {
-  materialCost: 0,
-  depreciationCost: 0,
-  electricityCost: 0,
-  laborCost: 0,
-  packagingCost: 0,
-  shippingCost: 0,
-  riskCost: 0,
-  totalCost: 0,
-  finalPrice: 0,
-  profit: 0,
-  materialUsage: []
-};
-
+let currentCalc = createEmptyCalc();
 let editingOrderCode = null;
 
 const DEFAULT_CONFIG = {
@@ -33,6 +20,37 @@ const DEFAULT_CONFIG = {
   defaultTaxPercent: 0
 };
 
+const MODAL_IDS = [
+  'reportsModal',
+  'editModal',
+  'printerModal',
+  'materialModal',
+  'stockMovementsModal',
+  'settingsModal',
+  'printersManagerModal',
+  'materialsManagerModal'
+];
+
+function createEmptyCalc() {
+  return {
+    materialCost: 0,
+    depreciationCost: 0,
+    electricityCost: 0,
+    laborCost: 0,
+    packagingCost: 0,
+    shippingCost: 0,
+    riskCost: 0,
+    totalCost: 0,
+    finalPrice: 0,
+    profit: 0,
+    materialUsage: []
+  };
+}
+
+function $(id) {
+  return document.getElementById(id);
+}
+
 function normalizeDigits(value) {
   return String(value ?? '')
     .replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
@@ -45,6 +63,7 @@ function normalizeDigits(value) {
 function toNumber(value, fallback = 0) {
   const normalized = normalizeDigits(value);
   if (normalized === '') return fallback;
+
   const num = Number(normalized);
   return Number.isFinite(num) ? num : fallback;
 }
@@ -63,16 +82,76 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-function formatMoney(value) {
-  return `${Number(value || 0).toFixed(2)} ${getCurrency()}`;
-}
-
 function getCurrency() {
   return String(dashboardData.config.currencyName || DEFAULT_CONFIG.currencyName || 'ج').trim() || 'ج';
 }
 
+function formatMoney(value) {
+  return `${Number(value || 0).toFixed(2)} ${getCurrency()}`;
+}
+
+function formatDateTime(value) {
+  if (!value) return '-';
+  return String(value).replace('T', ' ').slice(0, 19);
+}
+
+function setText(id, value) {
+  const el = $(id);
+  if (el) el.innerText = value;
+}
+
+function setValue(id, value) {
+  const el = $(id);
+  if (el) el.value = value;
+}
+
+function getValue(id, fallback = '') {
+  return String($(id)?.value ?? fallback);
+}
+
+function getTrimmedValue(id, fallback = '') {
+  return getValue(id, fallback).trim();
+}
+
+function getConfigNumber(key) {
+  return toPositiveNumber(dashboardData.config[key], toPositiveNumber(DEFAULT_CONFIG[key], 0));
+}
+
+function getPrinterById(id) {
+  return dashboardData.printers.find((printer) => String(printer.id) === String(id));
+}
+
+function getMaterialById(id) {
+  return dashboardData.materials.find((material) => String(material.id) === String(id));
+}
+
+function getOrderByCode(code) {
+  return dashboardData.orders.find((item) => item.code === code);
+}
+
+function openModal(id) {
+  const modal = $(id);
+  if (!modal) return;
+
+  modal.style.display = 'flex';
+  modal.setAttribute('aria-hidden', 'false');
+}
+
+function closeModal(id) {
+  const modal = $(id);
+  if (!modal) return;
+
+  modal.style.display = 'none';
+  modal.setAttribute('aria-hidden', 'true');
+}
+
+function isModalOpen(id) {
+  const modal = $(id);
+  return !!modal && modal.style.display === 'flex';
+}
+
 function showToast(message, type = 'success') {
-  const oldToast = document.getElementById('toastMsg');
+  const oldToast = $('toastMsg');
   if (oldToast) oldToast.remove();
 
   const toast = document.createElement('div');
@@ -92,21 +171,92 @@ function showToast(message, type = 'success') {
   }, 2600);
 }
 
-function setText(id, value) {
-  const el = document.getElementById(id);
-  if (el) el.innerText = value;
+async function askConfirm(message) {
+  try {
+    const response = await window.farmAPI.confirm(message);
+    return !!response?.success && !!response?.confirmed;
+  } catch {
+    return false;
+  }
 }
 
-function getConfigNumber(key) {
-  return toPositiveNumber(dashboardData.config[key], toPositiveNumber(DEFAULT_CONFIG[key], 0));
+function getPrinterStatusText(status) {
+  switch (status) {
+    case 'idle':
+      return 'متاحة';
+    case 'printing':
+      return 'تطبع الآن';
+    case 'maintenance':
+      return 'صيانة';
+    case 'offline':
+      return 'متوقفة';
+    default:
+      return 'غير محدد';
+  }
 }
 
-function getPrinterById(id) {
-  return dashboardData.printers.find((printer) => String(printer.id) === String(id));
+function getOrderStatusText(status) {
+  switch (status) {
+    case 'new':
+      return 'جديد';
+    case 'printing':
+      return 'قيد الطباعة';
+    case 'finished':
+      return 'جاهز';
+    case 'delivered':
+      return 'تم التسليم';
+    case 'cancelled':
+      return 'ملغي';
+    default:
+      return 'غير محدد';
+  }
 }
 
-function getMaterialById(id) {
-  return dashboardData.materials.find((material) => String(material.id) === String(id));
+function getMovementTypeText(type) {
+  switch (type) {
+    case 'in':
+      return 'إضافة';
+    case 'out':
+      return 'خصم';
+    case 'return':
+      return 'استرجاع';
+    case 'adjust_in':
+      return 'زيادة يدوية';
+    case 'adjust_out':
+      return 'نقص يدوي';
+    default:
+      return type || '-';
+  }
+}
+
+function updateTopTitle() {
+  const appTitle = document.querySelector('.app-title');
+  const farmName = dashboardData.config.farmName || DEFAULT_CONFIG.farmName;
+
+  if (appTitle) {
+    appTitle.innerText = farmName;
+  }
+
+  document.title = farmName;
+}
+
+function applyConfigToInputs() {
+  setValue('farmName', dashboardData.config.farmName || DEFAULT_CONFIG.farmName);
+  setValue('currencyName', dashboardData.config.currencyName || DEFAULT_CONFIG.currencyName);
+  setValue('defaultTaxPercent', String(toPositiveNumber(dashboardData.config.defaultTaxPercent, DEFAULT_CONFIG.defaultTaxPercent)));
+  setValue('laborRate', String(toPositiveNumber(dashboardData.config.laborRate, DEFAULT_CONFIG.laborRate)));
+  setValue('electricityCostPerHour', String(toPositiveNumber(dashboardData.config.electricityCostPerHour, DEFAULT_CONFIG.electricityCostPerHour)));
+  setValue('packagingCost', String(toPositiveNumber(dashboardData.config.packagingCost, DEFAULT_CONFIG.packagingCost)));
+  setValue('failurePercent', String(toPositiveNumber(dashboardData.config.failurePercent, DEFAULT_CONFIG.failurePercent)));
+  setValue('shippingCost', String(toPositiveNumber(dashboardData.config.shippingCost, DEFAULT_CONFIG.shippingCost)));
+}
+
+async function setNextOrderCode() {
+  const response = await window.farmAPI.getNextOrderCode();
+  if (!response?.success) return;
+
+  const nextCode = String(response.data || 'ORD-1001');
+  setText('nextOrderCode', nextCode.replace('ORD-', ''));
 }
 
 async function loadDashboardData() {
@@ -137,193 +287,128 @@ async function loadDashboardData() {
   calc();
 }
 
-function applyConfigToInputs() {
-  const farmName = document.getElementById('farmName');
-  const currencyName = document.getElementById('currencyName');
-  const defaultTaxPercent = document.getElementById('defaultTaxPercent');
-  const laborRate = document.getElementById('laborRate');
-  const electricityCostPerHour = document.getElementById('electricityCostPerHour');
-  const packagingCost = document.getElementById('packagingCost');
-  const failurePercent = document.getElementById('failurePercent');
-  const shippingCost = document.getElementById('shippingCost');
-
-  if (farmName) farmName.value = dashboardData.config.farmName || DEFAULT_CONFIG.farmName;
-  if (currencyName) currencyName.value = dashboardData.config.currencyName || DEFAULT_CONFIG.currencyName;
-  if (defaultTaxPercent) defaultTaxPercent.value = String(toPositiveNumber(dashboardData.config.defaultTaxPercent, DEFAULT_CONFIG.defaultTaxPercent));
-  if (laborRate) laborRate.value = String(toPositiveNumber(dashboardData.config.laborRate, DEFAULT_CONFIG.laborRate));
-  if (electricityCostPerHour) electricityCostPerHour.value = String(toPositiveNumber(dashboardData.config.electricityCostPerHour, DEFAULT_CONFIG.electricityCostPerHour));
-  if (packagingCost) packagingCost.value = String(toPositiveNumber(dashboardData.config.packagingCost, DEFAULT_CONFIG.packagingCost));
-  if (failurePercent) failurePercent.value = String(toPositiveNumber(dashboardData.config.failurePercent, DEFAULT_CONFIG.failurePercent));
-  if (shippingCost) shippingCost.value = String(toPositiveNumber(dashboardData.config.shippingCost, DEFAULT_CONFIG.shippingCost));
-}
-
-function updateTopTitle() {
-  const appTitle = document.querySelector('.app-title');
-  if (appTitle) {
-    appTitle.innerText = dashboardData.config.farmName || DEFAULT_CONFIG.farmName;
-  }
-
-  document.title = dashboardData.config.farmName || DEFAULT_CONFIG.farmName;
-}
-
-async function setNextOrderCode() {
-  const response = await window.farmAPI.getNextOrderCode();
-  if (!response?.success) return;
-
-  const nextCode = String(response.data || 'ORD-1001');
-  const nextOrderCode = document.getElementById('nextOrderCode');
-  if (nextOrderCode) {
-    nextOrderCode.innerText = nextCode.replace('ORD-', '');
-  }
-}
-
 function renderPrinters() {
-  const printersList = document.getElementById('printersList');
-  const printersCount = document.getElementById('printersCount');
-  const activePrintersCount = document.getElementById('activePrintersCount');
-
+  const printersList = $('printersList');
   if (!printersList) return;
 
-  printersList.innerHTML = '';
-
-  if (printersCount) {
-    printersCount.innerText = String(dashboardData.printers.length);
-  }
-
-  if (activePrintersCount) {
-    activePrintersCount.innerText = String(
-      dashboardData.printers.filter((printer) => printer.status === 'printing').length
-    );
-  }
+  setText('printersCount', String(dashboardData.printers.length));
+  setText(
+    'activePrintersCount',
+    String(dashboardData.printers.filter((printer) => printer.status === 'printing').length)
+  );
 
   if (!dashboardData.printers.length) {
     printersList.innerHTML = `<div class="empty-state">لا توجد طابعات مضافة.</div>`;
     return;
   }
 
-  dashboardData.printers.forEach((printer) => {
-    const statusText = getPrinterStatusText(printer.status);
+  const html = dashboardData.printers
+    .map((printer) => {
+      const printerId = Number(printer.id);
+      const statusText = getPrinterStatusText(printer.status);
 
-    printersList.innerHTML += `
-      <div class="list-card">
-        <div class="list-card-head">
-          <strong>${escapeHtml(printer.name)}</strong>
-          <span class="section-badge">${escapeHtml(statusText)}</span>
+      return `
+        <div class="list-card">
+          <div class="list-card-head">
+            <strong>${escapeHtml(printer.name)}</strong>
+            <span class="section-badge">${escapeHtml(statusText)}</span>
+          </div>
+          <div class="list-card-body">
+            <div>الموديل: ${escapeHtml(printer.model || '-')}</div>
+            <div>إهلاك/ساعة: ${formatMoney(printer.hourlyDepreciation || 0)}</div>
+            <div>ملاحظات: ${escapeHtml(printer.notes || '-')}</div>
+          </div>
+          <div class="inline-actions card-actions">
+            <button class="btn btn-secondary" onclick="editPrinter(${printerId})">تعديل</button>
+            <button class="btn btn-danger" onclick="deletePrinterAction(${printerId})">حذف</button>
+          </div>
         </div>
-        <div class="list-card-body">
-          <div>الموديل: ${escapeHtml(printer.model || '-')}</div>
-          <div>إهلاك/ساعة: ${formatMoney(printer.hourlyDepreciation || 0)}</div>
-          <div>ملاحظات: ${escapeHtml(printer.notes || '-')}</div>
-        </div>
-        <div class="inline-actions" style="margin-top:10px;">
-          <button class="btn btn-secondary" onclick="editPrinter(${Number(printer.id)})">تعديل</button>
-          <button class="btn btn-danger" onclick="deletePrinterAction(${Number(printer.id)})">حذف</button>
-        </div>
-      </div>
-    `;
-  });
-}
+      `;
+    })
+    .join('');
 
-function getPrinterStatusText(status) {
-  switch (status) {
-    case 'idle': return 'متاحة';
-    case 'printing': return 'تطبع الآن';
-    case 'maintenance': return 'صيانة';
-    case 'offline': return 'متوقفة';
-    default: return 'غير محدد';
-  }
+  printersList.innerHTML = html;
 }
 
 function renderPrinterSelects() {
-  const selectedPrinter = document.getElementById('selectedPrinter');
-  const editPrinterSelect = document.getElementById('editPrinter');
-
   const options = [
     `<option value="">اختر طابعة</option>`,
-    ...dashboardData.printers.map((printer) => `
-      <option value="${Number(printer.id)}">${escapeHtml(printer.name)}</option>
-    `)
+    ...dashboardData.printers.map(
+      (printer) => `<option value="${Number(printer.id)}">${escapeHtml(printer.name)}</option>`
+    )
   ].join('');
 
-  if (selectedPrinter) {
-    const oldValue = selectedPrinter.value;
-    selectedPrinter.innerHTML = options;
-    if ([...selectedPrinter.options].some((opt) => opt.value === oldValue)) {
-      selectedPrinter.value = oldValue;
-    }
-  }
+  ['selectedPrinter', 'editPrinter'].forEach((id) => {
+    const select = $(id);
+    if (!select) return;
 
-  if (editPrinterSelect) {
-    const oldValue = editPrinterSelect.value;
-    editPrinterSelect.innerHTML = options;
-    if ([...editPrinterSelect.options].some((opt) => opt.value === oldValue)) {
-      editPrinterSelect.value = oldValue;
+    const oldValue = select.value;
+    select.innerHTML = options;
+
+    if ([...select.options].some((opt) => opt.value === oldValue)) {
+      select.value = oldValue;
     }
-  }
+  });
 }
 
 function renderInventory() {
-  const inventoryUI = document.getElementById('inventoryUI');
-  const materialsCount = document.getElementById('materialsCount');
-  const lowStockCount = document.getElementById('lowStockCount');
-
+  const inventoryUI = $('inventoryUI');
   if (!inventoryUI) return;
 
-  inventoryUI.innerHTML = '';
-
-  if (materialsCount) {
-    materialsCount.innerText = String(dashboardData.materials.length);
-  }
+  setText('materialsCount', String(dashboardData.materials.length));
 
   const lowMaterials = dashboardData.materials.filter((material) => {
     return Number(material.remaining || 0) <= Number(material.lowStockThreshold || 0);
   });
 
-  if (lowStockCount) {
-    lowStockCount.innerText = String(lowMaterials.length);
-  }
+  setText('lowStockCount', String(lowMaterials.length));
 
   if (!dashboardData.materials.length) {
     inventoryUI.innerHTML = `<div class="empty-state">لا توجد خامات مضافة.</div>`;
     return;
   }
 
-  dashboardData.materials.forEach((material) => {
-    const weight = Math.max(Number(material.weight || 0), 1);
-    const remaining = toPositiveNumber(material.remaining, 0);
-    const percentage = Math.max(0, Math.min(100, (remaining / weight) * 100));
-    const isLow = remaining <= Number(material.lowStockThreshold || 0);
+  const html = dashboardData.materials
+    .map((material) => {
+      const materialId = Number(material.id);
+      const weight = Math.max(Number(material.weight || 0), 1);
+      const remaining = toPositiveNumber(material.remaining, 0);
+      const percentage = Math.max(0, Math.min(100, (remaining / weight) * 100));
+      const isLow = remaining <= Number(material.lowStockThreshold || 0);
 
-    inventoryUI.innerHTML += `
-      <div class="stock-item ${isLow ? 'low' : ''}">
-        <div class="stock-header">
-          <span>${escapeHtml(material.name)}</span>
-          <span>${remaining.toFixed(0)}g / ${weight.toFixed(0)}g</span>
-        </div>
+      return `
+        <div class="stock-item ${isLow ? 'low' : ''}">
+          <div class="stock-header">
+            <span>${escapeHtml(material.name)}</span>
+            <span>${remaining.toFixed(0)}g / ${weight.toFixed(0)}g</span>
+          </div>
 
-        <div class="stock-bar">
-          <div class="stock-progress" style="width:${percentage}%"></div>
-        </div>
+          <div class="stock-bar">
+            <div class="stock-progress" style="width:${percentage}%"></div>
+          </div>
 
-        <div class="list-card-body" style="margin-top:8px;">
-          <div>النوع: ${escapeHtml(material.type || '-')}</div>
-          <div>اللون: ${escapeHtml(material.color || '-')}</div>
-          <div>المورد: ${escapeHtml(material.supplier || '-')}</div>
-          <div>السعر: ${formatMoney(material.price || 0)}</div>
-          <div>حد التنبيه: ${toPositiveNumber(material.lowStockThreshold, 0).toFixed(0)}g</div>
-        </div>
+          <div class="list-card-body stock-details">
+            <div>النوع: ${escapeHtml(material.type || '-')}</div>
+            <div>اللون: ${escapeHtml(material.color || '-')}</div>
+            <div>المورد: ${escapeHtml(material.supplier || '-')}</div>
+            <div>السعر: ${formatMoney(material.price || 0)}</div>
+            <div>حد التنبيه: ${toPositiveNumber(material.lowStockThreshold, 0).toFixed(0)}g</div>
+          </div>
 
-        <div class="inline-actions" style="margin-top:10px;">
-          <button class="btn btn-secondary" onclick="editMaterial(${Number(material.id)})">تعديل</button>
-          <button class="btn btn-danger" onclick="deleteMaterialAction(${Number(material.id)})">حذف</button>
+          <div class="inline-actions card-actions">
+            <button class="btn btn-secondary" onclick="editMaterial(${materialId})">تعديل</button>
+            <button class="btn btn-danger" onclick="deleteMaterialAction(${materialId})">حذف</button>
+          </div>
         </div>
-      </div>
-    `;
-  });
+      `;
+    })
+    .join('');
+
+  inventoryUI.innerHTML = html;
 }
 
 function renderMaterialUsageInputs() {
-  const amsInputs = document.getElementById('amsInputs');
+  const amsInputs = $('amsInputs');
   if (!amsInputs) return;
 
   const previousValues = {};
@@ -331,38 +416,40 @@ function renderMaterialUsageInputs() {
     previousValues[String(input.dataset.id)] = input.value;
   });
 
-  amsInputs.innerHTML = '';
-
   if (!dashboardData.materials.length) {
     amsInputs.innerHTML = `<div class="empty-state">أضف خامة أولًا لكي يظهر إدخال الاستهلاك.</div>`;
     return;
   }
 
-  dashboardData.materials.forEach((material) => {
-    const lowHint = Number(material.remaining || 0) <= Number(material.lowStockThreshold || 0)
-      ? '<div class="field-note">تنبيه: المخزون منخفض</div>'
-      : '';
+  const html = dashboardData.materials
+    .map((material) => {
+      const isLow = Number(material.remaining || 0) <= Number(material.lowStockThreshold || 0);
+      const lowHint = isLow ? '<div class="field-note">تنبيه: المخزون منخفض</div>' : '';
 
-    amsInputs.innerHTML += `
-      <div class="form-group">
-        <label>${escapeHtml(material.name)} (${toPositiveNumber(material.remaining, 0).toFixed(0)}g)</label>
-        <input
-          type="text"
-          class="ams-weight"
-          data-id="${Number(material.id)}"
-          placeholder="جرام"
-          inputmode="decimal"
-        />
-        ${lowHint}
-      </div>
-    `;
-  });
+      return `
+        <div class="form-group">
+          <label>${escapeHtml(material.name)} (${toPositiveNumber(material.remaining, 0).toFixed(0)}g)</label>
+          <input
+            type="text"
+            class="ams-weight"
+            data-id="${Number(material.id)}"
+            placeholder="جرام"
+            inputmode="decimal"
+          />
+          ${lowHint}
+        </div>
+      `;
+    })
+    .join('');
+
+  amsInputs.innerHTML = html;
 
   document.querySelectorAll('.ams-weight').forEach((input) => {
     const oldValue = previousValues[String(input.dataset.id)];
     if (oldValue != null) {
       input.value = oldValue;
     }
+
     input.addEventListener('input', calc);
     input.addEventListener('change', calc);
   });
@@ -373,23 +460,22 @@ function getMaterialUsageFromInputs() {
 
   document.querySelectorAll('.ams-weight').forEach((input) => {
     const grams = toPositiveNumber(input.value, 0);
-    const materialId = String(input.dataset.id);
-    const material = getMaterialById(materialId);
+    const material = getMaterialById(String(input.dataset.id));
 
-    if (material && grams > 0) {
-      const pricePerGram = Number(material.weight || 0) > 0
-        ? Number(material.price || 0) / Number(material.weight || 0)
-        : 0;
+    if (!material || grams <= 0) return;
 
-      usage.push({
-        materialId: Number(material.id),
-        materialName: material.name,
-        grams: Number(grams.toFixed(2)),
-        pricePerGram: Number(pricePerGram.toFixed(6)),
-        totalCost: Number((grams * pricePerGram).toFixed(2)),
-        remaining: Number(material.remaining || 0)
-      });
-    }
+    const pricePerGram = Number(material.weight || 0) > 0
+      ? Number(material.price || 0) / Number(material.weight || 0)
+      : 0;
+
+    usage.push({
+      materialId: Number(material.id),
+      materialName: material.name,
+      grams: Number(grams.toFixed(2)),
+      pricePerGram: Number(pricePerGram.toFixed(6)),
+      totalCost: Number((grams * pricePerGram).toFixed(2)),
+      remaining: Number(material.remaining || 0)
+    });
   });
 
   return usage;
@@ -398,31 +484,30 @@ function getMaterialUsageFromInputs() {
 function calc() {
   const materialUsage = getMaterialUsageFromInputs();
 
-  const printHours = toPositiveNumber(document.getElementById('printHours')?.value, 0);
-  const manualMinutes = toPositiveNumber(document.getElementById('manualMins')?.value, 0);
-  const profitMargin = toPositiveNumber(document.getElementById('profitMargin')?.value, 0);
-  const packagingCost = toPositiveNumber(document.getElementById('packagingCost')?.value, getConfigNumber('packagingCost'));
-  const shippingCost = toPositiveNumber(document.getElementById('shippingCost')?.value, getConfigNumber('shippingCost'));
-  const laborRate = toPositiveNumber(document.getElementById('laborRate')?.value, getConfigNumber('laborRate'));
+  const printHours = toPositiveNumber(getValue('printHours'), 0);
+  const manualMinutes = toPositiveNumber(getValue('manualMins'), 0);
+  const profitMargin = toPositiveNumber(getValue('profitMargin'), 0);
+  const packagingCost = toPositiveNumber(getValue('packagingCost'), getConfigNumber('packagingCost'));
+  const shippingCost = toPositiveNumber(getValue('shippingCost'), getConfigNumber('shippingCost'));
+  const laborRate = toPositiveNumber(getValue('laborRate'), getConfigNumber('laborRate'));
   const electricityCostPerHour = toPositiveNumber(
-    document.getElementById('electricityCostPerHour')?.value,
+    getValue('electricityCostPerHour'),
     getConfigNumber('electricityCostPerHour')
   );
   const failurePercent = toPositiveNumber(
-    document.getElementById('failurePercent')?.value,
+    getValue('failurePercent'),
     getConfigNumber('failurePercent')
   );
   const defaultTaxPercent = toPositiveNumber(
-    document.getElementById('defaultTaxPercent')?.value,
+    getValue('defaultTaxPercent'),
     getConfigNumber('defaultTaxPercent')
   );
 
-  let materialCost = 0;
-  materialUsage.forEach((entry) => {
-    materialCost += Number(entry.totalCost || 0);
-  });
+  const materialCost = materialUsage.reduce((sum, entry) => {
+    return sum + Number(entry.totalCost || 0);
+  }, 0);
 
-  const selectedPrinterId = document.getElementById('selectedPrinter')?.value || '';
+  const selectedPrinterId = getValue('selectedPrinter');
   const printer = selectedPrinterId ? getPrinterById(selectedPrinterId) : null;
   const hourlyDepreciation = toPositiveNumber(printer?.hourlyDepreciation, 0);
 
@@ -483,45 +568,22 @@ function resetResultsPanel() {
 }
 
 function resetOrderForm() {
-  const itemName = document.getElementById('itemName');
-  const customerName = document.getElementById('customerName');
-  const selectedPrinter = document.getElementById('selectedPrinter');
-  const printHours = document.getElementById('printHours');
-  const manualMins = document.getElementById('manualMins');
-  const opDate = document.getElementById('opDate');
-  const orderStatus = document.getElementById('orderStatus');
-  const orderNotes = document.getElementById('orderNotes');
-  const profitMargin = document.getElementById('profitMargin');
-
-  if (itemName) itemName.value = '';
-  if (customerName) customerName.value = '';
-  if (selectedPrinter) selectedPrinter.value = '';
-  if (printHours) printHours.value = '0';
-  if (manualMins) manualMins.value = '15';
-  if (opDate) opDate.value = new Date().toISOString().slice(0, 10);
-  if (orderStatus) orderStatus.value = 'new';
-  if (orderNotes) orderNotes.value = '';
-  if (profitMargin) profitMargin.value = '100';
+  setValue('itemName', '');
+  setValue('customerName', '');
+  setValue('selectedPrinter', '');
+  setValue('printHours', '0');
+  setValue('manualMins', '15');
+  setValue('opDate', new Date().toISOString().slice(0, 10));
+  setValue('orderStatus', 'new');
+  setValue('orderNotes', '');
+  setValue('profitMargin', '100');
 
   document.querySelectorAll('.ams-weight').forEach((input) => {
     input.value = '';
   });
 
   applyConfigToInputs();
-
-  currentCalc = {
-    materialCost: 0,
-    depreciationCost: 0,
-    electricityCost: 0,
-    laborCost: 0,
-    packagingCost: 0,
-    shippingCost: 0,
-    riskCost: 0,
-    totalCost: 0,
-    finalPrice: 0,
-    profit: 0,
-    materialUsage: []
-  };
+  currentCalc = createEmptyCalc();
 
   resetResultsPanel();
   setNextOrderCode();
@@ -529,26 +591,26 @@ function resetOrderForm() {
 }
 
 function validateOrderBeforeSave() {
-  const itemName = String(document.getElementById('itemName')?.value || '').trim();
-  const printHours = toPositiveNumber(document.getElementById('printHours')?.value, 0);
-  const printerId = document.getElementById('selectedPrinter')?.value || '';
+  const itemName = getTrimmedValue('itemName');
+  const printHours = toPositiveNumber(getValue('printHours'), 0);
+  const printerId = getValue('selectedPrinter');
   const materialUsage = getMaterialUsageFromInputs();
 
   if (!itemName) {
     showToast('اسم المجسم مطلوب', 'error');
-    document.getElementById('itemName')?.focus();
+    $('itemName')?.focus();
     return { valid: false };
   }
 
   if (!printerId) {
     showToast('اختار الطابعة المستخدمة', 'error');
-    document.getElementById('selectedPrinter')?.focus();
+    $('selectedPrinter')?.focus();
     return { valid: false };
   }
 
   if (printHours <= 0) {
     showToast('وقت الطباعة لازم يكون أكبر من صفر', 'error');
-    document.getElementById('printHours')?.focus();
+    $('printHours')?.focus();
     return { valid: false };
   }
 
@@ -590,13 +652,13 @@ async function saveSale() {
   const payload = {
     code: String(responseCode.data || 'ORD-1001'),
     itemName: validation.itemName,
-    customerName: String(document.getElementById('customerName')?.value || '').trim(),
+    customerName: getTrimmedValue('customerName'),
     printerId: Number(validation.printerId),
-    status: String(document.getElementById('orderStatus')?.value || 'new').trim(),
-    printHours: toPositiveNumber(document.getElementById('printHours')?.value, 0),
-    manualMinutes: toPositiveNumber(document.getElementById('manualMins')?.value, 0),
-    notes: String(document.getElementById('orderNotes')?.value || '').trim(),
-    date: document.getElementById('opDate')?.value || new Date().toISOString().slice(0, 10),
+    status: getTrimmedValue('orderStatus', 'new'),
+    printHours: toPositiveNumber(getValue('printHours'), 0),
+    manualMinutes: toPositiveNumber(getValue('manualMins'), 0),
+    notes: getTrimmedValue('orderNotes'),
+    date: getValue('opDate') || new Date().toISOString().slice(0, 10),
     materialCost: currentCalc.materialCost,
     depreciationCost: currentCalc.depreciationCost,
     electricityCost: currentCalc.electricityCost,
@@ -623,10 +685,10 @@ async function saveSale() {
 }
 
 function getFilteredOrders() {
-  const search = String(document.getElementById('salesSearch')?.value || '').trim().toLowerCase();
-  const from = document.getElementById('filterFrom')?.value || '';
-  const to = document.getElementById('filterTo')?.value || '';
-  const filterStatus = document.getElementById('filterStatus')?.value || '';
+  const search = getTrimmedValue('salesSearch').toLowerCase();
+  const from = getValue('filterFrom');
+  const to = getValue('filterTo');
+  const filterStatus = getValue('filterStatus');
 
   return [...dashboardData.orders]
     .filter((order) => {
@@ -649,58 +711,61 @@ function getFilteredOrders() {
 
       return matchesSearch && matchesFrom && matchesTo && matchesStatus;
     })
-    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || Number(b.id || 0) - Number(a.id || 0));
+    .sort((a, b) => {
+      return String(b.date || '').localeCompare(String(a.date || '')) || Number(b.id || 0) - Number(a.id || 0);
+    });
 }
 
 function renderReportsTable() {
-  const salesTableBody = document.getElementById('salesTableBody');
+  const salesTableBody = $('salesTableBody');
   if (!salesTableBody) return;
 
   const orders = getFilteredOrders();
-  salesTableBody.innerHTML = '';
 
   let totalRevenue = 0;
   let totalProfit = 0;
   let topSale = 0;
   let cancelledCount = 0;
 
-  orders.forEach((order) => {
-    totalRevenue += Number(order.finalPrice || 0);
-    totalProfit += Number(order.profit || 0);
-    topSale = Math.max(topSale, Number(order.finalPrice || 0));
+  const rowsHtml = orders
+    .map((order) => {
+      totalRevenue += Number(order.finalPrice || 0);
+      totalProfit += Number(order.profit || 0);
+      topSale = Math.max(topSale, Number(order.finalPrice || 0));
 
-    if (String(order.status || '') === 'cancelled') {
-      cancelledCount += 1;
-    }
+      if (String(order.status || '') === 'cancelled') {
+        cancelledCount += 1;
+      }
 
-    salesTableBody.innerHTML += `
-      <tr>
-        <td>${escapeHtml(order.code)}</td>
-        <td>${escapeHtml(order.date || '')}</td>
-        <td>${escapeHtml(order.itemName || '')}</td>
-        <td>${escapeHtml(order.customerName || '')}</td>
-        <td>${escapeHtml(order.printerName || '-')}</td>
-        <td>${escapeHtml(getOrderStatusText(order.status))}</td>
-        <td>${formatMoney(order.totalCost || 0)}</td>
-        <td>${formatMoney(order.finalPrice || 0)}</td>
-        <td>${formatMoney(order.profit || 0)}</td>
-        <td>
-          <button class="action-btn edit" onclick="openEditSale('${escapeHtml(order.code)}')">تعديل</button>
-          <button class="action-btn delete" onclick="deleteSale('${escapeHtml(order.code)}')">حذف</button>
-        </td>
-      </tr>
-    `;
-  });
+      return `
+        <tr>
+          <td>${escapeHtml(order.code)}</td>
+          <td>${escapeHtml(order.date || '')}</td>
+          <td>${escapeHtml(order.itemName || '')}</td>
+          <td>${escapeHtml(order.customerName || '')}</td>
+          <td>${escapeHtml(order.printerName || '-')}</td>
+          <td>${escapeHtml(getOrderStatusText(order.status))}</td>
+          <td>${formatMoney(order.totalCost || 0)}</td>
+          <td>${formatMoney(order.finalPrice || 0)}</td>
+          <td>${formatMoney(order.profit || 0)}</td>
+          <td>
+            <button class="action-btn edit" onclick="openEditSale('${escapeHtml(order.code)}')">تعديل</button>
+            <button class="action-btn delete" onclick="deleteSale('${escapeHtml(order.code)}')">حذف</button>
+          </td>
+        </tr>
+      `;
+    })
+    .join('');
 
-  if (!orders.length) {
-    salesTableBody.innerHTML = `
+  salesTableBody.innerHTML = orders.length
+    ? rowsHtml
+    : `
       <tr>
         <td colspan="10">
           <div class="empty-state">لا توجد نتائج مطابقة.</div>
         </td>
       </tr>
     `;
-  }
 
   const lowestStockMaterial = [...dashboardData.materials]
     .sort((a, b) => Number(a.remaining || 0) - Number(b.remaining || 0))[0];
@@ -719,42 +784,22 @@ function renderReportsTable() {
 }
 
 function renderReportsTableSafe() {
-  const reportsModal = document.getElementById('reportsModal');
-  if (reportsModal && reportsModal.style.display === 'flex') {
+  if (isModalOpen('reportsModal')) {
     renderReportsTable();
   }
 }
 
-function getOrderStatusText(status) {
-  switch (status) {
-    case 'new': return 'جديد';
-    case 'printing': return 'قيد الطباعة';
-    case 'finished': return 'جاهز';
-    case 'delivered': return 'تم التسليم';
-    case 'cancelled': return 'ملغي';
-    default: return 'غير محدد';
-  }
-}
-
 function openReports() {
-  const modal = document.getElementById('reportsModal');
-  if (!modal) return;
-
-  modal.style.display = 'flex';
-  modal.setAttribute('aria-hidden', 'false');
+  openModal('reportsModal');
   renderReportsTable();
 }
 
 function closeReports() {
-  const modal = document.getElementById('reportsModal');
-  if (!modal) return;
-
-  modal.style.display = 'none';
-  modal.setAttribute('aria-hidden', 'true');
+  closeModal('reportsModal');
 }
 
 function openEditSale(code) {
-  const order = dashboardData.orders.find((item) => item.code === code);
+  const order = getOrderByCode(code);
   if (!order) {
     showToast('الأوردر غير موجود', 'error');
     return;
@@ -762,41 +807,22 @@ function openEditSale(code) {
 
   editingOrderCode = code;
 
-  const editCode = document.getElementById('editCode');
-  const editDate = document.getElementById('editDate');
-  const editStatus = document.getElementById('editStatus');
-  const editName = document.getElementById('editName');
-  const editCustomer = document.getElementById('editCustomer');
-  const editPrinter = document.getElementById('editPrinter');
-  const editNotes = document.getElementById('editNotes');
-  const editCost = document.getElementById('editCost');
-  const editPrice = document.getElementById('editPrice');
+  setValue('editCode', order.code || '');
+  setValue('editDate', order.date || '');
+  setValue('editStatus', order.status || 'new');
+  setValue('editName', order.itemName || '');
+  setValue('editCustomer', order.customerName || '');
+  setValue('editPrinter', order.printerId ? String(order.printerId) : '');
+  setValue('editNotes', order.notes || '');
+  setValue('editCost', String(toPositiveNumber(order.totalCost, 0)));
+  setValue('editPrice', String(toPositiveNumber(order.finalPrice, 0)));
 
-  if (editCode) editCode.value = order.code || '';
-  if (editDate) editDate.value = order.date || '';
-  if (editStatus) editStatus.value = order.status || 'new';
-  if (editName) editName.value = order.itemName || '';
-  if (editCustomer) editCustomer.value = order.customerName || '';
-  if (editPrinter) editPrinter.value = order.printerId ? String(order.printerId) : '';
-  if (editNotes) editNotes.value = order.notes || '';
-  if (editCost) editCost.value = String(toPositiveNumber(order.totalCost, 0));
-  if (editPrice) editPrice.value = String(toPositiveNumber(order.finalPrice, 0));
-
-  const modal = document.getElementById('editModal');
-  if (modal) {
-    modal.style.display = 'flex';
-    modal.setAttribute('aria-hidden', 'false');
-  }
+  openModal('editModal');
 }
 
 function closeEditModal() {
-  const modal = document.getElementById('editModal');
-  if (modal) {
-    modal.style.display = 'none';
-    modal.setAttribute('aria-hidden', 'true');
-  }
-
   editingOrderCode = null;
+  closeModal('editModal');
 }
 
 async function saveEditedSale() {
@@ -807,14 +833,14 @@ async function saveEditedSale() {
 
   const payload = {
     code: editingOrderCode,
-    date: document.getElementById('editDate')?.value || '',
-    status: String(document.getElementById('editStatus')?.value || 'new').trim(),
-    itemName: String(document.getElementById('editName')?.value || '').trim(),
-    customerName: String(document.getElementById('editCustomer')?.value || '').trim(),
-    printerId: document.getElementById('editPrinter')?.value ? Number(document.getElementById('editPrinter').value) : null,
-    notes: String(document.getElementById('editNotes')?.value || '').trim(),
-    totalCost: toPositiveNumber(document.getElementById('editCost')?.value, 0),
-    finalPrice: toPositiveNumber(document.getElementById('editPrice')?.value, 0)
+    date: getValue('editDate'),
+    status: getTrimmedValue('editStatus', 'new'),
+    itemName: getTrimmedValue('editName'),
+    customerName: getTrimmedValue('editCustomer'),
+    printerId: getValue('editPrinter') ? Number(getValue('editPrinter')) : null,
+    notes: getTrimmedValue('editNotes'),
+    totalCost: toPositiveNumber(getValue('editCost'), 0),
+    finalPrice: toPositiveNumber(getValue('editPrice'), 0)
   };
 
   if (!payload.itemName) {
@@ -837,9 +863,8 @@ async function saveEditedSale() {
 }
 
 async function deleteSale(code) {
-  if (!confirm('هل تريد حذف الأوردر؟ سيتم استرجاع الخامات للمخزون.')) {
-    return;
-  }
+  const confirmed = await askConfirm('هل تريد حذف الأوردر؟ سيتم استرجاع الخامات للمخزون.');
+  if (!confirmed) return;
 
   const response = await window.farmAPI.deleteOrder(code);
 
@@ -853,67 +878,36 @@ async function deleteSale(code) {
 }
 
 function openPrintersManagerModal() {
-  const modal = document.getElementById('printersManagerModal');
-  if (!modal) return;
-
   renderPrinters();
-  modal.style.display = 'flex';
-  modal.setAttribute('aria-hidden', 'false');
+  openModal('printersManagerModal');
 }
 
 function closePrintersManagerModal() {
-  const modal = document.getElementById('printersManagerModal');
-  if (!modal) return;
-
-  modal.style.display = 'none';
-  modal.setAttribute('aria-hidden', 'true');
+  closeModal('printersManagerModal');
 }
 
 function openMaterialsManagerModal() {
-  const modal = document.getElementById('materialsManagerModal');
-  if (!modal) return;
-
   renderInventory();
-  modal.style.display = 'flex';
-  modal.setAttribute('aria-hidden', 'false');
+  openModal('materialsManagerModal');
 }
 
 function closeMaterialsManagerModal() {
-  const modal = document.getElementById('materialsManagerModal');
-  if (!modal) return;
-
-  modal.style.display = 'none';
-  modal.setAttribute('aria-hidden', 'true');
+  closeModal('materialsManagerModal');
 }
 
 function openPrinterModal() {
-  const printerId = document.getElementById('printerId');
-  const printerName = document.getElementById('printerName');
-  const printerStatus = document.getElementById('printerStatus');
-  const printerModel = document.getElementById('printerModel');
-  const printerHourlyDepreciation = document.getElementById('printerHourlyDepreciation');
-  const printerNotes = document.getElementById('printerNotes');
+  setValue('printerId', '');
+  setValue('printerName', '');
+  setValue('printerStatus', 'idle');
+  setValue('printerModel', '');
+  setValue('printerHourlyDepreciation', '0');
+  setValue('printerNotes', '');
 
-  if (printerId) printerId.value = '';
-  if (printerName) printerName.value = '';
-  if (printerStatus) printerStatus.value = 'idle';
-  if (printerModel) printerModel.value = '';
-  if (printerHourlyDepreciation) printerHourlyDepreciation.value = '0';
-  if (printerNotes) printerNotes.value = '';
-
-  const modal = document.getElementById('printerModal');
-  if (modal) {
-    modal.style.display = 'flex';
-    modal.setAttribute('aria-hidden', 'false');
-  }
+  openModal('printerModal');
 }
 
 function closePrinterModal() {
-  const modal = document.getElementById('printerModal');
-  if (modal) {
-    modal.style.display = 'none';
-    modal.setAttribute('aria-hidden', 'true');
-  }
+  closeModal('printerModal');
 }
 
 function editPrinter(id) {
@@ -923,26 +917,24 @@ function editPrinter(id) {
     return;
   }
 
-  document.getElementById('printerId').value = printer.id;
-  document.getElementById('printerName').value = printer.name || '';
-  document.getElementById('printerStatus').value = printer.status || 'idle';
-  document.getElementById('printerModel').value = printer.model || '';
-  document.getElementById('printerHourlyDepreciation').value = String(toPositiveNumber(printer.hourlyDepreciation, 0));
-  document.getElementById('printerNotes').value = printer.notes || '';
+  setValue('printerId', printer.id);
+  setValue('printerName', printer.name || '');
+  setValue('printerStatus', printer.status || 'idle');
+  setValue('printerModel', printer.model || '');
+  setValue('printerHourlyDepreciation', String(toPositiveNumber(printer.hourlyDepreciation, 0)));
+  setValue('printerNotes', printer.notes || '');
 
-  const modal = document.getElementById('printerModal');
-  modal.style.display = 'flex';
-  modal.setAttribute('aria-hidden', 'false');
+  openModal('printerModal');
 }
 
 async function savePrinter() {
   const payload = {
-    id: document.getElementById('printerId')?.value || '',
-    name: String(document.getElementById('printerName')?.value || '').trim(),
-    status: String(document.getElementById('printerStatus')?.value || 'idle').trim(),
-    model: String(document.getElementById('printerModel')?.value || '').trim(),
-    hourlyDepreciation: toPositiveNumber(document.getElementById('printerHourlyDepreciation')?.value, 0),
-    notes: String(document.getElementById('printerNotes')?.value || '').trim()
+    id: getValue('printerId'),
+    name: getTrimmedValue('printerName'),
+    status: getTrimmedValue('printerStatus', 'idle'),
+    model: getTrimmedValue('printerModel'),
+    hourlyDepreciation: toPositiveNumber(getValue('printerHourlyDepreciation'), 0),
+    notes: getTrimmedValue('printerNotes')
   };
 
   if (!payload.name) {
@@ -963,8 +955,21 @@ async function savePrinter() {
   openPrintersManagerModal();
 }
 
+function getDeletePrinterToastMessage(result) {
+  if (result?.archived) {
+    return 'الطابعة مستخدمة في أوردرات سابقة، لذلك تم أرشفتها بدل حذفها';
+  }
+
+  if (result?.deleted) {
+    return 'تم حذف الطابعة نهائيًا';
+  }
+
+  return 'تم تنفيذ العملية';
+}
+
 async function deletePrinterAction(id) {
-  if (!confirm('هل تريد حذف الطابعة؟')) return;
+  const confirmed = await askConfirm('هل تريد حذف الطابعة؟ إذا كانت مستخدمة سابقًا فسيتم أرشفتها بدل حذفها.');
+  if (!confirmed) return;
 
   const response = await window.farmAPI.deletePrinter(id);
 
@@ -973,45 +978,27 @@ async function deletePrinterAction(id) {
     return;
   }
 
-  showToast('تم حذف الطابعة');
+  showToast(getDeletePrinterToastMessage(response.data));
   await loadDashboardData();
   openPrintersManagerModal();
 }
 
 function openMaterialModal() {
-  const materialId = document.getElementById('materialId');
-  const materialName = document.getElementById('materialName');
-  const materialType = document.getElementById('materialType');
-  const materialColor = document.getElementById('materialColor');
-  const materialWeight = document.getElementById('materialWeight');
-  const materialRemaining = document.getElementById('materialRemaining');
-  const materialPrice = document.getElementById('materialPrice');
-  const materialLowStock = document.getElementById('materialLowStock');
-  const materialSupplier = document.getElementById('materialSupplier');
+  setValue('materialId', '');
+  setValue('materialName', '');
+  setValue('materialType', '');
+  setValue('materialColor', '');
+  setValue('materialWeight', '1000');
+  setValue('materialRemaining', '1000');
+  setValue('materialPrice', '0');
+  setValue('materialLowStock', '150');
+  setValue('materialSupplier', '');
 
-  if (materialId) materialId.value = '';
-  if (materialName) materialName.value = '';
-  if (materialType) materialType.value = '';
-  if (materialColor) materialColor.value = '';
-  if (materialWeight) materialWeight.value = '1000';
-  if (materialRemaining) materialRemaining.value = '1000';
-  if (materialPrice) materialPrice.value = '0';
-  if (materialLowStock) materialLowStock.value = '150';
-  if (materialSupplier) materialSupplier.value = '';
-
-  const modal = document.getElementById('materialModal');
-  if (modal) {
-    modal.style.display = 'flex';
-    modal.setAttribute('aria-hidden', 'false');
-  }
+  openModal('materialModal');
 }
 
 function closeMaterialModal() {
-  const modal = document.getElementById('materialModal');
-  if (modal) {
-    modal.style.display = 'none';
-    modal.setAttribute('aria-hidden', 'true');
-  }
+  closeModal('materialModal');
 }
 
 function editMaterial(id) {
@@ -1021,32 +1008,30 @@ function editMaterial(id) {
     return;
   }
 
-  document.getElementById('materialId').value = material.id;
-  document.getElementById('materialName').value = material.name || '';
-  document.getElementById('materialType').value = material.type || '';
-  document.getElementById('materialColor').value = material.color || '';
-  document.getElementById('materialWeight').value = String(toPositiveNumber(material.weight, 1000));
-  document.getElementById('materialRemaining').value = String(toPositiveNumber(material.remaining, 0));
-  document.getElementById('materialPrice').value = String(toPositiveNumber(material.price, 0));
-  document.getElementById('materialLowStock').value = String(toPositiveNumber(material.lowStockThreshold, 150));
-  document.getElementById('materialSupplier').value = material.supplier || '';
+  setValue('materialId', material.id);
+  setValue('materialName', material.name || '');
+  setValue('materialType', material.type || '');
+  setValue('materialColor', material.color || '');
+  setValue('materialWeight', String(toPositiveNumber(material.weight, 1000)));
+  setValue('materialRemaining', String(toPositiveNumber(material.remaining, 0)));
+  setValue('materialPrice', String(toPositiveNumber(material.price, 0)));
+  setValue('materialLowStock', String(toPositiveNumber(material.lowStockThreshold, 150)));
+  setValue('materialSupplier', material.supplier || '');
 
-  const modal = document.getElementById('materialModal');
-  modal.style.display = 'flex';
-  modal.setAttribute('aria-hidden', 'false');
+  openModal('materialModal');
 }
 
 async function saveMaterial() {
   const payload = {
-    id: document.getElementById('materialId')?.value || '',
-    name: String(document.getElementById('materialName')?.value || '').trim(),
-    type: String(document.getElementById('materialType')?.value || '').trim(),
-    color: String(document.getElementById('materialColor')?.value || '').trim(),
-    weight: toPositiveNumber(document.getElementById('materialWeight')?.value, 0),
-    remaining: toPositiveNumber(document.getElementById('materialRemaining')?.value, 0),
-    price: toPositiveNumber(document.getElementById('materialPrice')?.value, 0),
-    lowStockThreshold: toPositiveNumber(document.getElementById('materialLowStock')?.value, 0),
-    supplier: String(document.getElementById('materialSupplier')?.value || '').trim()
+    id: getValue('materialId'),
+    name: getTrimmedValue('materialName'),
+    type: getTrimmedValue('materialType'),
+    color: getTrimmedValue('materialColor'),
+    weight: toPositiveNumber(getValue('materialWeight'), 0),
+    remaining: toPositiveNumber(getValue('materialRemaining'), 0),
+    price: toPositiveNumber(getValue('materialPrice'), 0),
+    lowStockThreshold: toPositiveNumber(getValue('materialLowStock'), 0),
+    supplier: getTrimmedValue('materialSupplier')
   };
 
   if (!payload.name) {
@@ -1072,8 +1057,21 @@ async function saveMaterial() {
   openMaterialsManagerModal();
 }
 
+function getDeleteMaterialToastMessage(result) {
+  if (result?.archived) {
+    return 'الخامة مستخدمة في أوردرات سابقة، لذلك تم أرشفتها بدل حذفها';
+  }
+
+  if (result?.deleted) {
+    return 'تم حذف الخامة نهائيًا';
+  }
+
+  return 'تم تنفيذ العملية';
+}
+
 async function deleteMaterialAction(id) {
-  if (!confirm('هل تريد حذف الخامة؟')) return;
+  const confirmed = await askConfirm('هل تريد حذف الخامة؟ إذا كانت مستخدمة سابقًا فسيتم أرشفتها بدل حذفها.');
+  if (!confirmed) return;
 
   const response = await window.farmAPI.deleteMaterial(id);
 
@@ -1082,33 +1080,14 @@ async function deleteMaterialAction(id) {
     return;
   }
 
-  showToast('تم حذف الخامة');
+  showToast(getDeleteMaterialToastMessage(response.data));
   await loadDashboardData();
   openMaterialsManagerModal();
 }
 
-function openStockMovementsModal() {
-  const modal = document.getElementById('stockMovementsModal');
-  if (!modal) return;
-
-  renderStockMovementsTable();
-  modal.style.display = 'flex';
-  modal.setAttribute('aria-hidden', 'false');
-}
-
-function closeStockMovementsModal() {
-  const modal = document.getElementById('stockMovementsModal');
-  if (!modal) return;
-
-  modal.style.display = 'none';
-  modal.setAttribute('aria-hidden', 'true');
-}
-
 function renderStockMovementsTable() {
-  const stockMovementsBody = document.getElementById('stockMovementsBody');
+  const stockMovementsBody = $('stockMovementsBody');
   if (!stockMovementsBody) return;
-
-  stockMovementsBody.innerHTML = '';
 
   if (!dashboardData.stockMovements.length) {
     stockMovementsBody.innerHTML = `
@@ -1121,70 +1100,60 @@ function renderStockMovementsTable() {
     return;
   }
 
-  dashboardData.stockMovements.forEach((movement) => {
-    stockMovementsBody.innerHTML += `
-      <tr>
-        <td>${escapeHtml(formatDateTime(movement.createdAt))}</td>
-        <td>${escapeHtml(movement.materialName || '')}</td>
-        <td>${escapeHtml(getMovementTypeText(movement.movementType))}</td>
-        <td>${Number(movement.quantity || 0).toFixed(2)} g</td>
-        <td>${escapeHtml(movement.reason || '')}</td>
-        <td>${escapeHtml(movement.referenceCode || '-')}</td>
-      </tr>
-    `;
-  });
+  const html = dashboardData.stockMovements
+    .map((movement) => {
+      return `
+        <tr>
+          <td>${escapeHtml(formatDateTime(movement.createdAt))}</td>
+          <td>${escapeHtml(movement.materialName || '')}</td>
+          <td>${escapeHtml(getMovementTypeText(movement.movementType))}</td>
+          <td>${Number(movement.quantity || 0).toFixed(2)} g</td>
+          <td>${escapeHtml(movement.reason || '')}</td>
+          <td>${escapeHtml(movement.referenceCode || '-')}</td>
+        </tr>
+      `;
+    })
+    .join('');
+
+  stockMovementsBody.innerHTML = html;
 }
 
 function renderStockMovementsTableSafe() {
-  const modal = document.getElementById('stockMovementsModal');
-  if (modal && modal.style.display === 'flex') {
+  if (isModalOpen('stockMovementsModal')) {
     renderStockMovementsTable();
   }
 }
 
-function getMovementTypeText(type) {
-  switch (type) {
-    case 'in': return 'إضافة';
-    case 'out': return 'خصم';
-    case 'return': return 'استرجاع';
-    case 'adjust_in': return 'زيادة يدوية';
-    case 'adjust_out': return 'نقص يدوي';
-    default: return type || '-';
-  }
+function openStockMovementsModal() {
+  renderStockMovementsTable();
+  openModal('stockMovementsModal');
 }
 
-function formatDateTime(value) {
-  if (!value) return '-';
-  return String(value).replace('T', ' ').slice(0, 19);
+function closeStockMovementsModal() {
+  closeModal('stockMovementsModal');
 }
 
 function openSettingsModal() {
-  const modal = document.getElementById('settingsModal');
-  if (!modal) return;
-
   applyConfigToInputs();
-  modal.style.display = 'flex';
-  modal.setAttribute('aria-hidden', 'false');
+  openModal('settingsModal');
 }
 
 function closeSettingsModal() {
-  const modal = document.getElementById('settingsModal');
-  if (!modal) return;
-
-  modal.style.display = 'none';
-  modal.setAttribute('aria-hidden', 'true');
+  closeModal('settingsModal');
 }
 
 async function saveConfig() {
   const payload = {
-    farmName: String(document.getElementById('farmName')?.value || '').trim() || DEFAULT_CONFIG.farmName,
-    currencyName: String(document.getElementById('currencyName')?.value || '').trim() || DEFAULT_CONFIG.currencyName,
-    defaultTaxPercent: String(toPositiveNumber(document.getElementById('defaultTaxPercent')?.value, DEFAULT_CONFIG.defaultTaxPercent)),
-    laborRate: String(toPositiveNumber(document.getElementById('laborRate')?.value, DEFAULT_CONFIG.laborRate)),
-    electricityCostPerHour: String(toPositiveNumber(document.getElementById('electricityCostPerHour')?.value, DEFAULT_CONFIG.electricityCostPerHour)),
-    packagingCost: String(toPositiveNumber(document.getElementById('packagingCost')?.value, DEFAULT_CONFIG.packagingCost)),
-    failurePercent: String(toPositiveNumber(document.getElementById('failurePercent')?.value, DEFAULT_CONFIG.failurePercent)),
-    shippingCost: String(toPositiveNumber(document.getElementById('shippingCost')?.value, DEFAULT_CONFIG.shippingCost))
+    farmName: getTrimmedValue('farmName') || DEFAULT_CONFIG.farmName,
+    currencyName: getTrimmedValue('currencyName') || DEFAULT_CONFIG.currencyName,
+    defaultTaxPercent: String(toPositiveNumber(getValue('defaultTaxPercent'), DEFAULT_CONFIG.defaultTaxPercent)),
+    laborRate: String(toPositiveNumber(getValue('laborRate'), DEFAULT_CONFIG.laborRate)),
+    electricityCostPerHour: String(
+      toPositiveNumber(getValue('electricityCostPerHour'), DEFAULT_CONFIG.electricityCostPerHour)
+    ),
+    packagingCost: String(toPositiveNumber(getValue('packagingCost'), DEFAULT_CONFIG.packagingCost)),
+    failurePercent: String(toPositiveNumber(getValue('failurePercent'), DEFAULT_CONFIG.failurePercent)),
+    shippingCost: String(toPositiveNumber(getValue('shippingCost'), DEFAULT_CONFIG.shippingCost))
   };
 
   const response = await window.farmAPI.saveConfig(payload);
@@ -1263,33 +1232,32 @@ function attachLiveEvents() {
   ];
 
   ids.forEach((id) => {
-    const el = document.getElementById(id);
+    const el = $(id);
     if (!el) return;
 
     el.addEventListener('input', calc);
     el.addEventListener('change', calc);
   });
+
+  ['salesSearch', 'filterFrom', 'filterTo', 'filterStatus'].forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+
+    el.addEventListener('input', renderReportsTableSafe);
+    el.addEventListener('change', renderReportsTableSafe);
+  });
 }
 
-window.onclick = function(event) {
-  const reportsModal = document.getElementById('reportsModal');
-  const editModal = document.getElementById('editModal');
-  const printerModal = document.getElementById('printerModal');
-  const materialModal = document.getElementById('materialModal');
-  const stockMovementsModal = document.getElementById('stockMovementsModal');
-  const settingsModal = document.getElementById('settingsModal');
-  const printersManagerModal = document.getElementById('printersManagerModal');
-  const materialsManagerModal = document.getElementById('materialsManagerModal');
+function handleWindowClick(event) {
+  MODAL_IDS.forEach((modalId) => {
+    const modal = $(modalId);
+    if (event.target === modal) {
+      closeModal(modalId);
+    }
+  });
+}
 
-  if (event.target === reportsModal) closeReports();
-  if (event.target === editModal) closeEditModal();
-  if (event.target === printerModal) closePrinterModal();
-  if (event.target === materialModal) closeMaterialModal();
-  if (event.target === stockMovementsModal) closeStockMovementsModal();
-  if (event.target === settingsModal) closeSettingsModal();
-  if (event.target === printersManagerModal) closePrintersManagerModal();
-  if (event.target === materialsManagerModal) closeMaterialsManagerModal();
-};
+window.onclick = handleWindowClick;
 
 window.openReports = openReports;
 window.closeReports = closeReports;
@@ -1328,11 +1296,7 @@ window.saveSale = saveSale;
 window.renderReportsTable = renderReportsTable;
 
 window.onload = async () => {
-  const opDate = document.getElementById('opDate');
-  if (opDate) {
-    opDate.value = new Date().toISOString().slice(0, 10);
-  }
-
+  setValue('opDate', new Date().toISOString().slice(0, 10));
   attachLiveEvents();
   await loadDashboardData();
 };
