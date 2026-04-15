@@ -32,8 +32,8 @@
 
       <main class="app-content">
         <section class="screen screen-order active-screen">
-          <section class="home-section-grid">
-            <section class="card compact-card order-main-card">
+          <section class="home-section-grid home-section-grid-top">
+            <section class="card compact-card order-main-card equal-card">
               <div class="section-head">
                 <div>
                   <h3>أوردر جديد</h3>
@@ -101,7 +101,7 @@
               </div>
             </section>
 
-            <section class="card compact-card order-materials-card">
+            <section class="card compact-card order-materials-card equal-card">
               <div class="section-head">
                 <div>
                   <h3>الخامات والتسعير</h3>
@@ -112,7 +112,7 @@
                 </div>
               </div>
 
-              <div class="compact-section-block">
+              <div class="compact-section-block full-height-block">
                 <div class="mini-section-head">
                   <h4>استهلاك الخامات</h4>
                   <span>أدخل الجرامات المستخدمة فقط</span>
@@ -122,8 +122,8 @@
             </section>
           </section>
 
-          <section class="home-section-grid section-gap-lg">
-            <section class="card compact-card">
+          <section class="home-section-grid home-section-grid-bottom section-gap-lg">
+            <section class="card compact-card equal-card">
               <div class="section-head">
                 <div>
                   <h3>تفاصيل التسعير</h3>
@@ -170,58 +170,33 @@
               </div>
             </section>
 
-            <section class="card result-card compact-result-card order-summary-card">
+            <section class="card result-card compact-result-card order-summary-card equal-card">
               <div class="section-head section-head-light">
                 <div>
                   <h3>ملخص التسعير</h3>
-                  <p class="section-subtext light-text">الحسبة المباشرة للأوردر الحالي</p>
+                  <p class="section-subtext light-text">النتيجة النهائية للأوردر الحالي</p>
                 </div>
                 <span class="section-badge section-badge-light">Live</span>
               </div>
 
-              <div class="res-row">
-                <span>تكلفة الخامات</span>
-                <span id="resMat">0 ج</span>
-              </div>
+              <div class="summary-main">
+                <div class="summary-stat">
+                  <span class="summary-label">إجمالي التكلفة</span>
+                  <strong id="resTotal" class="summary-value">0 ج</strong>
+                </div>
 
-              <div class="res-row">
-                <span>إهلاك الطابعة</span>
-                <span id="resDep">0 ج</span>
-              </div>
+                <div class="summary-stat">
+                  <span class="summary-label">سعر البيع المقترح</span>
+                  <strong id="resFinal" class="summary-value">0 ج</strong>
+                </div>
 
-              <div class="res-row">
-                <span>الكهرباء</span>
-                <span id="resElectricity">0 ج</span>
-              </div>
-
-              <div class="res-row">
-                <span>الشغل اليدوي</span>
-                <span id="resLabor">0 ج</span>
-              </div>
-
-              <div class="res-row">
-                <span>التغليف</span>
-                <span id="resPackaging">0 ج</span>
-              </div>
-
-              <div class="res-row">
-                <span>الشحن / الإضافات</span>
-                <span id="resShipping">0 ج</span>
-              </div>
-
-              <div class="res-row">
-                <span>الهالك / النسبة الإضافية</span>
-                <span id="resRisk">0 ج</span>
-              </div>
-
-              <div class="res-row total-row">
-                <span>إجمالي التكلفة</span>
-                <span id="resTotal" class="total-value">0 ج</span>
+                <div class="summary-stat">
+                  <span class="summary-label">صافي الربح</span>
+                  <strong id="resProfit" class="summary-value">0 ج</strong>
+                </div>
               </div>
 
               <div class="final-price-box">
-                <h4 class="summary-box-title">سعر البيع المقترح</h4>
-                <div class="price" id="resFinal">0 ج</div>
                 <button class="btn btn-save" onclick="saveSale()">تسجيل الأوردر</button>
               </div>
             </section>
