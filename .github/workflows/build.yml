@@ -1,4 +1,4 @@
-name: Build Windows App
+name: Build Windows Installer
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  build-windows:
+  build-installer:
     runs-on: windows-latest
 
     steps:
@@ -29,15 +29,12 @@ jobs:
       - name: Rebuild native dependencies
         run: npm run rebuild
 
-      - name: Build installer
-        run: npm run dist
+      - name: Build NSIS installer only
+        run: npm run dist:installer
 
-      - name: Upload build artifacts
+      - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-build
-          path: |
-            dist/*.exe
-            dist/*.yml
-            dist/*.blockmap
-          if-no-files-found: warn
+          name: windows-installer
+          path: dist/*Setup*.exe
+          if-no-files-found: error
