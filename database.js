@@ -38,6 +38,7 @@ function createTables() {
       status TEXT DEFAULT 'idle',
       hourly_depreciation REAL DEFAULT 0,
       notes TEXT DEFAULT '',
+      is_archived INTEGER NOT NULL DEFAULT 0,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -51,6 +52,7 @@ function createTables() {
       price REAL NOT NULL DEFAULT 0,
       low_stock_threshold REAL NOT NULL DEFAULT 150,
       supplier TEXT DEFAULT '',
+      is_archived INTEGER NOT NULL DEFAULT 0,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -113,9 +115,19 @@ function runMigrations() {
     `ALTER TABLE materials ADD COLUMN low_stock_threshold REAL NOT NULL DEFAULT 150`
   );
   ensureColumnExists(
+    'materials',
+    'is_archived',
+    `ALTER TABLE materials ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0`
+  );
+  ensureColumnExists(
     'printers',
     'hourly_depreciation',
     `ALTER TABLE printers ADD COLUMN hourly_depreciation REAL DEFAULT 0`
+  );
+  ensureColumnExists(
+    'printers',
+    'is_archived',
+    `ALTER TABLE printers ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0`
   );
   ensureColumnExists(
     'orders',
@@ -207,24 +219,24 @@ function seedDefaults() {
 
   if (printersCount === 0) {
     const insertPrinter = db.prepare(`
-      INSERT INTO printers (name, model, status, hourly_depreciation, notes)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO printers (name, model, status, hourly_depreciation, notes, is_archived)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
 
-    insertPrinter.run('Bambu Lab A1', 'A1', 'idle', 0, '');
-    insertPrinter.run('Bambu Lab P1S', 'P1S', 'idle', 0, '');
+    insertPrinter.run('Bambu Lab A1', 'A1', 'idle', 0, '', 0);
+    insertPrinter.run('Bambu Lab P1S', 'P1S', 'idle', 0, '', 0);
   }
 
   if (materialsCount === 0) {
     const insertMaterial = db.prepare(`
-      INSERT INTO materials (name, type, color, weight, remaining, price, low_stock_threshold, supplier)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO materials (name, type, color, weight, remaining, price, low_stock_threshold, supplier, is_archived)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    insertMaterial.run('PLA Black', 'PLA', 'Black', 1000, 1000, 800, 150, '');
-    insertMaterial.run('PLA White', 'PLA', 'White', 1000, 1000, 800, 150, '');
-    insertMaterial.run('PLA Red', 'PLA', 'Red', 1000, 1000, 800, 150, '');
-    insertMaterial.run('PLA Silk Gold', 'PLA Silk', 'Gold', 1000, 1000, 1200, 150, '');
+    insertMaterial.run('PLA Black', 'PLA', 'Black', 1000, 1000, 800, 150, '', 0);
+    insertMaterial.run('PLA White', 'PLA', 'White', 1000, 1000, 800, 150, '', 0);
+    insertMaterial.run('PLA Red', 'PLA', 'Red', 1000, 1000, 800, 150, '', 0);
+    insertMaterial.run('PLA Silk Gold', 'PLA Silk', 'Gold', 1000, 1000, 1200, 150, '', 0);
   }
 }
 
@@ -255,8 +267,10 @@ function getDashboardData() {
       model,
       status,
       hourly_depreciation AS hourlyDepreciation,
-      notes
+      notes,
+      is_archived AS isArchived
     FROM printers
+    WHERE is_archived = 0
     ORDER BY id DESC
   `).all();
 
@@ -270,8 +284,10 @@ function getDashboardData() {
       remaining,
       price,
       low_stock_threshold AS lowStockThreshold,
-      supplier
+      supplier,
+      is_archived AS isArchived
     FROM materials
+    WHERE is_archived = 0
     ORDER BY id DESC
   `).all();
 
@@ -329,8 +345,8 @@ function getDashboardData() {
 
 function createPrinter(data) {
   const stmt = db.prepare(`
-    INSERT INTO printers (name, model, status, hourly_depreciation, notes)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO printers (name, model, status, hourly_depreciation, notes, is_archived)
+    VALUES (?, ?, ?, ?, ?, ?)
   `);
 
   const result = stmt.run(
@@ -338,7 +354,8 @@ function createPrinter(data) {
     String(data.model || '').trim(),
     String(data.status || 'idle').trim(),
     Number(data.hourlyDepreciation || 0),
-    String(data.notes || '').trim()
+    String(data.notes || '').trim(),
+    0
   );
 
   return Number(result.lastInsertRowid);
@@ -366,14 +383,33 @@ function updatePrinter(data) {
 
 function deletePrinter(id) {
   const printerId = Number(id);
-  db.prepare('UPDATE orders SET printer_id = NULL WHERE printer_id = ?').run(printerId);
+  const printer = db.prepare('SELECT id FROM printers WHERE id = ?').get(printerId);
+  if (!printer) return { deleted: false, archived: false, reason: 'not_found' };
+
+  const usageCount = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM orders
+    WHERE printer_id = ?
+  `).get(printerId).count;
+
+  if (usageCount > 0) {
+    db.prepare(`
+      UPDATE printers
+      SET is_archived = 1
+      WHERE id = ?
+    `).run(printerId);
+
+    return { deleted: false, archived: true, reason: 'used_in_orders' };
+  }
+
   db.prepare('DELETE FROM printers WHERE id = ?').run(printerId);
+  return { deleted: true, archived: false, reason: 'deleted' };
 }
 
 function createMaterial(data) {
   const stmt = db.prepare(`
-    INSERT INTO materials (name, type, color, weight, remaining, price, low_stock_threshold, supplier)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO materials (name, type, color, weight, remaining, price, low_stock_threshold, supplier, is_archived)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = stmt.run(
@@ -384,7 +420,8 @@ function createMaterial(data) {
     Number(data.remaining || 0),
     Number(data.price || 0),
     Number(data.lowStockThreshold || 0),
-    String(data.supplier || '').trim()
+    String(data.supplier || '').trim(),
+    0
   );
 
   const materialId = Number(result.lastInsertRowid);
@@ -468,9 +505,29 @@ function updateMaterial(data) {
 
 function deleteMaterial(id) {
   const materialId = Number(id);
+  const material = db.prepare('SELECT id FROM materials WHERE id = ?').get(materialId);
+  if (!material) return { deleted: false, archived: false, reason: 'not_found' };
+
+  const usageCount = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM order_materials
+    WHERE material_id = ?
+  `).get(materialId).count;
+
+  if (usageCount > 0) {
+    db.prepare(`
+      UPDATE materials
+      SET is_archived = 1
+      WHERE id = ?
+    `).run(materialId);
+
+    return { deleted: false, archived: true, reason: 'used_in_orders' };
+  }
+
   db.prepare('DELETE FROM stock_movements WHERE material_id = ?').run(materialId);
-  db.prepare('DELETE FROM order_materials WHERE material_id = ?').run(materialId);
   db.prepare('DELETE FROM materials WHERE id = ?').run(materialId);
+
+  return { deleted: true, archived: false, reason: 'deleted' };
 }
 
 function getNextOrderCode() {
@@ -532,7 +589,7 @@ function createOrder(payload) {
   const updateMaterialStock = db.prepare(`
     UPDATE materials
     SET remaining = remaining - ?
-    WHERE id = ? AND remaining >= ?
+    WHERE id = ? AND remaining >= ? AND is_archived = 0
   `);
 
   const insertStockMovement = db.prepare(`
@@ -555,8 +612,22 @@ function createOrder(payload) {
         throw new Error(`الخامة غير موجودة: ${item.materialName}`);
       }
 
+      if (Number(material.is_archived || 0) === 1) {
+        throw new Error(`الخامة مؤرشفة ولا يمكن استخدامها: ${item.materialName}`);
+      }
+
       if (Number(material.remaining) < Number(item.grams)) {
         throw new Error(`المخزون غير كافٍ في: ${item.materialName}`);
+      }
+    }
+
+    if (data.printerId) {
+      const printer = db.prepare('SELECT id, is_archived FROM printers WHERE id = ?').get(Number(data.printerId));
+      if (!printer) {
+        throw new Error('الطابعة المحددة غير موجودة');
+      }
+      if (Number(printer.is_archived || 0) === 1) {
+        throw new Error('الطابعة المحددة مؤرشفة ولا يمكن استخدامها');
       }
     }
 
@@ -715,13 +786,13 @@ function replaceAllData(data) {
     `);
 
     const insertPrinter = db.prepare(`
-      INSERT INTO printers (name, model, status, hourly_depreciation, notes)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO printers (name, model, status, hourly_depreciation, notes, is_archived)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
 
     const insertMaterial = db.prepare(`
-      INSERT INTO materials (name, type, color, weight, remaining, price, low_stock_threshold, supplier)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO materials (name, type, color, weight, remaining, price, low_stock_threshold, supplier, is_archived)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const insertOrder = db.prepare(`
@@ -787,7 +858,8 @@ function replaceAllData(data) {
         String(printer.model || '').trim(),
         String(printer.status || 'idle').trim(),
         Number(printer.hourlyDepreciation || 0),
-        String(printer.notes || '').trim()
+        String(printer.notes || '').trim(),
+        Number(printer.isArchived ? 1 : 0)
       );
 
       if (printer.id != null) {
@@ -804,7 +876,8 @@ function replaceAllData(data) {
         Number(material.remaining || 0),
         Number(material.price || 0),
         Number(material.lowStockThreshold || 0),
-        String(material.supplier || '').trim()
+        String(material.supplier || '').trim(),
+        Number(material.isArchived ? 1 : 0)
       );
 
       if (material.id != null) {
@@ -899,8 +972,41 @@ function exportBackupData() {
     ORDER BY id ASC
   `).all();
 
+  const archivedPrinters = db.prepare(`
+    SELECT
+      id,
+      name,
+      model,
+      status,
+      hourly_depreciation AS hourlyDepreciation,
+      notes,
+      is_archived AS isArchived
+    FROM printers
+    WHERE is_archived = 1
+    ORDER BY id DESC
+  `).all();
+
+  const archivedMaterials = db.prepare(`
+    SELECT
+      id,
+      name,
+      type,
+      color,
+      weight,
+      remaining,
+      price,
+      low_stock_threshold AS lowStockThreshold,
+      supplier,
+      is_archived AS isArchived
+    FROM materials
+    WHERE is_archived = 1
+    ORDER BY id DESC
+  `).all();
+
   return {
     ...data,
+    printers: [...data.printers, ...archivedPrinters],
+    materials: [...data.materials, ...archivedMaterials],
     orderMaterials
   };
 }
