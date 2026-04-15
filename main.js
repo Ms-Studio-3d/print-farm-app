@@ -14,9 +14,10 @@ function createMainWindow() {
     backgroundColor: '#f1f5f9',
     title: 'Print Farm App',
     webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
+      sandbox: false,
       devTools: true
     }
   });
@@ -33,6 +34,7 @@ function createMainWindow() {
     if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
       shell.openExternal(url);
     }
+
     return { action: 'deny' };
   });
 
