@@ -8,6 +8,7 @@ let dashboardData = {
 
 let currentCalc = createEmptyCalc();
 let editingOrderCode = null;
+let currentNavView = 'order';
 
 const DEFAULT_CONFIG = {
   farmName: '3D Printing Business Manager',
@@ -30,6 +31,15 @@ const MODAL_IDS = [
   'printersManagerModal',
   'materialsManagerModal'
 ];
+
+const NAV_MODAL_MAP = {
+  order: null,
+  materials: 'materialsManagerModal',
+  printers: 'printersManagerModal',
+  reports: 'reportsModal',
+  settings: 'settingsModal',
+  stock: 'stockMovementsModal'
+};
 
 function createEmptyCalc() {
   return {
@@ -129,6 +139,15 @@ function getOrderByCode(code) {
   return dashboardData.orders.find((item) => item.code === code);
 }
 
+function setActiveNav(view) {
+  currentNavView = view;
+
+  document.querySelectorAll('.nav-btn').forEach((button) => {
+    const isActive = button.dataset.view === view;
+    button.classList.toggle('nav-btn-active', isActive);
+  });
+}
+
 function openModal(id) {
   const modal = $(id);
   if (!modal) return;
@@ -148,6 +167,23 @@ function closeModal(id) {
 function isModalOpen(id) {
   const modal = $(id);
   return !!modal && modal.style.display === 'flex';
+}
+
+function activateNavForModal(modalId) {
+  const entry = Object.entries(NAV_MODAL_MAP).find(([, value]) => value === modalId);
+  if (entry) {
+    setActiveNav(entry[0]);
+  }
+}
+
+function returnToOrderNav() {
+  const hasMainPanelOpen = Object.values(NAV_MODAL_MAP).some((modalId) => {
+    return modalId && isModalOpen(modalId);
+  });
+
+  if (!hasMainPanelOpen) {
+    setActiveNav('order');
+  }
 }
 
 function showToast(message, type = 'success') {
@@ -682,6 +718,7 @@ async function saveSale() {
   showToast('تم تسجيل الأوردر وخصم المخزون بنجاح');
   await loadDashboardData();
   resetOrderForm();
+  setActiveNav('order');
 }
 
 function getFilteredOrders() {
@@ -790,12 +827,14 @@ function renderReportsTableSafe() {
 }
 
 function openReports() {
+  setActiveNav('reports');
   openModal('reportsModal');
   renderReportsTable();
 }
 
 function closeReports() {
   closeModal('reportsModal');
+  returnToOrderNav();
 }
 
 function openEditSale(code) {
@@ -823,6 +862,7 @@ function openEditSale(code) {
 function closeEditModal() {
   editingOrderCode = null;
   closeModal('editModal');
+  returnToOrderNav();
 }
 
 async function saveEditedSale() {
@@ -878,21 +918,25 @@ async function deleteSale(code) {
 }
 
 function openPrintersManagerModal() {
+  setActiveNav('printers');
   renderPrinters();
   openModal('printersManagerModal');
 }
 
 function closePrintersManagerModal() {
   closeModal('printersManagerModal');
+  returnToOrderNav();
 }
 
 function openMaterialsManagerModal() {
+  setActiveNav('materials');
   renderInventory();
   openModal('materialsManagerModal');
 }
 
 function closeMaterialsManagerModal() {
   closeModal('materialsManagerModal');
+  returnToOrderNav();
 }
 
 function openPrinterModal() {
@@ -908,6 +952,7 @@ function openPrinterModal() {
 
 function closePrinterModal() {
   closeModal('printerModal');
+  activateNavForModal('printersManagerModal');
 }
 
 function editPrinter(id) {
@@ -999,6 +1044,7 @@ function openMaterialModal() {
 
 function closeMaterialModal() {
   closeModal('materialModal');
+  activateNavForModal('materialsManagerModal');
 }
 
 function editMaterial(id) {
@@ -1125,21 +1171,25 @@ function renderStockMovementsTableSafe() {
 }
 
 function openStockMovementsModal() {
+  setActiveNav('stock');
   renderStockMovementsTable();
   openModal('stockMovementsModal');
 }
 
 function closeStockMovementsModal() {
   closeModal('stockMovementsModal');
+  returnToOrderNav();
 }
 
 function openSettingsModal() {
+  setActiveNav('settings');
   applyConfigToInputs();
   openModal('settingsModal');
 }
 
 function closeSettingsModal() {
   closeModal('settingsModal');
+  returnToOrderNav();
 }
 
 async function saveConfig() {
@@ -1207,6 +1257,7 @@ function importBackupJSON(event) {
       showToast('تم استيراد النسخة الاحتياطية بنجاح');
       await loadDashboardData();
       resetOrderForm();
+      setActiveNav('order');
     } catch {
       showToast('ملف الاستيراد غير صالح', 'error');
     } finally {
@@ -1246,6 +1297,48 @@ function attachLiveEvents() {
     el.addEventListener('input', renderReportsTableSafe);
     el.addEventListener('change', renderReportsTableSafe);
   });
+
+  document.querySelectorAll('.nav-btn').forEach((button) => {
+    button.addEventListener('click', () => {
+      const view = button.dataset.view;
+      if (!view) return;
+
+      if (view === 'order') {
+        MODAL_IDS.forEach((modalId) => closeModal(modalId));
+        setActiveNav('order');
+        return;
+      }
+
+      const modalId = NAV_MODAL_MAP[view];
+      if (!modalId) return;
+
+      MODAL_IDS.forEach((id) => {
+        if (id !== modalId && NAV_MODAL_MAP.order !== id) {
+          closeModal(id);
+        }
+      });
+
+      switch (view) {
+        case 'materials':
+          openMaterialsManagerModal();
+          break;
+        case 'printers':
+          openPrintersManagerModal();
+          break;
+        case 'reports':
+          openReports();
+          break;
+        case 'settings':
+          openSettingsModal();
+          break;
+        case 'stock':
+          openStockMovementsModal();
+          break;
+        default:
+          setActiveNav('order');
+      }
+    });
+  });
 }
 
 function handleWindowClick(event) {
@@ -1253,6 +1346,7 @@ function handleWindowClick(event) {
     const modal = $(modalId);
     if (event.target === modal) {
       closeModal(modalId);
+      returnToOrderNav();
     }
   });
 }
@@ -1298,5 +1392,6 @@ window.renderReportsTable = renderReportsTable;
 window.onload = async () => {
   setValue('opDate', new Date().toISOString().slice(0, 10));
   attachLiveEvents();
+  setActiveNav('order');
   await loadDashboardData();
 };
