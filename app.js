@@ -464,7 +464,11 @@ function renderMaterialUsageInputs() {
 
       return `
         <div class="form-group">
-          <label>${escapeHtml(material.name)} (${toPositiveNumber(material.remaining, 0).toFixed(0)}g)</label>
+<label>
+  ${escapeHtml(material.name)}
+  <span style="color:#94a3b8">• ${escapeHtml(material.color || 'No Color')}</span>
+  (${toPositiveNumber(material.remaining, 0).toFixed(0)}g)
+</label>
           <input
             type="text"
             class="ams-weight"
