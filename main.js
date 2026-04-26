@@ -49,8 +49,28 @@ function ensureDbReady() {
   getDb();
 }
 
+function asObject(value) {
+  return value && typeof value === 'object' ? value : {};
+}
+
+function asTrimmedString(value, fallback = '') {
+  return String(value ?? fallback).trim();
+}
+
+function asNumber(value, fallback = 0) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+}
+
+function asNullableId(value) {
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0 ? num : null;
+}
+
 function createMainWindow() {
-  if (mainWindow && !mainWindow.isDestroyed()) return mainWindow;
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    return mainWindow;
+  }
 
   mainWindow = new BrowserWindow({
     width: 1450,
@@ -62,7 +82,6 @@ function createMainWindow() {
     autoHideMenuBar: true,
     backgroundColor: '#0b0f19',
     title: '3D Printing Business Manager',
-
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -76,7 +95,6 @@ function createMainWindow() {
 
   mainWindow.once('ready-to-show', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
-
     mainWindow.maximize();
     mainWindow.show();
   });
@@ -86,6 +104,14 @@ function createMainWindow() {
       shell.openExternal(url);
     }
     return { action: 'deny' };
+  });
+
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const currentUrl = mainWindow.webContents.getURL();
+    if (url !== currentUrl) {
+      event.preventDefault();
+      if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+    }
   });
 
   mainWindow.on('closed', () => {
@@ -106,12 +132,85 @@ function handleIpc(channel, handler, fallbackMessage) {
   });
 }
 
+function normalizePrinterPayload(payload) {
+  const data = asObject(payload);
+  return {
+    id: asNullableId(data.id),
+    name: asTrimmedString(data.name),
+    model: asTrimmedString(data.model),
+    status: asTrimmedString(data.status, 'idle'),
+    hourlyDepreciation: asNumber(data.hourlyDepreciation, 0),
+    notes: asTrimmedString(data.notes)
+  };
+}
+
+function normalizeMaterialPayload(payload) {
+  const data = asObject(payload);
+  return {
+    id: asNullableId(data.id),
+    name: asTrimmedString(data.name),
+    type: asTrimmedString(data.type),
+    color: asTrimmedString(data.color),
+    weight: asNumber(data.weight, 0),
+    remaining: asNumber(data.remaining, 0),
+    price: asNumber(data.price, 0),
+    lowStockThreshold: asNumber(data.lowStockThreshold, 0),
+    supplier: asTrimmedString(data.supplier)
+  };
+}
+
 function registerIpcHandlers() {
   if (ipcHandlersRegistered) return;
   ipcHandlersRegistered = true;
 
   handleIpc(CHANNELS.getDashboardData, async () => ok(getDashboardData()), 'فشل');
   handleIpc(CHANNELS.getNextOrderCode, async () => ok(getNextOrderCode()), 'فشل');
+
+  handleIpc(CHANNELS.saveConfig, async (payload) => {
+    for (const [key, value] of Object.entries(asObject(payload))) {
+      setConfig(key, value);
+    }
+    return ok();
+  }, 'فشل');
+
+  handleIpc(CHANNELS.savePrinter, async (payload) => {
+    const data = normalizePrinterPayload(payload);
+    if (data.id) updatePrinter(data);
+    else createPrinter(data);
+    return ok();
+  }, 'فشل');
+
+  handleIpc(CHANNELS.deletePrinter, async (payload) => {
+    deletePrinter(asNullableId(asObject(payload).id));
+    return ok();
+  }, 'فشل');
+
+  handleIpc(CHANNELS.saveMaterial, async (payload) => {
+    const data = normalizeMaterialPayload(payload);
+    if (data.id) updateMaterial(data);
+    else createMaterial(data);
+    return ok();
+  }, 'فشل');
+
+  handleIpc(CHANNELS.deleteMaterial, async (payload) => {
+    deleteMaterial(asNullableId(asObject(payload).id));
+    return ok();
+  }, 'فشل');
+
+  handleIpc(CHANNELS.createOrder, async (payload) => {
+    createOrder(payload);
+    return ok();
+  }, 'فشل');
+
+  handleIpc(CHANNELS.updateOrder, async (payload) => {
+    updateOrder(payload);
+    return ok();
+  }, 'فشل');
+
+  handleIpc(CHANNELS.deleteOrder, async (payload) => {
+    deleteOrder(asObject(payload).code);
+    return ok();
+  }, 'فشل');
 
   handleIpc(CHANNELS.exportBackup, async () => ok(exportBackupData()), 'فشل');
 
@@ -127,7 +226,7 @@ function registerIpcHandlers() {
       defaultId: 0,
       cancelId: 1,
       title: 'تأكيد',
-      message: payload?.message || 'هل أنت متأكد؟'
+      message: asTrimmedString(asObject(payload).message, 'هل أنت متأكد؟')
     });
 
     return {
@@ -148,6 +247,12 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createMainWindow();
     }
+  });
+});
+
+app.on('web-contents-created', (_event, contents) => {
+  contents.on('will-attach-webview', (event) => {
+    event.preventDefault();
   });
 });
 
