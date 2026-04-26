@@ -67,6 +67,7 @@ function asNullableId(value) {
   return Number.isFinite(num) && num > 0 ? num : null;
 }
 
+/* 🔥 النسخة المعدلة */
 function createMainWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) {
     return mainWindow;
@@ -95,7 +96,7 @@ function createMainWindow() {
 
   mainWindow.once('ready-to-show', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
-    mainWindow.maximize();
+    mainWindow.maximize(); // 🔥 Full Screen
     mainWindow.show();
   });
 
