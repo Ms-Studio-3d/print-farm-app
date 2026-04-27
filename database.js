@@ -144,7 +144,7 @@ function seedDefaults() {
   const materialsCount = db.prepare('SELECT COUNT(*) AS count FROM materials').get().count;
 
   const defaults = {
-    farmName: 'Bambu A1 Print Farm',
+    farmName: 'Print Farm App',
     currencyName: 'ج',
     laborRate: '50',
     electricityCostPerHour: '3',
@@ -293,7 +293,7 @@ function getDashboardData() {
       created_at AS createdAt
     FROM stock_movements
     ORDER BY id DESC
-    LIMIT 500
+    LIMIT 1000
   `).all();
 
   return {
@@ -413,6 +413,7 @@ function updateMaterial(data) {
   if (!oldMaterial) return;
 
   const newName = String(data.name || '').trim();
+  const newRemaining = Number(data.remaining || 0);
 
   db.prepare(`
     UPDATE materials
@@ -431,7 +432,7 @@ function updateMaterial(data) {
     String(data.type || '').trim(),
     String(data.color || '').trim(),
     Number(data.weight || 0),
-    Number(data.remaining || 0),
+    newRemaining,
     Number(data.price || 0),
     Number(data.lowStockThreshold || 0),
     String(data.supplier || '').trim(),
@@ -452,7 +453,7 @@ function updateMaterial(data) {
     `).run(newName, materialId);
   }
 
-  const difference = Number(data.remaining || 0) - Number(oldMaterial.remaining || 0);
+  const difference = newRemaining - Number(oldMaterial.remaining || 0);
 
   if (difference !== 0) {
     db.prepare(`
@@ -511,7 +512,7 @@ function getNextOrderCode() {
     return 'ORD-1001';
   }
 
-  const match = String(lastOrder.code).match(/ORD-(\d+)/);
+  const match = String(lastOrder.code).match(/ORD-(\\d+)/);
 
   if (!match) {
     return 'ORD-1001';
@@ -606,7 +607,7 @@ function createOrder(payload) {
         throw new Error(`الخامة مؤرشفة ولا يمكن استخدامها: ${item.materialName}`);
       }
 
-      if (Number(material.remaining) < Number(item.grams)) {
+      if (Number(material.remaining || 0) < Number(item.grams || 0)) {
         throw new Error(`المخزون غير كافٍ في: ${item.materialName}`);
       }
     }
@@ -649,9 +650,9 @@ function createOrder(payload) {
 
     for (const item of data.materialUsage) {
       const result = updateMaterialStock.run(
-        Number(item.grams),
+        Number(item.grams || 0),
         Number(item.materialId),
-        Number(item.grams)
+        Number(item.grams || 0)
       );
 
       if (result.changes === 0) {
@@ -684,6 +685,18 @@ function createOrder(payload) {
 }
 
 function updateOrder(payload) {
+  const code = String(payload.code || '').trim();
+
+  if (!code) {
+    throw new Error('كود الأوردر غير صالح');
+  }
+
+  const existingOrder = db.prepare('SELECT id FROM orders WHERE code = ?').get(code);
+
+  if (!existingOrder) {
+    throw new Error('الأوردر غير موجود');
+  }
+
   db.prepare(`
     UPDATE orders
     SET
@@ -707,7 +720,7 @@ function updateOrder(payload) {
     Number(payload.totalCost || 0),
     Number(payload.finalPrice || 0),
     Number(payload.profit || 0),
-    String(payload.code || '').trim()
+    code
   );
 }
 
@@ -729,7 +742,7 @@ function deleteOrder(code) {
           UPDATE materials
           SET remaining = remaining + ?
           WHERE id = ?
-        `).run(Number(item.grams), Number(item.materialId));
+        `).run(Number(item.grams || 0), Number(item.materialId));
       }
 
       db.prepare(`
@@ -998,6 +1011,9 @@ function exportBackupData() {
   `).all();
 
   return {
+    exportedAt: new Date().toISOString(),
+    appName: 'Print Farm App',
+    schemaVersion: 2,
     ...data,
     printers: [...data.printers, ...archivedPrinters],
     materials: [...data.materials, ...archivedMaterials],
