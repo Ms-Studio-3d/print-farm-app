@@ -1,1744 +1,1910 @@
-:root {
-  --bg: #050807;
-  --bg-2: #07110d;
+let dashboardData = {
+  config: {},
+  printers: [],
+  materials: [],
+  orders: [],
+  stockMovements: []
+};
+
+let currentCalc = createEmptyCalc();
+let editingOrderCode = null;
+let currentInvoiceOrderCode = null;
+
+const DEFAULT_CONFIG = {
+  farmName: 'Print Farm App',
+  currencyName: 'ج',
+  laborRate: 50,
+  electricityCostPerHour: 3,
+  packagingCost: 10,
+  failurePercent: 10,
+  shippingCost: 0,
+  defaultTaxPercent: 0
+};
 
-  --panel: #0b1210;
-  --panel-2: #0f1915;
-  --panel-3: #121f1a;
+const ORDER_STATUS_FLOW = ['new', 'printing', 'finished', 'delivered', 'cancelled'];
 
-  --text: #f3f7f4;
-  --text-soft: #8ea39a;
-  --text-muted: #64746d;
+const MODAL_IDS = [
+  'reportsModal',
+  'editModal',
+  'invoiceModal',
+  'materialsManagerModal',
+  'printersManagerModal',
+  'printerModal',
+  'materialModal',
+  'stockMovementsModal',
+  'customersModal',
+  'pipelineModal',
+  'settingsModal'
+];
 
-  --primary: #00e676;
-  --primary-2: #00c853;
-  --primary-soft: rgba(0, 230, 118, .12);
-  --primary-border: rgba(0, 230, 118, .35);
-
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --info: #38bdf8;
-
-  --border: rgba(255, 255, 255, .08);
-  --border-strong: rgba(255, 255, 255, .14);
-
-  --shadow: 0 24px 80px rgba(0, 0, 0, .55);
-  --shadow-soft: 0 12px 34px rgba(0, 0, 0, .35);
-
-  --radius-xl: 24px;
-  --radius-lg: 18px;
-  --radius-md: 14px;
-
-  --nav-height: 82px;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html,
-body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  font-family: "Cairo", sans-serif;
-  background:
-    radial-gradient(circle at 12% 0%, rgba(0, 230, 118, .13), transparent 34%),
-    radial-gradient(circle at 88% 10%, rgba(0, 200, 83, .08), transparent 34%),
-    linear-gradient(180deg, #050807 0%, #020403 100%);
-  color: var(--text);
-  overflow: hidden;
-}
-
-button,
-input,
-select,
-textarea {
-  font-family: inherit;
-}
-
-button {
-  color: inherit;
-}
-
-::selection {
-  background: rgba(0, 230, 118, .35);
-  color: #fff;
-}
-
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-::-webkit-scrollbar-track {
-  background: #07100d;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #1d332a;
-  border-radius: 999px;
-  border: 2px solid #07100d;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #285242;
-}
-
-/* Main Shell */
-.app-shell {
-  width: 100%;
-  height: 100vh;
-  overflow: hidden;
-}
-
-.tablet-shell {
-  padding: 0;
-}
-
-.app-frame {
-  width: 100%;
-  height: 100vh;
-  background: transparent;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-/* Topbar */
-.app-topbar {
-  min-height: 86px;
-  padding: 16px 22px;
-  border-bottom: 1px solid var(--border);
-  background:
-    linear-gradient(90deg, rgba(0, 230, 118, .08), transparent 38%),
-    rgba(7, 16, 13, .88);
-  backdrop-filter: blur(18px);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 18px;
-  flex-shrink: 0;
-}
-
-.app-topbar-copy {
-  min-width: 0;
-}
-
-.app-title {
-  margin: 0;
-  font-size: 28px;
-  line-height: 1.15;
-  font-weight: 900;
-  letter-spacing: -.5px;
-}
-
-.app-title::after {
-  content: " A1";
-  color: var(--primary);
-  text-shadow: 0 0 18px rgba(0, 230, 118, .35);
-}
-
-.app-subtitle {
-  margin: 6px 0 0;
-  font-size: 13px;
-  color: var(--text-soft);
-}
-
-.topbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.order-code-chip {
-  background:
-    linear-gradient(180deg, rgba(0, 230, 118, .16), rgba(0, 230, 118, .07));
-  color: #b8ffd8;
-  border: 1px solid var(--primary-border);
-  border-radius: 999px;
-  padding: 10px 16px;
-  font-size: 13px;
-  font-weight: 900;
-  box-shadow: 0 0 28px rgba(0, 230, 118, .12);
-  white-space: nowrap;
-}
-
-/* Content */
-.app-content {
-  flex: 1;
-  overflow: auto;
-  padding: 18px;
-  background:
-    radial-gradient(circle at 30% 0%, rgba(0, 230, 118, .055), transparent 32%),
-    transparent;
-}
-
-.screen {
-  display: none;
-}
-
-.active-screen {
-  display: block;
-}
-
-/* Dashboard */
-.dashboard-hero {
-  display: grid;
-  gap: 14px;
-  margin-bottom: 18px;
-}
-
-.dashboard-title-card {
-  background:
-    radial-gradient(circle at 12% 0%, rgba(0, 230, 118, .18), transparent 34%),
-    radial-gradient(circle at 92% 20%, rgba(255, 255, 255, .08), transparent 24%),
-    linear-gradient(180deg, rgba(255, 255, 255, .055), rgba(255, 255, 255, .018)),
-    #07100d;
-  border: 1px solid rgba(0, 230, 118, .18);
-  border-radius: var(--radius-xl);
-  padding: 18px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 18px;
-  box-shadow: var(--shadow-soft);
-  overflow: hidden;
-  position: relative;
-}
-
-.dashboard-title-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(90deg, rgba(0, 230, 118, .10), transparent 45%),
-    repeating-linear-gradient(
-      135deg,
-      rgba(255, 255, 255, .025) 0,
-      rgba(255, 255, 255, .025) 1px,
-      transparent 1px,
-      transparent 12px
-    );
-  opacity: .8;
-}
-
-.dashboard-title-card > * {
-  position: relative;
-  z-index: 1;
-}
-
-.dashboard-eyebrow {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  color: #b8ffd8;
-  background: rgba(0, 230, 118, .10);
-  border: 1px solid rgba(0, 230, 118, .22);
-  border-radius: 999px;
-  padding: 5px 10px;
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: .4px;
-  margin-bottom: 8px;
-}
-
-.dashboard-title-card h2 {
-  margin: 0;
-  font-size: 24px;
-  line-height: 1.25;
-  font-weight: 950;
-  letter-spacing: -.5px;
-}
-
-.dashboard-title-card p {
-  margin: 6px 0 0;
-  color: var(--text-soft);
-  font-size: 13px;
-  line-height: 1.7;
-}
-
-.dashboard-printer-pill {
-  min-width: 240px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: rgba(255, 255, 255, .045);
-  border: 1px solid rgba(255, 255, 255, .09);
-  border-radius: 999px;
-  padding: 11px 14px;
-}
-
-.printer-dot {
-  width: 13px;
-  height: 13px;
-  border-radius: 999px;
-  background: var(--primary);
-  box-shadow: 0 0 20px rgba(0, 230, 118, .75);
-  flex-shrink: 0;
-}
-
-.printer-dot-warning {
-  background: var(--warning);
-  box-shadow: 0 0 20px rgba(245, 158, 11, .75);
-}
-
-.printer-dot-danger {
-  background: var(--danger);
-  box-shadow: 0 0 20px rgba(239, 68, 68, .75);
-}
-
-.dashboard-printer-pill strong {
-  display: block;
-  font-size: 13px;
-  font-weight: 950;
-}
-
-.dashboard-printer-pill small {
-  display: block;
-  margin-top: 2px;
-  color: var(--text-soft);
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.dashboard-grid-pro {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-}
-
-.dash-card {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .018)),
-    #0b1210;
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 14px;
-  min-height: 122px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, .24);
-  position: relative;
-  overflow: hidden;
-  text-align: right;
-}
-
-button.dash-card {
-  cursor: pointer;
-}
-
-.dash-card-clickable {
-  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
-}
-
-.dash-card-clickable:hover {
-  transform: translateY(-2px);
-  border-color: rgba(0, 230, 118, .26);
-  box-shadow: 0 16px 38px rgba(0, 0, 0, .32);
-}
-
-.dash-card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at top left, rgba(0, 230, 118, .10), transparent 42%),
-    radial-gradient(circle at bottom right, rgba(255, 255, 255, .045), transparent 34%);
-  opacity: .85;
-}
-
-.dash-card > * {
-  position: relative;
-  z-index: 1;
-}
-
-.dash-label {
-  display: block;
-  color: var(--text-soft);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.dash-card strong {
-  display: block;
-  margin-top: 6px;
-  color: #f4fff8;
-  font-size: 24px;
-  line-height: 1.1;
-  font-weight: 950;
-  letter-spacing: -.4px;
-}
-
-.dash-card small {
-  display: block;
-  margin-top: 8px;
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 800;
-  line-height: 1.5;
-}
-
-.dash-card-profit {
-  border-color: rgba(0, 230, 118, .18);
-}
-
-.dash-card-profit strong {
-  color: var(--primary);
-  text-shadow: 0 0 18px rgba(0, 230, 118, .20);
-}
-
-.dash-card-warning {
-  border-color: rgba(245, 158, 11, .18);
-}
-
-.dash-card-warning strong {
-  color: #ffd892;
-}
-
-.quick-actions-row {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.quick-action-btn {
-  min-height: 44px;
-  border: 1px solid rgba(0, 230, 118, .18);
-  background:
-    linear-gradient(180deg, rgba(0, 230, 118, .09), rgba(255, 255, 255, .025)),
-    #07100d;
-  color: #d9ffe9;
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  font-weight: 900;
-  cursor: pointer;
-  transition: .18s ease;
+function createEmptyCalc() {
+  return {
+    materialCost: 0,
+    depreciationCost: 0,
+    electricityCost: 0,
+    laborCost: 0,
+    packagingCost: 0,
+    shippingCost: 0,
+    riskCost: 0,
+    totalCost: 0,
+    finalPrice: 0,
+    profit: 0,
+    materialUsage: []
+  };
 }
 
-.quick-action-btn:hover {
-  transform: translateY(-1px);
-  border-color: rgba(0, 230, 118, .35);
-  background:
-    linear-gradient(180deg, rgba(0, 230, 118, .15), rgba(255, 255, 255, .035)),
-    #07100d;
+function $(id) {
+  return document.getElementById(id);
 }
 
-/* Layout Grids */
-.home-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(360px, .95fr);
-  gap: 16px;
-  align-items: stretch;
+function normalizeDigits(value) {
+  return String(value ?? '')
+    .replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+    .replace(/[٫]/g, '.')
+    .replace(/[٬]/g, '')
+    .replace(/,/g, '.')
+    .trim();
 }
 
-.top-grid,
-.bottom-grid {
-  width: 100%;
-}
-
-.grid-2,
-.grid-3,
-.compact-grid {
-  display: grid;
-  gap: 12px;
-}
-
-.grid-2 {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.grid-3,
-.compact-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.top-grid .compact-grid,
-.bottom-grid .compact-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.section-gap-sm {
-  margin-top: 12px;
-}
-
-.section-gap-md {
-  margin-top: 16px;
-}
+function toNumber(value, fallback = 0) {
+  const normalized = normalizeDigits(value);
+  if (normalized === '') return fallback;
 
-.section-gap-lg {
-  margin-top: 18px;
+  const num = Number(normalized);
+  return Number.isFinite(num) ? num : fallback;
 }
 
-/* Cards */
-.card {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .018)),
-    var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  padding: 16px;
-  box-shadow: var(--shadow-soft);
-  position: relative;
-  overflow: hidden;
+function toPositiveNumber(value, fallback = 0) {
+  const num = toNumber(value, fallback);
+  return num >= 0 ? num : fallback;
 }
 
-.card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(120deg, rgba(0, 230, 118, .08), transparent 28%),
-    radial-gradient(circle at 100% 0%, rgba(255, 255, 255, .06), transparent 24%);
-  opacity: .75;
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
-.card > * {
-  position: relative;
-  z-index: 1;
+function getCurrency() {
+  return String(dashboardData.config.currencyName || DEFAULT_CONFIG.currencyName || 'ج').trim() || 'ج';
 }
 
-.compact-card {
-  padding: 16px;
+function formatMoney(value) {
+  return `${Number(value || 0).toFixed(2)} ${getCurrency()}`;
 }
 
-.equal-card {
-  min-height: 100%;
+function formatNumber(value) {
+  return Number(value || 0).toFixed(2);
 }
 
-/* Section Headers */
-.section-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 14px;
+function formatDateTime(value) {
+  if (!value) return '-';
+  return String(value).replace('T', ' ').slice(0, 19);
 }
 
-.section-head h3 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 900;
-  letter-spacing: -.2px;
+function setText(id, value) {
+  const el = $(id);
+  if (el) el.innerText = value;
 }
 
-.section-subtext {
-  display: block;
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--text-soft);
+function setValue(id, value) {
+  const el = $(id);
+  if (el) el.value = value;
 }
 
-.section-head-light h3 {
-  color: #f4fff8;
+function getValue(id, fallback = '') {
+  return String($(id)?.value ?? fallback);
 }
 
-.light-text {
-  color: rgba(216, 255, 233, .75);
+function getTrimmedValue(id, fallback = '') {
+  return getValue(id, fallback).trim();
 }
 
-.section-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  padding: 6px 10px;
-  font-size: 12px;
-  font-weight: 900;
-  border: 1px solid var(--border);
+function getConfigNumber(key) {
+  return toPositiveNumber(dashboardData.config[key], toPositiveNumber(DEFAULT_CONFIG[key], 0));
 }
 
-.section-badge-light {
-  color: #b8ffd8;
-  background: rgba(0, 230, 118, .12);
-  border-color: rgba(0, 230, 118, .25);
+function getPrinterById(id) {
+  return dashboardData.printers.find((printer) => String(printer.id) === String(id));
 }
 
-/* Forms */
-.form-group {
-  min-width: 0;
+function getMaterialById(id) {
+  return dashboardData.materials.find((material) => String(material.id) === String(id));
 }
 
-.form-group label {
-  display: block;
-  margin-bottom: 7px;
-  color: var(--text-soft);
-  font-size: 13px;
-  font-weight: 800;
+function getOrderByCode(code) {
+  return dashboardData.orders.find((item) => String(item.code) === String(code));
 }
 
-input,
-select,
-textarea {
-  width: 100%;
-  border: 1px solid var(--border);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, .035), rgba(255, 255, 255, .015)),
-    #07100d;
-  color: #fff;
-  border-radius: var(--radius-md);
-  padding: 12px 14px;
-  font-size: 14px;
-  outline: none;
-  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+function isCancelled(order) {
+  return String(order?.status || '') === 'cancelled';
 }
 
-input,
-select {
-  height: 46px;
+function getPrinterStatusText(status) {
+  switch (status) {
+    case 'idle':
+      return 'متاحة';
+    case 'printing':
+      return 'تطبع الآن';
+    case 'maintenance':
+      return 'صيانة';
+    case 'offline':
+      return 'متوقفة';
+    default:
+      return 'غير محدد';
+  }
 }
 
-textarea {
-  min-height: 110px;
-  resize: vertical;
+function getPrinterStatusClass(status) {
+  switch (status) {
+    case 'idle':
+      return 'status-success';
+    case 'printing':
+      return 'status-warning';
+    case 'maintenance':
+    case 'offline':
+      return 'status-danger';
+    default:
+      return '';
+  }
 }
 
-input::placeholder,
-textarea::placeholder {
-  color: rgba(142, 163, 154, .7);
+function getOrderStatusText(status) {
+  switch (status) {
+    case 'new':
+      return 'جديد';
+    case 'printing':
+      return 'قيد الطباعة';
+    case 'finished':
+      return 'جاهز';
+    case 'delivered':
+      return 'تم التسليم';
+    case 'cancelled':
+      return 'ملغي';
+    default:
+      return 'غير محدد';
+  }
 }
 
-input:focus,
-select:focus,
-textarea:focus {
-  border-color: var(--primary-border);
-  box-shadow: 0 0 0 4px rgba(0, 230, 118, .10);
-  background:
-    linear-gradient(180deg, rgba(0, 230, 118, .055), rgba(255, 255, 255, .015)),
-    #07100d;
+function getOrderStatusClass(status) {
+  switch (status) {
+    case 'delivered':
+    case 'finished':
+      return 'status-success';
+    case 'new':
+    case 'printing':
+      return 'status-warning';
+    case 'cancelled':
+      return 'status-danger';
+    default:
+      return '';
+  }
 }
 
-input[readonly] {
-  opacity: .8;
-  cursor: not-allowed;
+function getMovementTypeText(type) {
+  switch (type) {
+    case 'in':
+      return 'إضافة';
+    case 'out':
+      return 'خصم';
+    case 'return':
+      return 'استرجاع';
+    case 'adjust_in':
+      return 'زيادة يدوية';
+    case 'adjust_out':
+      return 'نقص يدوي';
+    default:
+      return type || '-';
+  }
 }
 
-/* Mini Sections */
-.compact-section-block {
-  background: rgba(255, 255, 255, .025);
-  border: 1px solid rgba(255, 255, 255, .065);
-  border-radius: var(--radius-lg);
-  padding: 14px;
+function setActiveNav(view) {
+  document.querySelectorAll('.nav-btn').forEach((button) => {
+    button.classList.toggle('nav-btn-active', button.dataset.view === view);
+  });
 }
 
-.fill-block {
-  min-height: 222px;
-}
-
-.mini-section-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
+function openModal(id) {
+  const modal = $(id);
+  if (!modal) return;
 
-.mini-section-head h4 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 900;
+  modal.style.display = 'flex';
+  modal.setAttribute('aria-hidden', 'false');
 }
 
-.mini-section-head span {
-  color: var(--text-soft);
-  font-size: 12px;
-}
+function closeModal(id) {
+  const modal = $(id);
+  if (!modal) return;
 
-/* Notes */
-.field-note {
-  background: rgba(0, 230, 118, .07);
-  color: #c9ffe0;
-  border: 1px solid rgba(0, 230, 118, .14);
-  border-radius: var(--radius-md);
-  padding: 11px 13px;
-  font-size: 13px;
-  line-height: 1.7;
+  modal.style.display = 'none';
+  modal.setAttribute('aria-hidden', 'true');
 }
 
-/* Buttons */
-.btn {
-  border: 1px solid transparent;
-  cursor: pointer;
-  min-height: 44px;
-  border-radius: var(--radius-md);
-  padding: 10px 18px;
-  font-size: 14px;
-  font-weight: 900;
-  transition: transform .18s ease, box-shadow .18s ease, background .18s ease, border-color .18s ease;
-  user-select: none;
+function isModalOpen(id) {
+  const modal = $(id);
+  return !!modal && modal.style.display === 'flex';
 }
 
-.btn:hover {
-  transform: translateY(-1px);
+function closeAllModals() {
+  MODAL_IDS.forEach((id) => closeModal(id));
 }
 
-.btn:active {
-  transform: translateY(0) scale(.99);
+function returnToOrderNav() {
+  const anyOpen = MODAL_IDS.some((id) => isModalOpen(id));
+  if (!anyOpen) setActiveNav('order');
 }
 
-.btn-primary {
-  background: linear-gradient(180deg, #15f58a, #00b85c);
-  color: #03100a;
-  border-color: rgba(255, 255, 255, .12);
-  box-shadow: 0 14px 30px rgba(0, 230, 118, .20);
-}
+function showToast(message, type = 'success') {
+  const oldToast = $('toastMsg');
+  if (oldToast) oldToast.remove();
 
-.btn-primary:hover {
-  box-shadow: 0 18px 42px rgba(0, 230, 118, .28);
-}
+  const toast = document.createElement('div');
+  toast.id = 'toastMsg';
+  toast.className = `toast ${type}`;
+  toast.innerText = message;
 
-.btn-secondary {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, .075), rgba(255, 255, 255, .035));
-  color: #e8f5ee;
-  border: 1px solid var(--border-strong);
-}
+  document.body.appendChild(toast);
 
-.btn-secondary:hover {
-  border-color: rgba(0, 230, 118, .32);
-  background:
-    linear-gradient(180deg, rgba(0, 230, 118, .10), rgba(255, 255, 255, .035));
-}
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(-8px)';
+  }, 2200);
 
-.btn-danger {
-  background: linear-gradient(180deg, #ff5a5a, #dc2626);
-  color: #fff;
-  box-shadow: 0 14px 30px rgba(239, 68, 68, .20);
+  setTimeout(() => {
+    if (toast.parentNode) toast.remove();
+  }, 2600);
 }
 
-.btn-save {
-  width: 100%;
-  background: linear-gradient(180deg, #15f58a, #00b85c);
-  color: #03100a;
-  min-height: 54px;
-  font-size: 16px;
-  border: 1px solid rgba(255, 255, 255, .12);
-  box-shadow: 0 18px 45px rgba(0, 230, 118, .22);
+async function askConfirm(message) {
+  try {
+    const response = await window.farmAPI.confirm(message);
+    return !!response?.success && !!response?.confirmed;
+  } catch {
+    return false;
+  }
 }
 
-.btn-small {
-  min-height: 36px;
-  padding: 8px 12px;
-  border-radius: 12px;
-  font-size: 12px;
+function getSortedOrders() {
+  return [...dashboardData.orders].sort((a, b) => {
+    return String(b.date || '').localeCompare(String(a.date || '')) || Number(b.id || 0) - Number(a.id || 0);
+  });
 }
 
-.btn-auto {
-  width: auto;
-  min-width: 92px;
-}
+function getCustomersSummary() {
+  const map = new Map();
 
-.inline-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
+  dashboardData.orders.forEach((order) => {
+    const name = String(order.customerName || '').trim();
+    if (!name) return;
 
-/* Result Card */
-.result-card {
-  background:
-    radial-gradient(circle at top right, rgba(0, 230, 118, .18), transparent 38%),
-    linear-gradient(180deg, #07100d, #0b1210);
-  border-color: rgba(0, 230, 118, .16);
-}
+    if (!map.has(name)) {
+      map.set(name, {
+        name,
+        count: 0,
+        revenue: 0,
+        profit: 0,
+        lastOrderCode: '',
+        lastOrderDate: '',
+        lastOrderItem: ''
+      });
+    }
 
-.compact-result-card {
-  padding: 16px;
-}
+    const entry = map.get(name);
+    entry.count += 1;
 
-.summary-card {
-  position: sticky;
-  top: 0;
-  align-self: start;
-}
+    if (!isCancelled(order)) {
+      entry.revenue += Number(order.finalPrice || 0);
+      entry.profit += Number(order.profit || 0);
+    }
 
-.summary-main {
-  display: grid;
-  gap: 10px;
-}
+    const orderDate = String(order.date || '');
+    if (!entry.lastOrderDate || orderDate >= entry.lastOrderDate) {
+      entry.lastOrderDate = orderDate;
+      entry.lastOrderCode = order.code || '';
+      entry.lastOrderItem = order.itemName || '';
+    }
+  });
 
-.summary-stat {
-  padding: 13px;
-  border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, .035);
-  border: 1px solid rgba(255, 255, 255, .07);
+  return [...map.values()].sort((a, b) => b.revenue - a.revenue || b.count - a.count);
 }
 
-.summary-label {
-  display: block;
-  font-size: 12px;
-  color: var(--text-soft);
-  font-weight: 800;
-}
+function updateCustomersDatalist() {
+  const datalist = $('customersDatalist');
+  if (!datalist) return;
 
-.summary-value {
-  display: block;
-  margin-top: 3px;
-  font-size: 27px;
-  line-height: 1.15;
-  font-weight: 950;
-  letter-spacing: -.5px;
+  datalist.innerHTML = getCustomersSummary()
+    .map((customer) => `<option value="${escapeHtml(customer.name)}"></option>`)
+    .join('');
 }
 
-.summary-stat:nth-child(2) .summary-value {
-  color: var(--primary);
-  text-shadow: 0 0 22px rgba(0, 230, 118, .24);
-}
+function updateTopTitle() {
+  const appTitle = document.querySelector('.app-title');
+  const farmName = dashboardData.config.farmName || DEFAULT_CONFIG.farmName;
 
-.final-price-box {
-  margin-top: 14px;
+  if (appTitle) appTitle.innerText = farmName;
+  document.title = farmName;
 }
 
-/* Bottom Nav */
-.bottom-nav {
-  height: var(--nav-height);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, .04), rgba(255, 255, 255, .015)),
-    rgba(7, 16, 13, .94);
-  backdrop-filter: blur(18px);
-  border-top: 1px solid var(--border);
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  padding: 10px;
-  gap: 8px;
-  flex-shrink: 0;
-}
+function applyConfigToInputs() {
+  const defaultTax = String(toPositiveNumber(dashboardData.config.defaultTaxPercent, DEFAULT_CONFIG.defaultTaxPercent));
 
-.nav-btn {
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--text-soft);
-  border-radius: var(--radius-md);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 900;
-  transition: .18s ease;
-}
+  setValue('farmName', dashboardData.config.farmName || DEFAULT_CONFIG.farmName);
+  setValue('currencyName', dashboardData.config.currencyName || DEFAULT_CONFIG.currencyName);
 
-.nav-btn:hover {
-  background: rgba(255, 255, 255, .045);
-  color: #dcece4;
-}
+  setValue('defaultTaxPercent', defaultTax);
+  setValue('settingsDefaultTaxPercent', defaultTax);
 
-.nav-btn-active {
-  background: var(--primary-soft);
-  color: #b8ffd8;
-  border-color: rgba(0, 230, 118, .22);
-  box-shadow: inset 0 0 0 1px rgba(0, 230, 118, .08), 0 10px 24px rgba(0, 0, 0, .18);
+  setValue('laborRate', String(toPositiveNumber(dashboardData.config.laborRate, DEFAULT_CONFIG.laborRate)));
+  setValue('electricityCostPerHour', String(toPositiveNumber(dashboardData.config.electricityCostPerHour, DEFAULT_CONFIG.electricityCostPerHour)));
+  setValue('packagingCost', String(toPositiveNumber(dashboardData.config.packagingCost, DEFAULT_CONFIG.packagingCost)));
+  setValue('failurePercent', String(toPositiveNumber(dashboardData.config.failurePercent, DEFAULT_CONFIG.failurePercent)));
+  setValue('shippingCost', String(toPositiveNumber(dashboardData.config.shippingCost, DEFAULT_CONFIG.shippingCost)));
 }
 
-.nav-icon {
-  width: 24px;
-  height: 24px;
-  display: inline-flex;
-}
+async function setNextOrderCode() {
+  const response = await window.farmAPI.getNextOrderCode();
+  if (!response?.success) return;
 
-.nav-icon svg {
-  width: 24px;
-  height: 24px;
+  const nextCode = String(response.data || 'ORD-1001');
+  setText('nextOrderCode', nextCode.replace('ORD-', ''));
 }
 
-/* Tables */
-.table-wrap {
-  background: #07100d;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  overflow: auto;
-  max-height: 460px;
-}
+async function loadDashboardData() {
+  const response = await window.farmAPI.getDashboardData();
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 760px;
-}
+  if (!response?.success) {
+    showToast(response?.message || 'فشل في تحميل البيانات', 'error');
+    return;
+  }
 
-thead th {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  background: #0e1a15;
-  color: #dff7ea;
-  padding: 12px 10px;
-  font-size: 12px;
-  text-align: start;
-  border-bottom: 1px solid var(--border);
-  white-space: nowrap;
-}
+  dashboardData = {
+    config: { ...DEFAULT_CONFIG, ...(response.data?.config || {}) },
+    printers: Array.isArray(response.data?.printers) ? response.data.printers : [],
+    materials: Array.isArray(response.data?.materials) ? response.data.materials : [],
+    orders: Array.isArray(response.data?.orders) ? response.data.orders : [],
+    stockMovements: Array.isArray(response.data?.stockMovements) ? response.data.stockMovements : []
+  };
 
-tbody td {
-  padding: 11px 10px;
-  color: #c8d8d0;
-  border-bottom: 1px solid rgba(255, 255, 255, .06);
-  font-size: 13px;
-  white-space: nowrap;
-}
+  applyConfigToInputs();
+  updateTopTitle();
+  updateCustomersDatalist();
+  renderPrinters();
+  renderPrinterSelects();
+  renderInventory();
+  renderMaterialUsageInputs();
+  renderReportsTableSafe();
+  renderStockMovementsTableSafe();
 
-tbody tr {
-  transition: background .16s ease;
-}
+  if (isModalOpen('pipelineModal')) renderPipeline();
+  if (isModalOpen('customersModal')) renderCustomers();
 
-tbody tr:hover {
-  background: rgba(0, 230, 118, .055);
+  await setNextOrderCode();
+  calc();
 }
 
-/* Modal Panels */
-.modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, .76);
-  display: none;
-  z-index: 999;
-  backdrop-filter: blur(10px);
-}
+function renderPrinterSelects() {
+  ['selectedPrinter', 'editPrinter', 'filterPrinter', 'pipelinePrinterFilter'].forEach((id) => {
+    const select = $(id);
+    if (!select) return;
 
-.modal-content {
-  width: min(1180px, calc(100% - 28px));
-  height: min(860px, calc(100% - 28px));
-  margin: 14px auto;
-  background:
-    radial-gradient(circle at top right, rgba(0, 230, 118, .10), transparent 34%),
-    #0b1210;
-  border: 1px solid var(--border-strong);
-  border-radius: 26px;
-  padding: 20px;
-  overflow: auto;
-  box-shadow: var(--shadow);
-}
+    const oldValue = select.value;
+    const firstOption = (id === 'filterPrinter' || id === 'pipelinePrinterFilter')
+      ? `<option value="">كل الطابعات</option>`
+      : `<option value="">اختر طابعة</option>`;
 
-.modal-xl {
-  width: min(1420px, calc(100% - 28px));
-}
+    select.innerHTML = [
+      firstOption,
+      ...dashboardData.printers.map(
+        (printer) => `<option value="${Number(printer.id)}">${escapeHtml(printer.name)}</option>`
+      )
+    ].join('');
 
-.modal-lg {
-  width: min(980px, calc(100% - 28px));
+    if ([...select.options].some((opt) => opt.value === oldValue)) {
+      select.value = oldValue;
+    }
+  });
 }
 
-.modal-md {
-  width: min(760px, calc(100% - 28px));
-}
+function renderPrinters() {
+  const printersList = $('printersList');
+  if (!printersList) return;
 
-.panel-content {
-  display: block;
-}
+  setText('printersCount', String(dashboardData.printers.length));
+  setText('activePrintersCount', String(dashboardData.printers.filter((printer) => printer.status === 'printing').length));
 
-.panel-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--border);
-}
+  if (!dashboardData.printers.length) {
+    printersList.innerHTML = `<div class="empty-state">لا توجد طابعات مضافة.</div>`;
+    return;
+  }
 
-.panel-head h2 {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 950;
-  letter-spacing: -.3px;
-}
+  printersList.innerHTML = dashboardData.printers.map((printer) => {
+    const printerId = Number(printer.id);
+    const statusText = getPrinterStatusText(printer.status);
+    const statusClass = getPrinterStatusClass(printer.status);
 
-/* Stats */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
-}
+    return `
+      <div class="list-card">
+        <div class="list-card-head">
+          <strong>${escapeHtml(printer.name)}</strong>
+          <span class="section-badge ${statusClass}">${escapeHtml(statusText)}</span>
+        </div>
 
-.stats-grid-pro {
-  grid-template-columns: repeat(8, minmax(0, 1fr));
-}
+        <div class="list-card-body">
+          <div>الموديل: ${escapeHtml(printer.model || '-')}</div>
+          <div>إهلاك/ساعة: ${formatMoney(printer.hourlyDepreciation || 0)}</div>
+          <div>ملاحظات: ${escapeHtml(printer.notes || '-')}</div>
+        </div>
+
+        <div class="inline-actions card-actions">
+          <button class="btn btn-secondary" type="button" onclick="editPrinter(${printerId})">تعديل</button>
+          <button class="btn btn-danger" type="button" onclick="deletePrinterAction(${printerId})">حذف</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderInventory() {
+  const inventoryUI = $('inventoryUI');
+  if (!inventoryUI) return;
 
-.stat-box,
-.mini-kpi {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .02));
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 14px;
-}
+  setText('materialsCount', String(dashboardData.materials.length));
 
-.stat-box h4,
-.mini-kpi span {
-  margin: 0 0 8px;
-  color: var(--text-soft);
-  font-size: 12px;
-  font-weight: 800;
-}
+  const lowMaterials = dashboardData.materials.filter((material) => {
+    return Number(material.remaining || 0) <= Number(material.lowStockThreshold || 0);
+  });
 
-.stat-box div,
-.mini-kpi strong {
-  display: block;
-  color: #f3fff8;
-  font-size: 20px;
-  line-height: 1.2;
-  font-weight: 950;
-}
+  setText('lowStockCount', String(lowMaterials.length));
 
-.stat-box:nth-child(1) div,
-.stat-box:nth-child(2) div,
-.mini-kpi strong {
-  color: var(--primary);
-}
+  if (!dashboardData.materials.length) {
+    inventoryUI.innerHTML = `<div class="empty-state">لا توجد خامات مضافة.</div>`;
+    return;
+  }
 
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 220px));
-  gap: 12px;
-}
+  inventoryUI.innerHTML = [...dashboardData.materials]
+    .sort((a, b) => Number(a.remaining || 0) - Number(b.remaining || 0))
+    .map((material) => {
+      const materialId = Number(material.id);
+      const weight = Math.max(Number(material.weight || 0), 1);
+      const remaining = toPositiveNumber(material.remaining, 0);
+      const percentage = Math.max(0, Math.min(100, (remaining / weight) * 100));
+      const isLow = remaining <= Number(material.lowStockThreshold || 0);
+
+      return `
+        <div class="stock-item ${isLow ? 'low' : ''}">
+          <div class="stock-header">
+            <span>${escapeHtml(material.name)}</span>
+            <span>${remaining.toFixed(0)}g / ${weight.toFixed(0)}g</span>
+          </div>
 
-/* Toolbar */
-.toolbar {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 16px;
-}
+          <div class="stock-bar">
+            <div class="stock-progress" style="width:${percentage}%"></div>
+          </div>
 
-.toolbar-wrap {
-  align-items: end;
-}
+          <div class="list-card-body stock-details">
+            <div>النوع: ${escapeHtml(material.type || '-')}</div>
+            <div>اللون: ${escapeHtml(material.color || '-')}</div>
+            <div>السعر: ${formatMoney(material.price || 0)}</div>
+            <div>حد التنبيه: ${toPositiveNumber(material.lowStockThreshold, 0).toFixed(0)}g</div>
+            <div>المورد: ${escapeHtml(material.supplier || '-')}</div>
+          </div>
 
-/* Lists */
-.stack-list {
-  display: grid;
-  gap: 12px;
+          <div class="inline-actions card-actions">
+            <button class="btn btn-secondary" type="button" onclick="editMaterial(${materialId})">تعديل</button>
+            <button class="btn btn-danger" type="button" onclick="deleteMaterialAction(${materialId})">حذف</button>
+          </div>
+        </div>
+      `;
+    }).join('');
 }
 
-.stack-list > * {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .018));
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 14px;
+function renderMaterialUsageInputs() {
+  const amsInputs = $('amsInputs');
+  if (!amsInputs) return;
+
+  const previousValues = {};
+  document.querySelectorAll('.ams-weight').forEach((input) => {
+    previousValues[String(input.dataset.id)] = input.value;
+  });
+
+  if (!dashboardData.materials.length) {
+    amsInputs.innerHTML = `<div class="empty-state">أضف خامة أولًا لكي يظهر إدخال الاستهلاك.</div>`;
+    return;
+  }
+
+  amsInputs.innerHTML = dashboardData.materials.map((material) => {
+    const materialId = Number(material.id);
+    const remaining = toPositiveNumber(material.remaining, 0);
+    const isLow = remaining <= Number(material.lowStockThreshold || 0);
+    const meta = `${material.type || '-'} • ${material.color || '-'} • المتبقي ${remaining.toFixed(0)}g`;
+
+    return `
+      <div class="material-row ${isLow ? 'low' : ''}">
+        <div class="material-row-name">
+          <span class="material-row-title">${escapeHtml(material.name)}</span>
+          <span class="material-row-meta">${escapeHtml(meta)}</span>
+        </div>
+
+        <input
+          type="text"
+          class="ams-weight"
+          data-id="${materialId}"
+          placeholder="جرام"
+          inputmode="decimal"
+        />
+      </div>
+    `;
+  }).join('');
+
+  document.querySelectorAll('.ams-weight').forEach((input) => {
+    const oldValue = previousValues[String(input.dataset.id)];
+    if (oldValue != null) input.value = oldValue;
+
+    input.addEventListener('input', calc);
+    input.addEventListener('change', calc);
+  });
+}
+
+function getMaterialUsageFromInputs() {
+  const usage = [];
+
+  document.querySelectorAll('.ams-weight').forEach((input) => {
+    const grams = toPositiveNumber(input.value, 0);
+    const material = getMaterialById(String(input.dataset.id));
+
+    if (!material || grams <= 0) return;
+
+    const pricePerGram = Number(material.weight || 0) > 0
+      ? Number(material.price || 0) / Number(material.weight || 0)
+      : 0;
+
+    usage.push({
+      materialId: Number(material.id),
+      materialName: material.name,
+      grams: Number(grams.toFixed(2)),
+      pricePerGram: Number(pricePerGram.toFixed(6)),
+      totalCost: Number((grams * pricePerGram).toFixed(2)),
+      remaining: Number(material.remaining || 0)
+    });
+  });
+
+  return usage;
+}
+
+function calc() {
+  const materialUsage = getMaterialUsageFromInputs();
+
+  const printHours = toPositiveNumber(getValue('printHours'), 0);
+  const manualMinutes = toPositiveNumber(getValue('manualMins'), 0);
+  const profitMargin = toPositiveNumber(getValue('profitMargin'), 0);
+
+  const packagingCost = toPositiveNumber(getValue('packagingCost'), getConfigNumber('packagingCost'));
+  const shippingCost = toPositiveNumber(getValue('shippingCost'), getConfigNumber('shippingCost'));
+  const laborRate = toPositiveNumber(getValue('laborRate'), getConfigNumber('laborRate'));
+  const electricityCostPerHour = toPositiveNumber(getValue('electricityCostPerHour'), getConfigNumber('electricityCostPerHour'));
+  const failurePercent = toPositiveNumber(getValue('failurePercent'), getConfigNumber('failurePercent'));
+  const defaultTaxPercent = toPositiveNumber(getValue('defaultTaxPercent'), getConfigNumber('defaultTaxPercent'));
+
+  const materialCost = materialUsage.reduce((sum, entry) => sum + Number(entry.totalCost || 0), 0);
+
+  const selectedPrinterId = getValue('selectedPrinter');
+  const printer = selectedPrinterId ? getPrinterById(selectedPrinterId) : null;
+  const hourlyDepreciation = toPositiveNumber(printer?.hourlyDepreciation, 0);
+
+  const depreciationCost = printHours * hourlyDepreciation;
+  const electricityCost = printHours * electricityCostPerHour;
+  const laborCost = (manualMinutes / 60) * laborRate;
+
+  const baseCost =
+    materialCost +
+    depreciationCost +
+    electricityCost +
+    laborCost +
+    packagingCost +
+    shippingCost;
+
+  const riskCost = baseCost * (failurePercent / 100);
+  const costBeforeTax = baseCost + riskCost;
+  const taxCost = costBeforeTax * (defaultTaxPercent / 100);
+  const totalCost = costBeforeTax + taxCost;
+  const finalPrice = Math.ceil(totalCost * (1 + (profitMargin / 100)));
+  const profit = finalPrice - totalCost;
+
+  setText('resMat', formatMoney(materialCost));
+  setText('resDep', formatMoney(depreciationCost));
+  setText('resElectricity', formatMoney(electricityCost));
+  setText('resLabor', formatMoney(laborCost));
+  setText('resPackaging', formatMoney(packagingCost));
+  setText('resShipping', formatMoney(shippingCost));
+  setText('resRisk', formatMoney(riskCost + taxCost));
+  setText('resTotal', formatMoney(totalCost));
+  setText('resFinal', formatMoney(finalPrice));
+  setText('resProfit', formatMoney(profit));
+
+  currentCalc = {
+    materialCost: Number(materialCost.toFixed(2)),
+    depreciationCost: Number(depreciationCost.toFixed(2)),
+    electricityCost: Number(electricityCost.toFixed(2)),
+    laborCost: Number(laborCost.toFixed(2)),
+    packagingCost: Number(packagingCost.toFixed(2)),
+    shippingCost: Number(shippingCost.toFixed(2)),
+    riskCost: Number((riskCost + taxCost).toFixed(2)),
+    totalCost: Number(totalCost.toFixed(2)),
+    finalPrice: Number(finalPrice.toFixed(2)),
+    profit: Number(profit.toFixed(2)),
+    materialUsage
+  };
+}
+
+function resetResultsPanel() {
+  setText('resMat', formatMoney(0));
+  setText('resDep', formatMoney(0));
+  setText('resElectricity', formatMoney(0));
+  setText('resLabor', formatMoney(0));
+  setText('resPackaging', formatMoney(0));
+  setText('resShipping', formatMoney(0));
+  setText('resRisk', formatMoney(0));
+  setText('resTotal', formatMoney(0));
+  setText('resFinal', formatMoney(0));
+  setText('resProfit', formatMoney(0));
+}
+
+function resetOrderForm() {
+  setValue('itemName', '');
+  setValue('customerName', '');
+  setValue('selectedPrinter', '');
+  setValue('printHours', '0');
+  setValue('manualMins', '15');
+  setValue('opDate', new Date().toISOString().slice(0, 10));
+  setValue('orderStatus', 'new');
+  setValue('orderNotes', '');
+  setValue('profitMargin', '100');
+
+  document.querySelectorAll('.ams-weight').forEach((input) => {
+    input.value = '';
+  });
+
+  applyConfigToInputs();
+  currentCalc = createEmptyCalc();
+
+  resetResultsPanel();
+  setNextOrderCode();
+  calc();
+}
+
+function validateOrderBeforeSave() {
+  const itemName = getTrimmedValue('itemName');
+  const printHours = toPositiveNumber(getValue('printHours'), 0);
+  const printerId = getValue('selectedPrinter');
+  const materialUsage = getMaterialUsageFromInputs();
+
+  if (!itemName) {
+    showToast('اسم المجسم مطلوب', 'error');
+    $('itemName')?.focus();
+    return { valid: false };
+  }
+
+  if (!printerId) {
+    showToast('اختار الطابعة المستخدمة', 'error');
+    $('selectedPrinter')?.focus();
+    return { valid: false };
+  }
+
+  if (printHours <= 0) {
+    showToast('وقت الطباعة لازم يكون أكبر من صفر', 'error');
+    $('printHours')?.focus();
+    return { valid: false };
+  }
+
+  if (!materialUsage.length) {
+    showToast('أدخل استهلاك خامة واحدة على الأقل', 'error');
+    return { valid: false };
+  }
+
+  for (const item of materialUsage) {
+    if (Number(item.grams || 0) > Number(item.remaining || 0)) {
+      showToast(`المخزون غير كافٍ في ${item.materialName}`, 'error');
+      return { valid: false };
+    }
+  }
+
+  if (Number(currentCalc.totalCost || 0) <= 0 || Number(currentCalc.finalPrice || 0) <= 0) {
+    showToast('راجع بيانات التسعير أولًا', 'error');
+    return { valid: false };
+  }
+
+  if (Number(currentCalc.finalPrice || 0) < Number(currentCalc.totalCost || 0)) {
+    showToast('سعر البيع أقل من التكلفة', 'error');
+    return { valid: false };
+  }
+
+  return {
+    valid: true,
+    itemName,
+    printerId,
+    materialUsage
+  };
+}
+
+async function saveSale() {
+  const validation = validateOrderBeforeSave();
+  if (!validation.valid) return;
+
+  const responseCode = await window.farmAPI.getNextOrderCode();
+  if (!responseCode?.success) {
+    showToast(responseCode?.message || 'فشل في إنشاء كود الأوردر', 'error');
+    return;
+  }
+
+  const payload = {
+    code: String(responseCode.data || 'ORD-1001'),
+    itemName: validation.itemName,
+    customerName: getTrimmedValue('customerName'),
+    printerId: Number(validation.printerId),
+    status: getTrimmedValue('orderStatus', 'new'),
+    printHours: toPositiveNumber(getValue('printHours'), 0),
+    manualMinutes: toPositiveNumber(getValue('manualMins'), 0),
+    notes: getTrimmedValue('orderNotes'),
+    date: getValue('opDate') || new Date().toISOString().slice(0, 10),
+    materialCost: currentCalc.materialCost,
+    depreciationCost: currentCalc.depreciationCost,
+    electricityCost: currentCalc.electricityCost,
+    laborCost: currentCalc.laborCost,
+    packagingCost: currentCalc.packagingCost,
+    shippingCost: currentCalc.shippingCost,
+    riskCost: currentCalc.riskCost,
+    totalCost: currentCalc.totalCost,
+    finalPrice: currentCalc.finalPrice,
+    profit: currentCalc.profit,
+    materialUsage: validation.materialUsage
+  };
+
+  const response = await window.farmAPI.createOrder(payload);
+
+  if (!response?.success) {
+    showToast(response?.message || 'فشل في حفظ الأوردر', 'error');
+    return;
+  }
+
+  showToast('تم تسجيل الأوردر وخصم المخزون بنجاح');
+  await loadDashboardData();
+  resetOrderForm();
+  setActiveNav('order');
+}
+
+/* Reports */
+function getFilteredOrders() {
+  const search = getTrimmedValue('salesSearch').toLowerCase();
+  const from = getValue('filterFrom');
+  const to = getValue('filterTo');
+  const filterStatus = getValue('filterStatus');
+  const filterPrinter = getValue('filterPrinter');
+  const filterCustomer = getTrimmedValue('filterCustomer').toLowerCase();
+
+  return getSortedOrders().filter((order) => {
+    const code = String(order.code || '').toLowerCase();
+    const itemName = String(order.itemName || '').toLowerCase();
+    const customerName = String(order.customerName || '').toLowerCase();
+    const notes = String(order.notes || '').toLowerCase();
+    const status = String(order.status || '');
+    const printerId = String(order.printerId || '');
+
+    const matchesSearch =
+      !search ||
+      code.includes(search) ||
+      itemName.includes(search) ||
+      customerName.includes(search) ||
+      notes.includes(search);
+
+    const matchesFrom = !from || (order.date && order.date >= from);
+    const matchesTo = !to || (order.date && order.date <= to);
+    const matchesStatus = !filterStatus || status === filterStatus;
+    const matchesPrinter = !filterPrinter || printerId === String(filterPrinter);
+    const matchesCustomer = !filterCustomer || customerName.includes(filterCustomer);
+
+    return matchesSearch && matchesFrom && matchesTo && matchesStatus && matchesPrinter && matchesCustomer;
+  });
+}
+
+function renderReportsTable() {
+  const salesTableBody = $('salesTableBody');
+  if (!salesTableBody) return;
+
+  const orders = getFilteredOrders();
+
+  let totalRevenue = 0;
+  let totalProfit = 0;
+  let topSale = 0;
+  let cancelledCount = 0;
+  const customerMap = new Map();
+
+  const rowsHtml = orders.map((order) => {
+    if (!isCancelled(order)) {
+      totalRevenue += Number(order.finalPrice || 0);
+      totalProfit += Number(order.profit || 0);
+      topSale = Math.max(topSale, Number(order.finalPrice || 0));
+
+      const customer = String(order.customerName || '').trim();
+      if (customer) {
+        customerMap.set(customer, (customerMap.get(customer) || 0) + Number(order.finalPrice || 0));
+      }
+    }
+
+    if (String(order.status || '') === 'cancelled') {
+      cancelledCount += 1;
+    }
+
+    const statusClass = getOrderStatusClass(order.status);
+
+    return `
+      <tr>
+        <td>${escapeHtml(order.code)}</td>
+        <td>${escapeHtml(order.date || '')}</td>
+        <td>${escapeHtml(order.itemName || '')}</td>
+        <td>${escapeHtml(order.customerName || '')}</td>
+        <td>${escapeHtml(order.printerName || '-')}</td>
+        <td><span class="status-chip ${statusClass}">${escapeHtml(getOrderStatusText(order.status))}</span></td>
+        <td>${formatMoney(order.totalCost || 0)}</td>
+        <td>${formatMoney(order.finalPrice || 0)}</td>
+        <td>${formatMoney(order.profit || 0)}</td>
+        <td>
+          <button class="action-btn edit" type="button" onclick="openEditSale('${escapeHtml(order.code)}')">تعديل</button>
+          <button class="action-btn" type="button" onclick="openInvoice('${escapeHtml(order.code)}')">فاتورة</button>
+          <button class="action-btn delete" type="button" onclick="deleteSale('${escapeHtml(order.code)}')">حذف</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  salesTableBody.innerHTML = orders.length
+    ? rowsHtml
+    : `<tr><td colspan="10"><div class="empty-state">لا توجد نتائج مطابقة.</div></td></tr>`;
+
+  const validOrders = orders.filter((order) => !isCancelled(order));
+  const avgProfit = validOrders.length ? totalProfit / validOrders.length : 0;
+
+  const topCustomer = [...customerMap.entries()].sort((a, b) => b[1] - a[1])[0];
+
+  const lowestStockMaterial = [...dashboardData.materials]
+    .sort((a, b) => Number(a.remaining || 0) - Number(b.remaining || 0))[0];
+
+  setText('statRev', formatMoney(totalRevenue));
+  setText('statProfit', formatMoney(totalProfit));
+  setText('statCount', String(orders.length));
+  setText('statTop', formatMoney(topSale));
+  setText('statAvgProfit', formatMoney(avgProfit));
+  setText('statCancelled', String(cancelledCount));
+  setText('statTopCustomer', topCustomer ? `${topCustomer[0]} (${formatMoney(topCustomer[1])})` : '-');
+  setText(
+    'statLowestStock',
+    lowestStockMaterial
+      ? `${lowestStockMaterial.name} (${toPositiveNumber(lowestStockMaterial.remaining, 0).toFixed(0)}g)`
+      : '-'
+  );
+}
+
+function renderReportsTableSafe() {
+  if (isModalOpen('reportsModal')) renderReportsTable();
+}
+
+function openReports() {
+  setActiveNav('reports');
+  renderPrinterSelects();
+  renderReportsTable();
+  openModal('reportsModal');
+}
+
+function closeReports() {
+  closeModal('reportsModal');
+  returnToOrderNav();
 }
 
 /* Pipeline */
-.pipeline-board {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(260px, 1fr));
-  gap: 12px;
-  overflow-x: auto;
-  padding-bottom: 8px;
-  min-height: 520px;
+function getPipelineFilteredOrders() {
+  const search = getTrimmedValue('pipelineSearch').toLowerCase();
+  const printerId = getValue('pipelinePrinterFilter');
+  const from = getValue('pipelineFrom');
+  const to = getValue('pipelineTo');
+
+  return getSortedOrders().filter((order) => {
+    const haystack = [
+      order.code,
+      order.itemName,
+      order.customerName,
+      order.printerName,
+      order.notes
+    ].join(' ').toLowerCase();
+
+    const matchesSearch = !search || haystack.includes(search);
+    const matchesPrinter = !printerId || String(order.printerId || '') === String(printerId);
+    const matchesFrom = !from || (order.date && order.date >= from);
+    const matchesTo = !to || (order.date && order.date <= to);
+
+    return matchesSearch && matchesPrinter && matchesFrom && matchesTo;
+  });
 }
 
-.pipeline-column {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, .035), rgba(255, 255, 255, .015)),
-    rgba(7, 16, 13, .88);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 12px;
-  min-width: 260px;
+function renderPipeline() {
+  const targetMap = {
+    new: $('pipelineNew'),
+    printing: $('pipelinePrinting'),
+    finished: $('pipelineFinished'),
+    delivered: $('pipelineDelivered'),
+    cancelled: $('pipelineCancelled')
+  };
+
+  const countMap = {
+    new: $('pipelineCountNew'),
+    printing: $('pipelineCountPrinting'),
+    finished: $('pipelineCountFinished'),
+    delivered: $('pipelineCountDelivered'),
+    cancelled: $('pipelineCountCancelled')
+  };
+
+  Object.values(targetMap).forEach((el) => {
+    if (el) el.innerHTML = '';
+  });
+
+  Object.values(countMap).forEach((el) => {
+    if (el) el.innerText = '0';
+  });
+
+  const grouped = {
+    new: [],
+    printing: [],
+    finished: [],
+    delivered: [],
+    cancelled: []
+  };
+
+  getPipelineFilteredOrders().forEach((order) => {
+    const status = grouped[order.status] ? order.status : 'new';
+    grouped[status].push(order);
+  });
+
+  Object.entries(grouped).forEach(([status, orders]) => {
+    if (countMap[status]) countMap[status].innerText = String(orders.length);
+
+    if (!targetMap[status]) return;
+
+    targetMap[status].innerHTML = orders.length
+      ? orders.map((order) => renderPipelineCard(order)).join('')
+      : `<div class="empty-state">لا يوجد أوردرات</div>`;
+  });
 }
 
-.pipeline-column-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding-bottom: 10px;
-  margin-bottom: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, .07);
+function renderPipelineCard(order) {
+  const statusClass = getOrderStatusClass(order.status);
+  const code = escapeHtml(order.code || '');
+
+  const steps = ORDER_STATUS_FLOW
+    .filter((status) => status !== order.status)
+    .map((status) => {
+      return `<button class="status-step-btn" type="button" onclick="updateOrderStatusQuick('${code}', '${status}')">${escapeHtml(getOrderStatusText(status))}</button>`;
+    })
+    .join('');
+
+  return `
+    <article class="pipeline-card">
+      <div class="pipeline-card-head">
+        <div>
+          <span class="pipeline-code">${code}</span>
+          <strong class="pipeline-title">${escapeHtml(order.itemName || '-')}</strong>
+        </div>
+        <span class="status-chip ${statusClass}">${escapeHtml(getOrderStatusText(order.status))}</span>
+      </div>
+
+      <div class="pipeline-meta">
+        <div>العميل: ${escapeHtml(order.customerName || '-')}</div>
+        <div>الطابعة: ${escapeHtml(order.printerName || '-')}</div>
+        <div>التاريخ: ${escapeHtml(order.date || '-')}</div>
+      </div>
+
+      <div class="pipeline-price">
+        <span>التكلفة: ${formatMoney(order.totalCost || 0)}</span>
+        <strong>البيع: ${formatMoney(order.finalPrice || 0)}</strong>
+        <span>الربح: ${formatMoney(order.profit || 0)}</span>
+      </div>
+
+      <div class="status-step-row">${steps}</div>
+
+      <div class="pipeline-actions">
+        <button class="action-btn edit" type="button" onclick="openEditSale('${code}')">تعديل</button>
+        <button class="action-btn" type="button" onclick="openInvoice('${code}')">فاتورة</button>
+        <button class="action-btn delete" type="button" onclick="deleteSale('${code}')">حذف</button>
+      </div>
+    </article>
+  `;
 }
 
-.pipeline-column-head h3 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 950;
+function openPipelineModal() {
+  setActiveNav('pipeline');
+  renderPrinterSelects();
+  renderPipeline();
+  openModal('pipelineModal');
 }
 
-.pipeline-column-head span {
-  min-width: 30px;
-  height: 30px;
-  padding: 0 8px;
-  border-radius: 999px;
-  background: rgba(0, 230, 118, .10);
-  color: #b8ffd8;
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  font-weight: 950;
-  border: 1px solid rgba(0, 230, 118, .18);
+function closePipelineModal() {
+  closeModal('pipelineModal');
+  returnToOrderNav();
 }
 
-.pipeline-list {
-  display: grid;
-  gap: 10px;
-  align-content: start;
+async function updateOrderStatusQuick(code, status) {
+  const order = getOrderByCode(code);
+  if (!order) {
+    showToast('الأوردر غير موجود', 'error');
+    return;
+  }
+
+  const payload = {
+    code: order.code,
+    date: order.date,
+    status,
+    itemName: order.itemName,
+    customerName: order.customerName,
+    printerId: order.printerId || null,
+    notes: order.notes || '',
+    totalCost: Number(order.totalCost || 0),
+    finalPrice: Number(order.finalPrice || 0),
+    profit: Number(order.profit || 0)
+  };
+
+  const response = await window.farmAPI.updateOrder(payload);
+
+  if (!response?.success) {
+    showToast(response?.message || 'فشل في تغيير حالة الأوردر', 'error');
+    return;
+  }
+
+  showToast(`تم نقل الأوردر إلى: ${getOrderStatusText(status)}`);
+  await loadDashboardData();
+  renderPipeline();
 }
 
-.pipeline-card {
-  background:
-    radial-gradient(circle at top right, rgba(0, 230, 118, .09), transparent 38%),
-    linear-gradient(180deg, rgba(255, 255, 255, .055), rgba(255, 255, 255, .02)),
-    #0b1210;
-  border: 1px solid rgba(255, 255, 255, .09);
-  border-radius: 16px;
-  padding: 12px;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, .22);
+/* Edit Order */
+function openEditSale(code) {
+  const order = getOrderByCode(code);
+  if (!order) {
+    showToast('الأوردر غير موجود', 'error');
+    return;
+  }
+
+  editingOrderCode = code;
+
+  setValue('editCode', order.code || '');
+  setValue('editDate', order.date || '');
+  setValue('editStatus', order.status || 'new');
+  setValue('editName', order.itemName || '');
+  setValue('editCustomer', order.customerName || '');
+  setValue('editPrinter', order.printerId ? String(order.printerId) : '');
+  setValue('editNotes', order.notes || '');
+  setValue('editCost', String(toPositiveNumber(order.totalCost, 0)));
+  setValue('editPrice', String(toPositiveNumber(order.finalPrice, 0)));
+
+  openModal('editModal');
 }
 
-.pipeline-card-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  align-items: flex-start;
-  margin-bottom: 8px;
+function closeEditModal() {
+  editingOrderCode = null;
+  closeModal('editModal');
+  returnToOrderNav();
 }
 
-.pipeline-code {
-  color: #b8ffd8;
-  font-weight: 950;
-  font-size: 13px;
+async function saveEditedSale() {
+  if (!editingOrderCode) {
+    showToast('لا يوجد أوردر مفتوح للتعديل', 'error');
+    return;
+  }
+
+  const payload = {
+    code: editingOrderCode,
+    date: getValue('editDate'),
+    status: getTrimmedValue('editStatus', 'new'),
+    itemName: getTrimmedValue('editName'),
+    customerName: getTrimmedValue('editCustomer'),
+    printerId: getValue('editPrinter') ? Number(getValue('editPrinter')) : null,
+    notes: getTrimmedValue('editNotes'),
+    totalCost: toPositiveNumber(getValue('editCost'), 0),
+    finalPrice: toPositiveNumber(getValue('editPrice'), 0)
+  };
+
+  if (!payload.itemName) {
+    showToast('اسم المجسم مطلوب', 'error');
+    return;
+  }
+
+  payload.profit = Number((payload.finalPrice - payload.totalCost).toFixed(2));
+
+  const response = await window.farmAPI.updateOrder(payload);
+
+  if (!response?.success) {
+    showToast(response?.message || 'فشل في تعديل الأوردر', 'error');
+    return;
+  }
+
+  closeEditModal();
+  showToast('تم تعديل الأوردر بنجاح');
+  await loadDashboardData();
 }
 
-.pipeline-title {
-  display: block;
-  margin-top: 4px;
-  font-weight: 950;
-  color: #f4fff8;
-  font-size: 14px;
-  line-height: 1.5;
+async function deleteSale(code) {
+  const confirmed = await askConfirm('هل تريد حذف الأوردر؟ سيتم استرجاع الخامات للمخزون.');
+  if (!confirmed) return;
+
+  const response = await window.farmAPI.deleteOrder(code);
+
+  if (!response?.success) {
+    showToast(response?.message || 'فشل في حذف الأوردر', 'error');
+    return;
+  }
+
+  showToast('تم حذف الأوردر واسترجاع الخامات');
+  await loadDashboardData();
 }
 
-.pipeline-meta {
-  display: grid;
-  gap: 4px;
-  color: var(--text-soft);
-  font-size: 12px;
-  line-height: 1.5;
+/* Customers */
+function renderCustomers() {
+  const customersTableBody = $('customersTableBody');
+  if (!customersTableBody) return;
+
+  const search = getTrimmedValue('customersSearch').toLowerCase();
+  const customers = getCustomersSummary().filter((customer) => {
+    return !search || customer.name.toLowerCase().includes(search);
+  });
+
+  if (!customers.length) {
+    customersTableBody.innerHTML = `<tr><td colspan="6"><div class="empty-state">لا يوجد عملاء مطابقين.</div></td></tr>`;
+    return;
+  }
+
+  customersTableBody.innerHTML = customers.map((customer) => {
+    return `
+      <tr>
+        <td>${escapeHtml(customer.name)}</td>
+        <td>${customer.count}</td>
+        <td>${formatMoney(customer.revenue)}</td>
+        <td>${formatMoney(customer.profit)}</td>
+        <td>${escapeHtml(customer.lastOrderCode || '-')} • ${escapeHtml(customer.lastOrderItem || '-')}</td>
+        <td><button class="action-btn" type="button" onclick="filterReportsByCustomer('${escapeHtml(customer.name)}')">عرض الأوردرات</button></td>
+      </tr>
+    `;
+  }).join('');
 }
 
-.pipeline-price {
-  margin-top: 8px;
-  display: grid;
-  gap: 4px;
-  font-size: 12px;
-  color: #c8d8d0;
+function openCustomersModal() {
+  setActiveNav('customers');
+  renderCustomers();
+  openModal('customersModal');
 }
 
-.pipeline-price strong {
-  color: var(--primary);
-  font-size: 15px;
+function closeCustomersModal() {
+  closeModal('customersModal');
+  returnToOrderNav();
 }
 
-.pipeline-actions {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-}
-
-.pipeline-actions .action-btn {
-  margin: 0;
-  padding: 6px 8px;
-}
-
-.status-step-row {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-}
-
-.status-step-btn {
-  border: 1px solid rgba(255, 255, 255, .10);
-  background: rgba(255, 255, 255, .045);
-  color: #dcece4;
-  border-radius: 999px;
-  padding: 5px 8px;
-  font-size: 11px;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.status-step-btn:hover {
-  background: rgba(0, 230, 118, .10);
-  border-color: rgba(0, 230, 118, .28);
-}
-
-/* Toast */
-.toast {
-  position: fixed;
-  top: 18px;
-  left: 18px;
-  z-index: 2000;
-  max-width: 420px;
-  background:
-    linear-gradient(180deg, rgba(0, 230, 118, .18), rgba(0, 230, 118, .09)),
-    #07100d;
-  color: #d9ffe9;
-  border: 1px solid rgba(0, 230, 118, .32);
-  box-shadow: 0 18px 60px rgba(0, 0, 0, .5);
-  border-radius: 16px;
-  padding: 13px 16px;
-  font-size: 14px;
-  font-weight: 800;
-  transition: .25s ease;
-}
-
-.toast.error {
-  background:
-    linear-gradient(180deg, rgba(239, 68, 68, .18), rgba(239, 68, 68, .08)),
-    #120707;
-  color: #ffd6d6;
-  border-color: rgba(239, 68, 68, .35);
-}
-
-/* List Cards */
-.list-card,
-.stock-item {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .018)),
-    #0b1210;
-  border: 1px solid rgba(255, 255, 255, .08);
-  border-radius: 18px;
-  padding: 14px;
-}
-
-.list-card-head,
-.stock-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.list-card-head strong,
-.stock-header span:first-child {
-  font-size: 16px;
-  font-weight: 950;
-}
-
-.list-card-body,
-.stock-details {
-  display: grid;
-  gap: 7px;
-  color: #9fb2aa;
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.card-actions {
-  margin-top: 12px;
-}
-
-/* Stock Progress */
-.stock-bar {
-  width: 100%;
-  height: 10px;
-  background: rgba(255, 255, 255, .07);
-  border-radius: 999px;
-  overflow: hidden;
-  margin: 10px 0 12px;
-}
-
-.stock-progress {
-  height: 100%;
-  background: linear-gradient(90deg, #00c853, #15f58a);
-  border-radius: 999px;
-  box-shadow: 0 0 18px rgba(0, 230, 118, .28);
-}
-
-.stock-item.low {
-  border-color: rgba(245, 158, 11, .30);
-}
-
-.stock-item.low .stock-progress {
-  background: linear-gradient(90deg, #ef4444, #f59e0b);
-}
-
-/* Badges */
-.badge,
-.status-chip,
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  width: fit-content;
-  border-radius: 999px;
-  padding: 6px 10px;
-  font-size: 12px;
-  font-weight: 900;
-  background: rgba(255, 255, 255, .06);
-  color: #dcece4;
-  border: 1px solid rgba(255, 255, 255, .08);
-  white-space: nowrap;
-}
-
-.badge-success,
-.status-success {
-  background: rgba(34, 197, 94, .14);
-  color: #9fffc4;
-  border-color: rgba(34, 197, 94, .28);
-}
-
-.badge-warning,
-.status-warning {
-  background: rgba(245, 158, 11, .14);
-  color: #ffd892;
-  border-color: rgba(245, 158, 11, .28);
-}
-
-.badge-danger,
-.status-danger {
-  background: rgba(239, 68, 68, .14);
-  color: #ffb4b4;
-  border-color: rgba(239, 68, 68, .28);
-}
-
-/* Table Action Buttons */
-.action-btn {
-  border: 1px solid rgba(255, 255, 255, .10);
-  background: rgba(255, 255, 255, .05);
-  color: #e8f5ee;
-  border-radius: 10px;
-  padding: 7px 10px;
-  margin: 2px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.action-btn:hover {
-  border-color: rgba(0, 230, 118, .35);
-  background: rgba(0, 230, 118, .10);
-}
-
-.action-btn.delete {
-  color: #ffb4b4;
-}
-
-.action-btn.delete:hover {
-  border-color: rgba(239, 68, 68, .35);
-  background: rgba(239, 68, 68, .12);
+function filterReportsByCustomer(customerName) {
+  closeCustomersModal();
+  openReports();
+  setValue('filterCustomer', customerName);
+  renderReportsTable();
 }
 
 /* Invoice */
-.invoice-sheet {
-  background: #ffffff;
-  color: #111827;
-  border-radius: 18px;
-  padding: 28px;
-  max-width: 820px;
-  margin: 0 auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, .24);
+function openInvoice(code) {
+  const order = getOrderByCode(code);
+  if (!order) {
+    showToast('الأوردر غير موجود', 'error');
+    return;
+  }
+
+  currentInvoiceOrderCode = code;
+  renderInvoice(order);
+  openModal('invoiceModal');
 }
 
-.invoice-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  border-bottom: 2px solid #e5e7eb;
-  padding-bottom: 18px;
-  margin-bottom: 20px;
+function openInvoiceForCurrentEdit() {
+  const code = editingOrderCode || getTrimmedValue('editCode');
+  if (!code) {
+    showToast('لا يوجد أوردر مفتوح للفاتورة', 'error');
+    return;
+  }
+
+  openInvoice(code);
 }
 
-.invoice-brand h1 {
-  margin: 0;
-  font-size: 28px;
-  color: #111827;
+function closeInvoiceModal() {
+  currentInvoiceOrderCode = null;
+  closeModal('invoiceModal');
+  returnToOrderNav();
 }
 
-.invoice-brand p,
-.invoice-meta p {
-  margin: 5px 0;
-  color: #4b5563;
-  font-size: 14px;
+function renderInvoice(order) {
+  const invoiceContent = $('invoiceContent');
+  if (!invoiceContent) return;
+
+  const farmName = dashboardData.config.farmName || DEFAULT_CONFIG.farmName;
+
+  invoiceContent.innerHTML = `
+    <div class="invoice-header">
+      <div class="invoice-brand">
+        <h1>${escapeHtml(farmName)}</h1>
+        <p>إيصال طلب طباعة ثلاثية الأبعاد</p>
+        <span class="invoice-badge">${escapeHtml(getOrderStatusText(order.status))}</span>
+      </div>
+
+      <div class="invoice-meta">
+        <p><strong>كود الأوردر:</strong> ${escapeHtml(order.code || '-')}</p>
+        <p><strong>التاريخ:</strong> ${escapeHtml(order.date || '-')}</p>
+        <p><strong>الطابعة:</strong> ${escapeHtml(order.printerName || '-')}</p>
+      </div>
+    </div>
+
+    <div class="invoice-section">
+      <h3>بيانات الطلب</h3>
+      <div class="invoice-grid">
+        <div class="invoice-box">
+          <span>اسم العميل</span>
+          <strong>${escapeHtml(order.customerName || '-')}</strong>
+        </div>
+
+        <div class="invoice-box">
+          <span>اسم المجسم</span>
+          <strong>${escapeHtml(order.itemName || '-')}</strong>
+        </div>
+
+        <div class="invoice-box">
+          <span>التكلفة</span>
+          <strong>${formatMoney(order.totalCost || 0)}</strong>
+        </div>
+
+        <div class="invoice-box">
+          <span>الربح</span>
+          <strong>${formatMoney(order.profit || 0)}</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="invoice-total">
+      <div>
+        <span>إجمالي المطلوب</span>
+        <strong>${formatMoney(order.finalPrice || 0)}</strong>
+      </div>
+      <div>
+        <span>شكرًا لاختيارك ${escapeHtml(farmName)}</span>
+      </div>
+    </div>
+
+    <div class="invoice-notes">
+      <strong>ملاحظات:</strong>
+      <div>${escapeHtml(order.notes || 'لا توجد ملاحظات.')}</div>
+    </div>
+  `;
 }
 
-.invoice-badge {
-  display: inline-flex;
-  width: fit-content;
-  border-radius: 999px;
-  padding: 7px 12px;
-  color: #065f46;
-  background: #d1fae5;
-  font-weight: 900;
-  font-size: 12px;
+function printInvoice() {
+  window.print();
 }
 
-.invoice-section {
-  margin-top: 20px;
+/* Materials */
+function openMaterialsManagerModal() {
+  setActiveNav('materials');
+  renderInventory();
+  openModal('materialsManagerModal');
 }
 
-.invoice-section h3 {
-  margin: 0 0 10px;
-  color: #111827;
-  font-size: 16px;
+function closeMaterialsManagerModal() {
+  closeModal('materialsManagerModal');
+  returnToOrderNav();
 }
 
-.invoice-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+function openMaterialModal() {
+  setValue('materialId', '');
+  setValue('materialName', '');
+  setValue('materialType', 'PLA');
+  setValue('materialColor', '');
+  setValue('materialWeight', '1000');
+  setValue('materialRemaining', '1000');
+  setValue('materialPrice', '0');
+  setValue('materialLowStock', '150');
+  setValue('materialSupplier', '');
+
+  openModal('materialModal');
 }
 
-.invoice-box {
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
-  border-radius: 14px;
-  padding: 12px;
+function closeMaterialModal() {
+  closeModal('materialModal');
 }
 
-.invoice-box span {
-  display: block;
-  color: #6b7280;
-  font-size: 12px;
-  margin-bottom: 4px;
+function editMaterial(id) {
+  const material = getMaterialById(id);
+  if (!material) {
+    showToast('الخامة غير موجودة', 'error');
+    return;
+  }
+
+  setValue('materialId', material.id);
+  setValue('materialName', material.name || '');
+  setValue('materialType', material.type || '');
+  setValue('materialColor', material.color || '');
+  setValue('materialWeight', String(toPositiveNumber(material.weight, 1000)));
+  setValue('materialRemaining', String(toPositiveNumber(material.remaining, 0)));
+  setValue('materialPrice', String(toPositiveNumber(material.price, 0)));
+  setValue('materialLowStock', String(toPositiveNumber(material.lowStockThreshold, 150)));
+  setValue('materialSupplier', material.supplier || '');
+
+  openModal('materialModal');
 }
 
-.invoice-box strong {
-  display: block;
-  color: #111827;
-  font-size: 16px;
+async function saveMaterial() {
+  const payload = {
+    id: getValue('materialId'),
+    name: getTrimmedValue('materialName'),
+    type: getTrimmedValue('materialType'),
+    color: getTrimmedValue('materialColor'),
+    weight: toPositiveNumber(getValue('materialWeight'), 0),
+    remaining: toPositiveNumber(getValue('materialRemaining'), 0),
+    price: toPositiveNumber(getValue('materialPrice'), 0),
+    lowStockThreshold: toPositiveNumber(getValue('materialLowStock'), 0),
+    supplier: getTrimmedValue('materialSupplier')
+  };
+
+  if (!payload.name) {
+    showToast('اسم الخامة مطلوب', 'error');
+    return;
+  }
+
+  if (payload.weight <= 0) {
+    showToast('وزن الخامة لازم يكون أكبر من صفر', 'error');
+    return;
+  }
+
+  if (payload.remaining > payload.weight) {
+    showToast('المتبقي لا يمكن أن يكون أكبر من وزن البكرة', 'error');
+    return;
+  }
+
+  const response = await window.farmAPI.saveMaterial(payload);
+
+  if (!response?.success) {
+    showToast(response?.message || 'فشل في حفظ الخامة', 'error');
+    return;
+  }
+
+  closeMaterialModal();
+  showToast('تم حفظ الخامة بنجاح');
+  await loadDashboardData();
+  openMaterialsManagerModal();
 }
 
-.invoice-total {
-  margin-top: 22px;
-  border-radius: 18px;
-  background: #111827;
-  color: #fff;
-  padding: 18px;
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  align-items: center;
+function getDeleteMaterialToastMessage(result) {
+  if (result?.archived) return 'الخامة مستخدمة في أوردرات سابقة، لذلك تم أرشفتها بدل حذفها';
+  if (result?.deleted) return 'تم حذف الخامة نهائيًا';
+  return 'تم تنفيذ العملية';
 }
 
-.invoice-total span {
-  color: #d1d5db;
-  font-size: 13px;
+async function deleteMaterialAction(id) {
+  const confirmed = await askConfirm('هل تريد حذف الخامة؟ إذا كانت مستخدمة سابقًا فسيتم أرشفتها بدل حذفها.');
+  if (!confirmed) return;
+
+  const response = await window.farmAPI.deleteMaterial(id);
+
+  if (!response?.success) {
+    showToast(response?.message || 'فشل في حذف الخامة', 'error');
+    return;
+  }
+
+  showToast(getDeleteMaterialToastMessage(response.data));
+  await loadDashboardData();
+  openMaterialsManagerModal();
 }
 
-.invoice-total strong {
-  color: #86efac;
-  font-size: 30px;
+/* Printers */
+function openPrintersManagerModal() {
+  setActiveNav('settings');
+  renderPrinters();
+  openModal('printersManagerModal');
 }
 
-.invoice-notes {
-  margin-top: 20px;
-  color: #4b5563;
-  background: #f3f4f6;
-  border-radius: 14px;
-  padding: 12px;
-  font-size: 14px;
-  line-height: 1.7;
+function closePrintersManagerModal() {
+  closeModal('printersManagerModal');
+  returnToOrderNav();
 }
 
-/* Preset */
-.preset-card {
-  background:
-    radial-gradient(circle at top right, rgba(0, 230, 118, .13), transparent 36%),
-    linear-gradient(180deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .018)),
-    #0b1210;
-  border: 1px solid rgba(0, 230, 118, .16);
-  border-radius: var(--radius-xl);
-  padding: 18px;
+function openPrinterModal() {
+  setValue('printerId', '');
+  setValue('printerName', '');
+  setValue('printerStatus', 'idle');
+  setValue('printerModel', 'Bambu Lab A1');
+  setValue('printerHourlyDepreciation', '0');
+  setValue('printerNotes', '');
+
+  openModal('printerModal');
 }
 
-.preset-card h3 {
-  margin: 0 0 8px;
-  font-size: 20px;
-  font-weight: 950;
+function closePrinterModal() {
+  closeModal('printerModal');
 }
 
-.preset-card p {
-  margin: 0;
-  color: var(--text-soft);
-  line-height: 1.8;
-  font-size: 14px;
+function editPrinter(id) {
+  const printer = getPrinterById(id);
+  if (!printer) {
+    showToast('الطابعة غير موجودة', 'error');
+    return;
+  }
+
+  setValue('printerId', printer.id);
+  setValue('printerName', printer.name || '');
+  setValue('printerStatus', printer.status || 'idle');
+  setValue('printerModel', printer.model || '');
+  setValue('printerHourlyDepreciation', String(toPositiveNumber(printer.hourlyDepreciation, 0)));
+  setValue('printerNotes', printer.notes || '');
+
+  openModal('printerModal');
 }
 
-/* Empty State */
-.empty-state {
-  text-align: center;
-  color: #8ea39a;
-  padding: 18px;
-  font-size: 14px;
-  font-weight: 800;
+async function savePrinter() {
+  const payload = {
+    id: getValue('printerId'),
+    name: getTrimmedValue('printerName'),
+    status: getTrimmedValue('printerStatus', 'idle'),
+    model: getTrimmedValue('printerModel'),
+    hourlyDepreciation: toPositiveNumber(getValue('printerHourlyDepreciation'), 0),
+    notes: getTrimmedValue('printerNotes')
+  };
+
+  if (!payload.name) {
+    showToast('اسم الطابعة مطلوب', 'error');
+    return;
+  }
+
+  const response = await window.farmAPI.savePrinter(payload);
+
+  if (!response?.success) {
+    showToast(response?.message || 'فشل في حفظ الطابعة', 'error');
+    return;
+  }
+
+  closePrinterModal();
+  showToast('تم حفظ الطابعة بنجاح');
+  await loadDashboardData();
+  openPrintersManagerModal();
 }
 
-/* Import Button */
-.import-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+function getDeletePrinterToastMessage(result) {
+  if (result?.archived) return 'الطابعة مستخدمة في أوردرات سابقة، لذلك تم أرشفتها بدل حذفها';
+  if (result?.deleted) return 'تم حذف الطابعة نهائيًا';
+  return 'تم تنفيذ العملية';
 }
 
-/* Utilities */
-.hidden {
-  display: none !important;
+async function deletePrinterAction(id) {
+  const confirmed = await askConfirm('هل تريد حذف الطابعة؟ إذا كانت مستخدمة سابقًا فسيتم أرشفتها بدل حذفها.');
+  if (!confirmed) return;
+
+  const response = await window.farmAPI.deletePrinter(id);
+
+  if (!response?.success) {
+    showToast(response?.message || 'فشل في حذف الطابعة', 'error');
+    return;
+  }
+
+  showToast(getDeletePrinterToastMessage(response.data));
+  await loadDashboardData();
+  openPrintersManagerModal();
 }
 
-.muted {
-  color: var(--text-soft);
+/* Stock */
+function renderStockMovementsTable() {
+  const stockMovementsBody = $('stockMovementsBody');
+  if (!stockMovementsBody) return;
+
+  if (!dashboardData.stockMovements.length) {
+    stockMovementsBody.innerHTML = `<tr><td colspan="6"><div class="empty-state">لا توجد حركة مخزون.</div></td></tr>`;
+    return;
+  }
+
+  stockMovementsBody.innerHTML = dashboardData.stockMovements.map((movement) => {
+    return `
+      <tr>
+        <td>${escapeHtml(formatDateTime(movement.createdAt))}</td>
+        <td>${escapeHtml(movement.materialName || '')}</td>
+        <td>${escapeHtml(getMovementTypeText(movement.movementType))}</td>
+        <td>${Number(movement.quantity || 0).toFixed(2)} g</td>
+        <td>${escapeHtml(movement.reason || '')}</td>
+        <td>${escapeHtml(movement.referenceCode || '-')}</td>
+      </tr>
+    `;
+  }).join('');
 }
 
-.text-success {
-  color: var(--success);
+function renderStockMovementsTableSafe() {
+  if (isModalOpen('stockMovementsModal')) renderStockMovementsTable();
 }
 
-.text-danger {
-  color: var(--danger);
+function openStockMovementsModal() {
+  renderStockMovementsTable();
+  openModal('stockMovementsModal');
 }
 
-.text-warning {
-  color: var(--warning);
+function closeStockMovementsModal() {
+  closeModal('stockMovementsModal');
+  returnToOrderNav();
 }
 
-.no-print {
-  display: flex;
+/* Settings */
+function openSettingsModal() {
+  setActiveNav('settings');
+  applyConfigToInputs();
+  openModal('settingsModal');
 }
 
-/* Responsive */
-@media (max-width: 1500px) {
-  .dashboard-grid-pro {
-    grid-template-columns: repeat(4, 1fr);
-  }
-
-  .stats-grid-pro {
-    grid-template-columns: repeat(4, 1fr);
-  }
+function closeSettingsModal() {
+  closeModal('settingsModal');
+  returnToOrderNav();
 }
 
-@media (max-width: 1360px) {
-  .dashboard-grid {
-    grid-template-columns: repeat(3, 1fr);
+async function saveConfig() {
+  const payload = {
+    farmName: getTrimmedValue('farmName') || DEFAULT_CONFIG.farmName,
+    currencyName: getTrimmedValue('currencyName') || DEFAULT_CONFIG.currencyName,
+    defaultTaxPercent: String(toPositiveNumber(getValue('settingsDefaultTaxPercent'), DEFAULT_CONFIG.defaultTaxPercent)),
+    laborRate: String(toPositiveNumber(getValue('laborRate'), DEFAULT_CONFIG.laborRate)),
+    electricityCostPerHour: String(toPositiveNumber(getValue('electricityCostPerHour'), DEFAULT_CONFIG.electricityCostPerHour)),
+    packagingCost: String(toPositiveNumber(getValue('packagingCost'), DEFAULT_CONFIG.packagingCost)),
+    failurePercent: String(toPositiveNumber(getValue('failurePercent'), DEFAULT_CONFIG.failurePercent)),
+    shippingCost: String(toPositiveNumber(getValue('shippingCost'), DEFAULT_CONFIG.shippingCost))
+  };
+
+  const response = await window.farmAPI.saveConfig(payload);
+
+  if (!response?.success) {
+    showToast(response?.message || 'فشل في حفظ الإعدادات', 'error');
+    return;
   }
 
-  .quick-actions-row {
-    grid-template-columns: repeat(3, 1fr);
-  }
+  showToast('تم حفظ الإعدادات');
+  await loadDashboardData();
+  closeSettingsModal();
 }
 
-@media (max-width: 1180px) {
-  .home-grid {
-    grid-template-columns: 1fr;
+/* Export / Import */
+async function exportBackupJSON() {
+  const response = await window.farmAPI.exportBackup();
+
+  if (!response?.success) {
+    showToast(response?.message || 'فشل في تصدير النسخة الاحتياطية', 'error');
+    return;
   }
 
-  .summary-card {
-    position: relative;
-    top: auto;
-  }
+  downloadTextFile(
+    `print-farm-backup-${new Date().toISOString().slice(0, 10)}.json`,
+    JSON.stringify(response.data, null, 2),
+    'application/json'
+  );
 
-  .stats-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-
-  .stats-grid-pro {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .toolbar {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .dashboard-title-card {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .dashboard-printer-pill {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .topbar-actions {
-    justify-content: flex-start;
-  }
-
-  .app-topbar {
-    align-items: flex-start;
-    flex-direction: column;
-  }
+  showToast('تم تصدير النسخة الاحتياطية');
 }
 
-@media (max-width: 820px) {
-  html,
-  body {
-    overflow: auto;
-  }
+function importBackupJSON(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
 
-  .app-shell,
-  .app-frame {
-    min-height: 100vh;
-    height: auto;
-    overflow: visible;
-  }
+  const reader = new FileReader();
 
-  .app-content {
-    overflow: visible;
-  }
+  reader.onload = async (e) => {
+    try {
+      const confirmed = await askConfirm('استيراد النسخة الاحتياطية سيستبدل البيانات الحالية. هل تريد المتابعة؟');
+      if (!confirmed) return;
 
-  .grid-2,
-  .grid-3,
-  .compact-grid,
-  .top-grid .compact-grid,
-  .bottom-grid .compact-grid {
-    grid-template-columns: 1fr;
-  }
+      const parsed = JSON.parse(String(e.target?.result || '{}'));
+      const response = await window.farmAPI.importBackup(parsed);
 
-  .bottom-nav {
-    grid-template-columns: repeat(3, 1fr);
-    height: auto;
-  }
+      if (!response?.success) {
+        showToast(response?.message || 'فشل في استيراد النسخة الاحتياطية', 'error');
+        return;
+      }
 
-  .stats-grid,
-  .stats-grid-pro {
-    grid-template-columns: repeat(2, 1fr);
-  }
+      showToast('تم استيراد النسخة الاحتياطية بنجاح');
+      await loadDashboardData();
+      resetOrderForm();
+      setActiveNav('order');
+    } catch {
+      showToast('ملف الاستيراد غير صالح', 'error');
+    } finally {
+      event.target.value = '';
+    }
+  };
 
-  .toolbar {
-    grid-template-columns: 1fr;
-  }
-
-  .kpi-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .panel-head {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .btn-auto {
-    width: 100%;
-  }
-
-  .dashboard-grid,
-  .dashboard-grid-pro {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .quick-actions-row {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .invoice-header,
-  .invoice-total {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .invoice-grid {
-    grid-template-columns: 1fr;
-  }
+  reader.readAsText(file);
 }
 
-@media (max-width: 640px) {
-  .app-title {
-    font-size: 24px;
-  }
-
-  .app-content {
-    padding: 12px;
-  }
-
-  .card {
-    border-radius: 18px;
-    padding: 14px;
-  }
-
-  .modal-content {
-    width: calc(100% - 16px);
-    height: calc(100% - 16px);
-    margin: 8px;
-    border-radius: 18px;
-  }
-
-  .stats-grid,
-  .stats-grid-pro,
-  .dashboard-grid,
-  .dashboard-grid-pro,
-  .quick-actions-row {
-    grid-template-columns: 1fr;
-  }
-
-  .dashboard-title-card h2 {
-    font-size: 21px;
-  }
-
-  .invoice-sheet {
-    padding: 18px;
-  }
+function csvEscape(value) {
+  const text = String(value ?? '');
+  return `"${text.replace(/"/g, '""')}"`;
 }
 
-/* Print */
-@media print {
-  html,
-  body {
-    background: #fff !important;
-    color: #111827 !important;
-    overflow: visible !important;
-  }
-
-  body * {
-    visibility: hidden;
-  }
-
-  #invoiceContent,
-  #invoiceContent * {
-    visibility: visible;
-  }
-
-  #invoiceContent {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-  }
-
-  .no-print,
-  .bottom-nav,
-  .app-topbar {
-    display: none !important;
-  }
-
-  .modal {
-    position: static !important;
-    display: block !important;
-    background: #fff !important;
-    backdrop-filter: none !important;
-  }
-
-  .modal-content {
-    width: 100% !important;
-    height: auto !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    box-shadow: none !important;
-    border: none !important;
-    background: #fff !important;
-    overflow: visible !important;
-  }
-
-  .invoice-sheet {
-    box-shadow: none !important;
-    border-radius: 0 !important;
-    max-width: none !important;
-  }
+function buildCSV(headers, rows) {
+  return [
+    headers.map(csvEscape).join(','),
+    ...rows.map((row) => row.map(csvEscape).join(','))
+  ].join('\n');
 }
+
+function downloadTextFile(filename, content, type = 'text/plain;charset=utf-8') {
+  const blob = new Blob(['\ufeff' + content], { type });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = filename;
+  link.click();
+
+  URL.revokeObjectURL(url);
+}
+
+function exportSalesCSV() {
+  const rows = getFilteredOrders().map((order) => [
+    order.code,
+    order.date,
+    order.itemName,
+    order.customerName,
+    order.printerName,
+    getOrderStatusText(order.status),
+    formatNumber(order.totalCost),
+    formatNumber(order.finalPrice),
+    formatNumber(order.profit),
+    order.notes
+  ]);
+
+  const csv = buildCSV(
+    ['الكود', 'التاريخ', 'المجسم', 'العميل', 'الطابعة', 'الحالة', 'التكلفة', 'البيع', 'الربح', 'ملاحظات'],
+    rows
+  );
+
+  downloadTextFile(`sales-${new Date().toISOString().slice(0, 10)}.csv`, csv, 'text/csv;charset=utf-8');
+  showToast('تم تصدير المبيعات CSV');
+}
+
+function exportStockCSV() {
+  const rows = dashboardData.materials.map((material) => [
+    material.name,
+    material.type,
+    material.color,
+    material.weight,
+    material.remaining,
+    material.price,
+    material.lowStockThreshold,
+    material.supplier
+  ]);
+
+  const csv = buildCSV(
+    ['الخامة', 'النوع', 'اللون', 'الوزن', 'المتبقي', 'السعر', 'حد التنبيه', 'المورد'],
+    rows
+  );
+
+  downloadTextFile(`stock-${new Date().toISOString().slice(0, 10)}.csv`, csv, 'text/csv;charset=utf-8');
+  showToast('تم تصدير المخزون CSV');
+}
+
+function exportStockMovementsCSV() {
+  const rows = dashboardData.stockMovements.map((movement) => [
+    formatDateTime(movement.createdAt),
+    movement.materialName,
+    getMovementTypeText(movement.movementType),
+    movement.quantity,
+    movement.reason,
+    movement.referenceCode
+  ]);
+
+  const csv = buildCSV(
+    ['التاريخ', 'الخامة', 'النوع', 'الكمية', 'السبب', 'المرجع'],
+    rows
+  );
+
+  downloadTextFile(`stock-movements-${new Date().toISOString().slice(0, 10)}.csv`, csv, 'text/csv;charset=utf-8');
+  showToast('تم تصدير حركة المخزون CSV');
+}
+
+function exportCustomersCSV() {
+  const rows = getCustomersSummary().map((customer) => [
+    customer.name,
+    customer.count,
+    formatNumber(customer.revenue),
+    formatNumber(customer.profit),
+    customer.lastOrderCode,
+    customer.lastOrderItem,
+    customer.lastOrderDate
+  ]);
+
+  const csv = buildCSV(
+    ['العميل', 'عدد الأوردرات', 'إجمالي الشراء', 'إجمالي الربح', 'آخر كود', 'آخر مجسم', 'آخر تاريخ'],
+    rows
+  );
+
+  downloadTextFile(`customers-${new Date().toISOString().slice(0, 10)}.csv`, csv, 'text/csv;charset=utf-8');
+  showToast('تم تصدير العملاء CSV');
+}
+
+/* Events */
+function attachLiveEvents() {
+  const ids = [
+    'printHours',
+    'manualMins',
+    'profitMargin',
+    'selectedPrinter',
+    'packagingCost',
+    'shippingCost',
+    'laborRate',
+    'electricityCostPerHour',
+    'failurePercent',
+    'defaultTaxPercent',
+    'settingsDefaultTaxPercent'
+  ];
+
+  ids.forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+
+    el.addEventListener('input', calc);
+    el.addEventListener('change', calc);
+  });
+
+  ['salesSearch', 'filterFrom', 'filterTo', 'filterStatus', 'filterPrinter', 'filterCustomer'].forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+
+    el.addEventListener('input', renderReportsTableSafe);
+    el.addEventListener('change', renderReportsTableSafe);
+  });
+
+  ['pipelineSearch', 'pipelinePrinterFilter', 'pipelineFrom', 'pipelineTo'].forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+
+    el.addEventListener('input', renderPipeline);
+    el.addEventListener('change', renderPipeline);
+  });
+
+  const customersSearch = $('customersSearch');
+  if (customersSearch) {
+    customersSearch.addEventListener('input', renderCustomers);
+  }
+
+  document.querySelectorAll('.nav-btn').forEach((button) => {
+    button.addEventListener('click', () => {
+      const view = button.dataset.view;
+      if (!view) return;
+
+      if (view === 'order') {
+        closeAllModals();
+        setActiveNav('order');
+        return;
+      }
+
+      switch (view) {
+        case 'pipeline':
+          openPipelineModal();
+          break;
+        case 'materials':
+          openMaterialsManagerModal();
+          break;
+        case 'reports':
+          openReports();
+          break;
+        case 'customers':
+          openCustomersModal();
+          break;
+        case 'settings':
+          openSettingsModal();
+          break;
+        default:
+          setActiveNav('order');
+      }
+    });
+  });
+}
+
+function handleWindowClick(event) {
+  MODAL_IDS.forEach((modalId) => {
+    const modal = $(modalId);
+    if (event.target === modal) {
+      closeModal(modalId);
+      returnToOrderNav();
+    }
+  });
+}
+
+window.onclick = handleWindowClick;
+
+/* Expose */
+window.openReports = openReports;
+window.closeReports = closeReports;
+window.renderReportsTable = renderReportsTable;
+
+window.openPipelineModal = openPipelineModal;
+window.closePipelineModal = closePipelineModal;
+window.renderPipeline = renderPipeline;
+window.updateOrderStatusQuick = updateOrderStatusQuick;
+
+window.openCustomersModal = openCustomersModal;
+window.closeCustomersModal = closeCustomersModal;
+window.renderCustomers = renderCustomers;
+window.filterReportsByCustomer = filterReportsByCustomer;
+
+window.openEditSale = openEditSale;
+window.closeEditModal = closeEditModal;
+window.saveEditedSale = saveEditedSale;
+window.deleteSale = deleteSale;
+
+window.openInvoice = openInvoice;
+window.openInvoiceForCurrentEdit = openInvoiceForCurrentEdit;
+window.closeInvoiceModal = closeInvoiceModal;
+window.printInvoice = printInvoice;
+
+window.openMaterialsManagerModal = openMaterialsManagerModal;
+window.closeMaterialsManagerModal = closeMaterialsManagerModal;
+window.openMaterialModal = openMaterialModal;
+window.closeMaterialModal = closeMaterialModal;
+window.editMaterial = editMaterial;
+window.saveMaterial = saveMaterial;
+window.deleteMaterialAction = deleteMaterialAction;
+
+window.openPrintersManagerModal = openPrintersManagerModal;
+window.closePrintersManagerModal = closePrintersManagerModal;
+window.openPrinterModal = openPrinterModal;
+window.closePrinterModal = closePrinterModal;
+window.editPrinter = editPrinter;
+window.savePrinter = savePrinter;
+window.deletePrinterAction = deletePrinterAction;
+
+window.openStockMovementsModal = openStockMovementsModal;
+window.closeStockMovementsModal = closeStockMovementsModal;
+
+window.openSettingsModal = openSettingsModal;
+window.closeSettingsModal = closeSettingsModal;
+window.saveConfig = saveConfig;
+
+window.exportBackupJSON = exportBackupJSON;
+window.importBackupJSON = importBackupJSON;
+window.exportSalesCSV = exportSalesCSV;
+window.exportStockCSV = exportStockCSV;
+window.exportStockMovementsCSV = exportStockMovementsCSV;
+window.exportCustomersCSV = exportCustomersCSV;
+
+window.calc = calc;
+window.saveSale = saveSale;
+window.resetOrderForm = resetOrderForm;
+
+window.addEventListener('error', function (event) {
+  console.error(event.error || event.message);
+  showToast('حصل خطأ في البرنامج. لو اتكرر ابعتلي رسالة الخطأ.', 'error');
+});
+
+window.onload = async () => {
+  setValue('opDate', new Date().toISOString().slice(0, 10));
+  attachLiveEvents();
+  setActiveNav('order');
+  await loadDashboardData();
+};
