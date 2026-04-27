@@ -8,27 +8,30 @@
     name="description"
     content="برنامج لإدارة أعمال الطباعة ثلاثية الأبعاد والتسعير والأوردرات والمخزون والطابعات"
   />
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
     href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap"
     rel="stylesheet"
   />
+
   <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
-  <div class="app-shell tablet-shell">
+  <div class="app-shell">
     <div class="app-frame">
       <header class="app-topbar">
-        <div class="app-topbar-copy">
+        <div>
           <h1 class="app-title">Print Farm App</h1>
-          <p class="app-subtitle">إدارة الأوردرات والتسعير والمخزون لطباعة 3D</p>
+          <p class="app-subtitle">تسعير وإدارة أوردرات الطباعة ثلاثية الأبعاد</p>
         </div>
 
         <div class="topbar-actions">
-          <button class="btn btn-secondary btn-small" type="button" onclick="openPipelineModal()">إدارة الأوردرات</button>
-          <button class="btn btn-secondary btn-small" type="button" onclick="openBambuPresetModal()">Bambu A1 Preset</button>
+          <button class="btn btn-secondary btn-small" type="button" onclick="openReports()">التقارير</button>
+          <button class="btn btn-secondary btn-small" type="button" onclick="openPipelineModal()">الأوردرات</button>
+          <button class="btn btn-secondary btn-small" type="button" onclick="openMaterialsManagerModal()">الخامات</button>
 
           <div class="order-code-chip">
             <span>ORD-<span id="nextOrderCode">...</span></span>
@@ -37,124 +40,22 @@
       </header>
 
       <main class="app-content">
-        <section class="screen screen-order active-screen">
-
-          <section class="dashboard-hero">
-            <div class="dashboard-title-card">
-              <div>
-                <span class="dashboard-eyebrow">Print Farm Dashboard Pro</span>
-                <h2>نظرة سريعة على الشغل</h2>
-                <p>تابع المبيعات والأرباح والمخزون وحالة الطابعة قبل تسجيل أي أوردر جديد.</p>
-              </div>
-
-              <div class="dashboard-printer-pill">
-                <span class="printer-dot"></span>
-                <div>
-                  <strong id="dashPrinterName">Bambu Lab A1</strong>
-                  <small id="dashPrinterStatus">جاهز للمتابعة</small>
-                </div>
-              </div>
-            </div>
-
-            <div class="dashboard-grid dashboard-grid-pro">
-              <button class="dash-card dash-card-clickable" type="button" onclick="openReports()">
-                <span class="dash-label">مبيعات اليوم</span>
-                <strong id="dashTodayRevenue">0 ج</strong>
-                <small>إجمالي البيع بتاريخ اليوم</small>
-              </button>
-
-              <button class="dash-card dash-card-profit dash-card-clickable" type="button" onclick="openReports()">
-                <span class="dash-label">ربح اليوم</span>
-                <strong id="dashTodayProfit">0 ج</strong>
-                <small>صافي الربح من أوردرات اليوم</small>
-              </button>
-
-              <button class="dash-card dash-card-clickable" type="button" onclick="openPipelineModal()">
-                <span class="dash-label">أوردرات مفتوحة</span>
-                <strong id="dashOpenOrders">0</strong>
-                <small>جديد / قيد الطباعة / جاهز</small>
-              </button>
-
-              <button class="dash-card dash-card-warning dash-card-clickable" type="button" onclick="openMaterialsManagerModal()">
-                <span class="dash-label">خامات منخفضة</span>
-                <strong id="dashLowStock">0</strong>
-                <small>تحتاج متابعة قبل ما تخلص</small>
-              </button>
-
-              <button class="dash-card dash-card-clickable" type="button" onclick="openReports()">
-                <span class="dash-label">مبيعات الشهر</span>
-                <strong id="dashMonthRevenue">0 ج</strong>
-                <small>إجمالي بيع الشهر الحالي</small>
-              </button>
-
-              <button class="dash-card dash-card-profit dash-card-clickable" type="button" onclick="openReports()">
-                <span class="dash-label">ربح الشهر</span>
-                <strong id="dashMonthProfit">0 ج</strong>
-                <small>صافي ربح الشهر الحالي</small>
-              </button>
-
-              <button class="dash-card dash-card-clickable" type="button" onclick="openPipelineModal()">
-                <span class="dash-label">إجمالي الأوردرات</span>
-                <strong id="dashTotalOrders">0</strong>
-                <small>كل الأوردرات المسجلة</small>
-              </button>
-
-              <button class="dash-card dash-card-clickable" type="button" onclick="openCustomersModal()">
-                <span class="dash-label">العملاء</span>
-                <strong id="dashCustomersCount">0</strong>
-                <small>عملاء تم استخراجهم من الأوردرات</small>
-              </button>
-
-              <button class="dash-card dash-card-clickable" type="button" onclick="openStockMovementsModal()">
-                <span class="dash-label">الخامات المتاحة</span>
-                <strong id="dashMaterialsCount">0</strong>
-                <small>عدد الخامات النشطة</small>
-              </button>
-
-              <button class="dash-card dash-card-clickable" type="button" onclick="openReports()">
-                <span class="dash-label">متوسط ربح الأوردر</span>
-                <strong id="dashAverageProfit">0 ج</strong>
-                <small>متوسط الربح لكل أوردر</small>
-              </button>
-
-              <button class="dash-card dash-card-clickable" type="button" onclick="openReports()">
-                <span class="dash-label">أعلى أوردر</span>
-                <strong id="dashTopOrder">0 ج</strong>
-                <small id="dashTopOrderMeta">لا يوجد بيانات</small>
-              </button>
-
-              <button class="dash-card dash-card-clickable" type="button" onclick="openLastOrderInvoice()">
-                <span class="dash-label">آخر أوردر</span>
-                <strong id="dashLastOrder">-</strong>
-                <small id="dashLastOrderMeta">لا يوجد أوردرات بعد</small>
-              </button>
-            </div>
-
-            <div class="quick-actions-row">
-              <button class="quick-action-btn" type="button" onclick="scrollToOrderForm()">أوردر جديد</button>
-              <button class="quick-action-btn" type="button" onclick="openPipelineModal()">Pipeline</button>
-              <button class="quick-action-btn" type="button" onclick="openReports()">التقارير</button>
-              <button class="quick-action-btn" type="button" onclick="openCustomersModal()">العملاء</button>
-              <button class="quick-action-btn" type="button" onclick="openMaterialsManagerModal()">الخامات</button>
-              <button class="quick-action-btn" type="button" onclick="exportBackupJSON()">Backup</button>
-            </div>
-          </section>
-
-          <section id="orderFormAnchor" class="home-grid top-grid">
-            <section class="card compact-card equal-card">
+        <section class="main-layout">
+          <section class="left-column">
+            <section class="card">
               <div class="section-head">
                 <div>
                   <h3>أوردر جديد</h3>
-                  <p class="section-subtext">البيانات الأساسية للأوردر الحالي</p>
+                  <p class="section-subtext">اكتب بيانات القطعة واحسب السعر فورًا</p>
                 </div>
 
-                <button class="btn btn-secondary btn-small" type="button" onclick="resetOrderForm()">تفريغ الفورم</button>
+                <button class="btn btn-secondary btn-small" type="button" onclick="resetOrderForm()">تفريغ</button>
               </div>
 
-              <div class="grid-2 compact-grid">
+              <div class="grid-2">
                 <div class="form-group">
                   <label for="itemName">اسم المجسم *</label>
-                  <input type="text" id="itemName" placeholder="مثال: حامل موبايل / تنين مفصلي" />
+                  <input type="text" id="itemName" placeholder="مثال: حامل موبايل" />
                 </div>
 
                 <div class="form-group">
@@ -164,9 +65,9 @@
                 </div>
               </div>
 
-              <div class="grid-2 compact-grid section-gap-sm">
+              <div class="grid-2 section-gap-sm">
                 <div class="form-group">
-                  <label for="selectedPrinter">الطابعة المستخدمة *</label>
+                  <label for="selectedPrinter">الطابعة *</label>
                   <select id="selectedPrinter"></select>
                 </div>
 
@@ -182,83 +83,65 @@
                 </div>
               </div>
 
-              <div class="grid-3 compact-grid section-gap-sm">
+              <div class="grid-3 section-gap-sm">
                 <div class="form-group">
-                  <label for="opDate">تاريخ العملية</label>
+                  <label for="opDate">التاريخ</label>
                   <input type="date" id="opDate" />
                 </div>
 
                 <div class="form-group">
-                  <label for="printHours">وقت الطباعة (ساعات) *</label>
+                  <label for="printHours">وقت الطباعة / ساعة *</label>
                   <input type="text" id="printHours" value="0" inputmode="decimal" />
                 </div>
 
                 <div class="form-group">
-                  <label for="manualMins">شغل يدوي (دقائق)</label>
+                  <label for="manualMins">شغل يدوي / دقيقة</label>
                   <input type="text" id="manualMins" value="15" inputmode="decimal" />
                 </div>
               </div>
 
-              <div class="grid-2 compact-grid section-gap-sm">
+              <div class="grid-2 section-gap-sm">
                 <div class="form-group">
-                  <label for="profitMargin">نسبة المكسب (%)</label>
+                  <label for="profitMargin">نسبة المكسب %</label>
                   <input type="text" id="profitMargin" value="100" inputmode="decimal" />
                 </div>
 
                 <div class="form-group">
-                  <label for="orderNotes">ملاحظات الأوردر</label>
+                  <label for="orderNotes">ملاحظات</label>
                   <input type="text" id="orderNotes" placeholder="اختياري" />
                 </div>
               </div>
-
-              <div class="inline-actions section-gap-sm">
-                <button class="btn btn-secondary btn-small" type="button" onclick="setOrderStatusQuick('new')">جديد</button>
-                <button class="btn btn-secondary btn-small" type="button" onclick="setOrderStatusQuick('printing')">قيد الطباعة</button>
-                <button class="btn btn-secondary btn-small" type="button" onclick="setOrderStatusQuick('finished')">جاهز</button>
-                <button class="btn btn-secondary btn-small" type="button" onclick="setOrderStatusQuick('delivered')">تم التسليم</button>
-              </div>
             </section>
 
-            <section class="card compact-card equal-card">
+            <section class="card section-gap-md">
               <div class="section-head">
                 <div>
-                  <h3>الخامات والتسعير</h3>
-                  <p class="section-subtext">الاستهلاك المباشر للأوردر</p>
+                  <h3>استهلاك الخامات</h3>
+                  <p class="section-subtext">اكتب الجرامات المستخدمة لكل خامة</p>
                 </div>
 
-                <div class="inline-actions">
-                  <button class="btn btn-secondary btn-small" type="button" onclick="openMaterialsManagerModal()">إدارة الخامات</button>
-                </div>
+                <button class="btn btn-secondary btn-small" type="button" onclick="openMaterialsManagerModal()">إدارة الخامات</button>
               </div>
 
-              <div class="compact-section-block fill-block">
-                <div class="mini-section-head">
-                  <h4>استهلاك الخامات</h4>
-                  <span>أدخل الجرامات المستخدمة فقط</span>
-                </div>
-
-                <div id="amsInputs" class="grid-2 compact-grid"></div>
-              </div>
+              <div id="amsInputs" class="material-usage-list"></div>
             </section>
-          </section>
 
-          <section class="home-grid bottom-grid section-gap-lg">
-            <section class="card compact-card equal-card">
+            <section class="card section-gap-md">
               <div class="section-head">
                 <div>
                   <h3>تفاصيل التسعير</h3>
-                  <p class="section-subtext">القيم التي تدخل في حساب السعر</p>
+                  <p class="section-subtext">القيم التي تدخل في الحساب</p>
                 </div>
               </div>
 
-              <div class="grid-3 compact-grid">
+              <div class="grid-3">
                 <div class="form-group">
-                  <label for="laborRate">أجرتك (ساعة)</label>
+                  <label for="laborRate">أجرتك / ساعة</label>
                   <input type="text" id="laborRate" value="50" inputmode="decimal" />
                 </div>
 
                 <div class="form-group">
-                  <label for="electricityCostPerHour">كهرباء/ساعة</label>
+                  <label for="electricityCostPerHour">كهرباء / ساعة</label>
                   <input type="text" id="electricityCostPerHour" value="3" inputmode="decimal" />
                 </div>
 
@@ -268,120 +151,114 @@
                 </div>
               </div>
 
-              <div class="grid-3 compact-grid section-gap-sm">
+              <div class="grid-3 section-gap-sm">
                 <div class="form-group">
-                  <label for="failurePercent">الهالك / المخاطرة (%)</label>
+                  <label for="failurePercent">الهالك %</label>
                   <input type="text" id="failurePercent" value="10" inputmode="decimal" />
                 </div>
 
                 <div class="form-group">
-                  <label for="shippingCost">شحن / مصاريف إضافية</label>
+                  <label for="shippingCost">شحن / مصاريف</label>
                   <input type="text" id="shippingCost" value="0" inputmode="decimal" />
                 </div>
 
                 <div class="form-group">
-                  <label for="defaultTaxPercent">ضريبة / نسبة إضافية (%)</label>
+                  <label for="defaultTaxPercent">ضريبة / نسبة إضافية %</label>
                   <input type="text" id="defaultTaxPercent" value="0" inputmode="decimal" />
                 </div>
               </div>
-
-              <div class="field-note section-gap-sm">
-                هذه القيم تخص الأوردر الحالي فقط، وتقدر تعدلها قبل الحفظ.
-              </div>
             </section>
+          </section>
 
-            <section class="card result-card compact-result-card equal-card summary-card">
+          <aside class="right-column">
+            <section class="card result-card">
               <div class="section-head section-head-light">
                 <div>
-                  <h3>ملخص التسعير</h3>
-                  <p class="section-subtext light-text">النتيجة النهائية للأوردر الحالي</p>
+                  <h3>ملخص السعر</h3>
+                  <p class="section-subtext light-text">الحساب النهائي للأوردر الحالي</p>
                 </div>
-
-                <span class="section-badge section-badge-light">Live</span>
               </div>
 
               <div class="summary-main">
                 <div class="summary-stat">
+                  <span class="summary-label">تكلفة الخامة</span>
+                  <strong id="resMat" class="summary-value">0 ج</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">إهلاك الطابعة</span>
+                  <strong id="resDep" class="summary-value">0 ج</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">الكهرباء</span>
+                  <strong id="resElectricity" class="summary-value">0 ج</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">الشغل اليدوي</span>
+                  <strong id="resLabor" class="summary-value">0 ج</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">التغليف</span>
+                  <strong id="resPackaging" class="summary-value">0 ج</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">الشحن / المصاريف</span>
+                  <strong id="resShipping" class="summary-value">0 ج</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">الهالك / الضريبة</span>
+                  <strong id="resRisk" class="summary-value">0 ج</strong>
+                </div>
+
+                <div class="summary-stat total-stat">
                   <span class="summary-label">إجمالي التكلفة</span>
                   <strong id="resTotal" class="summary-value">0 ج</strong>
                 </div>
 
-                <div class="summary-stat">
+                <div class="summary-stat final-stat">
                   <span class="summary-label">سعر البيع المقترح</span>
                   <strong id="resFinal" class="summary-value">0 ج</strong>
                 </div>
 
-                <div class="summary-stat">
+                <div class="summary-stat profit-stat">
                   <span class="summary-label">صافي الربح</span>
                   <strong id="resProfit" class="summary-value">0 ج</strong>
                 </div>
               </div>
 
-              <div class="final-price-box">
-                <button class="btn btn-save" type="button" onclick="saveSale()">تسجيل الأوردر</button>
-              </div>
+              <button class="btn btn-save section-gap-md" type="button" onclick="saveSale()">تسجيل الأوردر</button>
             </section>
-          </section>
+          </aside>
         </section>
       </main>
 
       <nav class="bottom-nav">
-        <button class="nav-btn nav-btn-active" data-view="order" type="button" aria-label="الأوردر">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M8 3h8l5 5v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.8"/>
-              <path d="M14 3v5h5" stroke="currentColor" stroke-width="1.8"/>
-              <path d="M9 13h6M9 17h6M9 9h2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-            </svg>
-          </span>
+        <button class="nav-btn nav-btn-active" data-view="order" type="button">
           <span>الأوردر</span>
         </button>
 
-        <button class="nav-btn" data-view="pipeline" type="button" onclick="openPipelineModal()" aria-label="Pipeline">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M4 6h4v12H4zM10 6h4v12h-4zM16 6h4v12h-4z" stroke="currentColor" stroke-width="1.8"/>
-            </svg>
-          </span>
-          <span>Pipeline</span>
+        <button class="nav-btn" data-view="pipeline" type="button" onclick="openPipelineModal()">
+          <span>الأوردرات</span>
         </button>
 
-        <button class="nav-btn" data-view="materials" type="button" onclick="openMaterialsManagerModal()" aria-label="الخامات">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M7 4h10l3 5-8 11L4 9l3-5Z" stroke="currentColor" stroke-width="1.8"/>
-              <path d="M9 4l3 16 3-16" stroke="currentColor" stroke-width="1.8"/>
-            </svg>
-          </span>
+        <button class="nav-btn" data-view="materials" type="button" onclick="openMaterialsManagerModal()">
           <span>الخامات</span>
         </button>
 
-        <button class="nav-btn" data-view="reports" type="button" onclick="openReports()" aria-label="التقارير">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M5 19V10M12 19V5M19 19v-7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-            </svg>
-          </span>
+        <button class="nav-btn" data-view="reports" type="button" onclick="openReports()">
           <span>التقارير</span>
         </button>
 
-        <button class="nav-btn" data-view="customers" type="button" onclick="openCustomersModal()" aria-label="العملاء">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M16 11a4 4 0 1 0-8 0" stroke="currentColor" stroke-width="1.8"/>
-              <path d="M5 20a7 7 0 0 1 14 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-            </svg>
-          </span>
+        <button class="nav-btn" data-view="customers" type="button" onclick="openCustomersModal()">
           <span>العملاء</span>
         </button>
 
-        <button class="nav-btn" data-view="settings" type="button" onclick="openSettingsModal()" aria-label="الإعدادات">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.8"/>
-              <path d="M19.4 15a1 1 0 0 0 .2 1.1l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a2 2 0 1 1-4 0v-.2a1 1 0 0 0-.6-.9 1 1 0 0 0-1.1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a2 2 0 1 1 0-4h.2a1 1 0 0 0 .9-.6 1 1 0 0 0-.2-1.1l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1 1 0 0 0 1.1.2 1 1 0 0 0 .6-.9V4a2 2 0 1 1 4 0v.2a1 1 0 0 0 .6.9 1 1 0 0 0 1.1-.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1 1 0 0 0-.2 1.1 1 1 0 0 0 .9.6h.2a2 2 0 1 1 0 4h-.2a1 1 0 0 0-.9.6Z" stroke="currentColor" stroke-width="1.4"/>
-            </svg>
-          </span>
+        <button class="nav-btn" data-view="settings" type="button" onclick="openSettingsModal()">
           <span>الإعدادات</span>
         </button>
       </nav>
@@ -392,17 +269,14 @@
     <div class="modal-content modal-xl panel-content">
       <div class="panel-head">
         <button type="button" onclick="closePipelineModal()" class="btn btn-secondary btn-auto">رجوع</button>
-        <h2>Order Pipeline</h2>
-        <div class="inline-actions">
-          <button type="button" class="btn btn-secondary btn-auto" onclick="scrollToOrderForm(); closePipelineModal();">أوردر جديد</button>
-          <button type="button" class="btn btn-secondary btn-auto" onclick="exportSalesCSV()">تصدير CSV</button>
-        </div>
+        <h2>الأوردرات</h2>
+        <button type="button" class="btn btn-secondary btn-auto" onclick="exportSalesCSV()">تصدير CSV</button>
       </div>
 
       <div class="toolbar toolbar-wrap">
         <div class="form-group">
-          <label for="pipelineSearch">بحث في الأوردرات</label>
-          <input type="text" id="pipelineSearch" placeholder="ابحث بالكود أو المجسم أو العميل" oninput="renderPipeline()" />
+          <label for="pipelineSearch">بحث</label>
+          <input type="text" id="pipelineSearch" placeholder="الكود / المجسم / العميل" oninput="renderPipeline()" />
         </div>
 
         <div class="form-group">
@@ -413,54 +287,39 @@
         </div>
 
         <div class="form-group">
-          <label for="pipelineFrom">من تاريخ</label>
+          <label for="pipelineFrom">من</label>
           <input type="date" id="pipelineFrom" oninput="renderPipeline()" />
         </div>
 
         <div class="form-group">
-          <label for="pipelineTo">إلى تاريخ</label>
+          <label for="pipelineTo">إلى</label>
           <input type="date" id="pipelineTo" oninput="renderPipeline()" />
         </div>
       </div>
 
       <div class="pipeline-board" id="pipelineBoard">
-        <section class="pipeline-column" data-status="new">
-          <div class="pipeline-column-head">
-            <h3>جديد</h3>
-            <span id="pipelineCountNew">0</span>
-          </div>
+        <section class="pipeline-column">
+          <div class="pipeline-column-head"><h3>جديد</h3><span id="pipelineCountNew">0</span></div>
           <div class="pipeline-list" id="pipelineNew"></div>
         </section>
 
-        <section class="pipeline-column" data-status="printing">
-          <div class="pipeline-column-head">
-            <h3>قيد الطباعة</h3>
-            <span id="pipelineCountPrinting">0</span>
-          </div>
+        <section class="pipeline-column">
+          <div class="pipeline-column-head"><h3>قيد الطباعة</h3><span id="pipelineCountPrinting">0</span></div>
           <div class="pipeline-list" id="pipelinePrinting"></div>
         </section>
 
-        <section class="pipeline-column" data-status="finished">
-          <div class="pipeline-column-head">
-            <h3>جاهز</h3>
-            <span id="pipelineCountFinished">0</span>
-          </div>
+        <section class="pipeline-column">
+          <div class="pipeline-column-head"><h3>جاهز</h3><span id="pipelineCountFinished">0</span></div>
           <div class="pipeline-list" id="pipelineFinished"></div>
         </section>
 
-        <section class="pipeline-column" data-status="delivered">
-          <div class="pipeline-column-head">
-            <h3>تم التسليم</h3>
-            <span id="pipelineCountDelivered">0</span>
-          </div>
+        <section class="pipeline-column">
+          <div class="pipeline-column-head"><h3>تم التسليم</h3><span id="pipelineCountDelivered">0</span></div>
           <div class="pipeline-list" id="pipelineDelivered"></div>
         </section>
 
-        <section class="pipeline-column" data-status="cancelled">
-          <div class="pipeline-column-head">
-            <h3>ملغي</h3>
-            <span id="pipelineCountCancelled">0</span>
-          </div>
+        <section class="pipeline-column">
+          <div class="pipeline-column-head"><h3>ملغي</h3><span id="pipelineCountCancelled">0</span></div>
           <div class="pipeline-list" id="pipelineCancelled"></div>
         </section>
       </div>
@@ -471,64 +330,28 @@
     <div class="modal-content modal-xl panel-content">
       <div class="panel-head">
         <button type="button" onclick="closeReports()" class="btn btn-secondary btn-auto">رجوع</button>
-        <h2>التقارير والمبيعات Pro</h2>
+        <h2>التقارير والمبيعات</h2>
         <div class="inline-actions">
-          <button type="button" class="btn btn-secondary btn-auto" onclick="exportSalesCSV()">تصدير المبيعات CSV</button>
-          <button type="button" class="btn btn-secondary btn-auto" onclick="exportStockCSV()">تصدير المخزون CSV</button>
+          <button type="button" class="btn btn-secondary btn-auto" onclick="exportSalesCSV()">مبيعات CSV</button>
+          <button type="button" class="btn btn-secondary btn-auto" onclick="exportStockCSV()">مخزون CSV</button>
         </div>
       </div>
 
-      <div class="stats-grid stats-grid-pro">
-        <div class="stat-box">
-          <h4>إجمالي الإيراد</h4>
-          <div id="statRev">0</div>
-        </div>
-
-        <div class="stat-box">
-          <h4>صافي الربح</h4>
-          <div id="statProfit">0</div>
-        </div>
-
-        <div class="stat-box">
-          <h4>عدد المبيعات</h4>
-          <div id="statCount">0</div>
-        </div>
-
-        <div class="stat-box">
-          <h4>أعلى بيعة</h4>
-          <div id="statTop">0</div>
-        </div>
-
-        <div class="stat-box">
-          <h4>متوسط الربح</h4>
-          <div id="statAvgProfit">0</div>
-        </div>
-
-        <div class="stat-box">
-          <h4>طلبات ملغية</h4>
-          <div id="statCancelled">0</div>
-        </div>
-
-        <div class="stat-box">
-          <h4>أكثر عميل</h4>
-          <div id="statTopCustomer">-</div>
-        </div>
-
-        <div class="stat-box">
-          <h4>أقل خامة متبقية</h4>
-          <div id="statLowestStock">-</div>
-        </div>
+      <div class="stats-grid">
+        <div class="stat-box"><h4>إجمالي الإيراد</h4><div id="statRev">0</div></div>
+        <div class="stat-box"><h4>صافي الربح</h4><div id="statProfit">0</div></div>
+        <div class="stat-box"><h4>عدد المبيعات</h4><div id="statCount">0</div></div>
+        <div class="stat-box"><h4>أعلى بيعة</h4><div id="statTop">0</div></div>
+        <div class="stat-box"><h4>متوسط الربح</h4><div id="statAvgProfit">0</div></div>
+        <div class="stat-box"><h4>طلبات ملغية</h4><div id="statCancelled">0</div></div>
+        <div class="stat-box"><h4>أكثر عميل</h4><div id="statTopCustomer">-</div></div>
+        <div class="stat-box"><h4>أقل خامة</h4><div id="statLowestStock">-</div></div>
       </div>
 
       <div class="toolbar toolbar-wrap">
         <div class="form-group">
           <label for="salesSearch">بحث</label>
-          <input
-            type="text"
-            id="salesSearch"
-            placeholder="ابحث بالكود أو الاسم أو العميل أو الملاحظات"
-            oninput="renderReportsTable()"
-          />
+          <input type="text" id="salesSearch" placeholder="الكود / المجسم / العميل" oninput="renderReportsTable()" />
         </div>
 
         <div class="form-group">
@@ -556,12 +379,12 @@
         </div>
 
         <div class="form-group">
-          <label for="filterFrom">من تاريخ</label>
+          <label for="filterFrom">من</label>
           <input type="date" id="filterFrom" oninput="renderReportsTable()" />
         </div>
 
         <div class="form-group">
-          <label for="filterTo">إلى تاريخ</label>
+          <label for="filterTo">إلى</label>
           <input type="date" id="filterTo" oninput="renderReportsTable()" />
         </div>
       </div>
@@ -593,12 +416,12 @@
       <div class="panel-head">
         <button type="button" onclick="closeCustomersModal()" class="btn btn-secondary btn-auto">رجوع</button>
         <h2>العملاء</h2>
-        <button type="button" class="btn btn-secondary btn-auto" onclick="exportCustomersCSV()">تصدير العملاء CSV</button>
+        <button type="button" class="btn btn-secondary btn-auto" onclick="exportCustomersCSV()">تصدير CSV</button>
       </div>
 
       <div class="toolbar toolbar-wrap">
         <div class="form-group">
-          <label for="customersSearch">بحث في العملاء</label>
+          <label for="customersSearch">بحث</label>
           <input type="text" id="customersSearch" placeholder="اسم العميل" oninput="renderCustomers()" />
         </div>
       </div>
@@ -629,7 +452,7 @@
         <button type="button" class="btn btn-secondary btn-auto" onclick="openInvoiceForCurrentEdit()">فاتورة</button>
       </div>
 
-      <div class="grid-3 section-gap-lg">
+      <div class="grid-3">
         <div class="form-group">
           <label for="editDate">التاريخ</label>
           <input type="date" id="editDate" />
@@ -650,14 +473,6 @@
             <option value="cancelled">ملغي</option>
           </select>
         </div>
-      </div>
-
-      <div class="inline-actions section-gap-sm">
-        <button class="btn btn-secondary btn-small" type="button" onclick="setEditStatusQuick('new')">جديد</button>
-        <button class="btn btn-secondary btn-small" type="button" onclick="setEditStatusQuick('printing')">قيد الطباعة</button>
-        <button class="btn btn-secondary btn-small" type="button" onclick="setEditStatusQuick('finished')">جاهز</button>
-        <button class="btn btn-secondary btn-small" type="button" onclick="setEditStatusQuick('delivered')">تم التسليم</button>
-        <button class="btn btn-secondary btn-small" type="button" onclick="setEditStatusQuick('cancelled')">ملغي</button>
       </div>
 
       <div class="grid-2 section-gap-sm">
@@ -705,37 +520,10 @@
       <div class="panel-head no-print">
         <button type="button" onclick="closeInvoiceModal()" class="btn btn-secondary btn-auto">رجوع</button>
         <h2>فاتورة / إيصال</h2>
-        <button type="button" class="btn btn-primary btn-auto" onclick="printInvoice()">طباعة / حفظ PDF</button>
+        <button type="button" class="btn btn-primary btn-auto" onclick="printInvoice()">طباعة / PDF</button>
       </div>
 
       <div id="invoiceContent" class="invoice-sheet"></div>
-    </div>
-  </div>
-
-  <div class="modal app-panel" id="printersManagerModal" aria-hidden="true">
-    <div class="modal-content modal-xl panel-content">
-      <div class="panel-head">
-        <button type="button" onclick="closePrintersManagerModal()" class="btn btn-secondary btn-auto">رجوع</button>
-        <h2>إدارة الطابعات</h2>
-        <div class="inline-actions">
-          <button type="button" class="btn btn-secondary btn-auto" onclick="openBambuPresetModal()">Bambu A1 Preset</button>
-          <button type="button" class="btn btn-primary btn-auto" onclick="openPrinterModal()">إضافة طابعة</button>
-        </div>
-      </div>
-
-      <div class="kpi-grid section-gap-md">
-        <div class="mini-kpi">
-          <span>إجمالي الطابعات</span>
-          <strong id="printersCount">0</strong>
-        </div>
-
-        <div class="mini-kpi">
-          <span>الشغالة الآن</span>
-          <strong id="activePrintersCount">0</strong>
-        </div>
-      </div>
-
-      <div id="printersList" class="stack-list"></div>
     </div>
   </div>
 
@@ -747,36 +535,40 @@
         <button type="button" class="btn btn-primary btn-auto" onclick="openMaterialModal()">إضافة خامة</button>
       </div>
 
-      <div class="kpi-grid section-gap-md">
-        <div class="mini-kpi">
-          <span>عدد الخامات</span>
-          <strong id="materialsCount">0</strong>
-        </div>
-
-        <div class="mini-kpi">
-          <span>منخفضة المخزون</span>
-          <strong id="lowStockCount">0</strong>
-        </div>
+      <div class="kpi-grid">
+        <div class="mini-kpi"><span>عدد الخامات</span><strong id="materialsCount">0</strong></div>
+        <div class="mini-kpi"><span>منخفضة المخزون</span><strong id="lowStockCount">0</strong></div>
       </div>
 
-      <div id="inventoryUI" class="stack-list"></div>
+      <div id="inventoryUI" class="stack-list section-gap-md"></div>
 
       <div class="inline-actions section-gap-md">
         <button type="button" class="btn btn-secondary" onclick="openStockMovementsModal()">حركة المخزون</button>
-        <button type="button" class="btn btn-secondary" onclick="exportStockCSV()">تصدير المخزون CSV</button>
-        <button type="button" class="btn btn-secondary" onclick="exportBackupJSON()">تصدير JSON</button>
+        <button type="button" class="btn btn-secondary" onclick="exportStockCSV()">تصدير CSV</button>
+        <button type="button" class="btn btn-secondary" onclick="exportBackupJSON()">Backup</button>
 
         <label class="btn btn-secondary import-btn">
           استيراد JSON
-          <input
-            type="file"
-            id="importInput"
-            hidden
-            onchange="importBackupJSON(event)"
-            accept="application/json"
-          />
+          <input type="file" id="importInput" hidden onchange="importBackupJSON(event)" accept="application/json" />
         </label>
       </div>
+    </div>
+  </div>
+
+  <div class="modal app-panel" id="printersManagerModal" aria-hidden="true">
+    <div class="modal-content modal-xl panel-content">
+      <div class="panel-head">
+        <button type="button" onclick="closePrintersManagerModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2>إدارة الطابعات</h2>
+        <button type="button" class="btn btn-primary btn-auto" onclick="openPrinterModal()">إضافة طابعة</button>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="mini-kpi"><span>إجمالي الطابعات</span><strong id="printersCount">0</strong></div>
+        <div class="mini-kpi"><span>الشغالة الآن</span><strong id="activePrintersCount">0</strong></div>
+      </div>
+
+      <div id="printersList" class="stack-list section-gap-md"></div>
     </div>
   </div>
 
@@ -789,7 +581,7 @@
 
       <input type="hidden" id="printerId" />
 
-      <div class="grid-2 section-gap-lg">
+      <div class="grid-2">
         <div class="form-group">
           <label for="printerName">اسم الطابعة</label>
           <input type="text" id="printerName" />
@@ -813,7 +605,7 @@
         </div>
 
         <div class="form-group">
-          <label for="printerHourlyDepreciation">إهلاك/ساعة</label>
+          <label for="printerHourlyDepreciation">إهلاك / ساعة</label>
           <input type="text" id="printerHourlyDepreciation" inputmode="decimal" />
         </div>
       </div>
@@ -836,7 +628,7 @@
 
       <input type="hidden" id="materialId" />
 
-      <div class="grid-2 section-gap-lg">
+      <div class="grid-2">
         <div class="form-group">
           <label for="materialName">اسم الخامة</label>
           <input type="text" id="materialName" />
@@ -844,7 +636,7 @@
 
         <div class="form-group">
           <label for="materialType">النوع</label>
-          <input type="text" id="materialType" placeholder="PLA / PETG / ABS..." />
+          <input type="text" id="materialType" placeholder="PLA / PETG" />
         </div>
       </div>
 
@@ -855,12 +647,12 @@
         </div>
 
         <div class="form-group">
-          <label for="materialWeight">الوزن الكلي (جرام)</label>
+          <label for="materialWeight">الوزن الكلي / جرام</label>
           <input type="text" id="materialWeight" inputmode="decimal" />
         </div>
 
         <div class="form-group">
-          <label for="materialRemaining">المتبقي الحالي (جرام)</label>
+          <label for="materialRemaining">المتبقي / جرام</label>
           <input type="text" id="materialRemaining" inputmode="decimal" />
         </div>
       </div>
@@ -891,10 +683,10 @@
       <div class="panel-head">
         <button type="button" onclick="closeStockMovementsModal()" class="btn btn-secondary btn-auto">رجوع</button>
         <h2>حركة المخزون</h2>
-        <button type="button" class="btn btn-secondary btn-auto" onclick="exportStockMovementsCSV()">تصدير الحركة CSV</button>
+        <button type="button" class="btn btn-secondary btn-auto" onclick="exportStockMovementsCSV()">تصدير CSV</button>
       </div>
 
-      <div class="table-wrap section-gap-lg">
+      <div class="table-wrap">
         <table>
           <thead>
             <tr>
@@ -912,67 +704,14 @@
     </div>
   </div>
 
-  <div class="modal app-panel" id="bambuPresetModal" aria-hidden="true">
-    <div class="modal-content modal-md panel-content">
-      <div class="panel-head">
-        <button type="button" onclick="closeBambuPresetModal()" class="btn btn-secondary btn-auto">رجوع</button>
-        <h2>Bambu Lab A1 Preset</h2>
-      </div>
-
-      <div class="preset-card">
-        <h3>تطبيق إعدادات مقترحة لـ Bambu Lab A1</h3>
-        <p>
-          هذا الزر يظبط القيم الافتراضية للشغل اليومي: أجرة الساعة، الكهرباء، التغليف، الهالك،
-          ويضيف/يحدث طابعة Bambu Lab A1 في النظام.
-        </p>
-
-        <div class="grid-2 section-gap-md">
-          <div class="form-group">
-            <label for="presetLaborRate">أجرتك / ساعة</label>
-            <input type="text" id="presetLaborRate" value="50" inputmode="decimal" />
-          </div>
-
-          <div class="form-group">
-            <label for="presetElectricity">كهرباء / ساعة</label>
-            <input type="text" id="presetElectricity" value="3" inputmode="decimal" />
-          </div>
-
-          <div class="form-group">
-            <label for="presetPackaging">تغليف</label>
-            <input type="text" id="presetPackaging" value="10" inputmode="decimal" />
-          </div>
-
-          <div class="form-group">
-            <label for="presetFailure">هالك / مخاطرة %</label>
-            <input type="text" id="presetFailure" value="10" inputmode="decimal" />
-          </div>
-
-          <div class="form-group">
-            <label for="presetDepreciation">إهلاك الطابعة / ساعة</label>
-            <input type="text" id="presetDepreciation" value="0" inputmode="decimal" />
-          </div>
-
-          <div class="form-group">
-            <label for="presetTax">ضريبة / نسبة إضافية %</label>
-            <input type="text" id="presetTax" value="0" inputmode="decimal" />
-          </div>
-        </div>
-
-        <button type="button" class="btn btn-primary section-gap-md" onclick="applyBambuA1Preset()">
-          تطبيق الإعدادات
-        </button>
-      </div>
-    </div>
-  </div>
-
   <div class="modal app-panel" id="settingsModal" aria-hidden="true">
     <div class="modal-content modal-lg panel-content">
       <div class="panel-head">
         <button type="button" onclick="closeSettingsModal()" class="btn btn-secondary btn-auto">رجوع</button>
-        <h2>الإعدادات العامة</h2>
+        <h2>الإعدادات</h2>
       </div>
 
-      <div class="grid-3 section-gap-lg">
+      <div class="grid-3">
         <div class="form-group">
           <label for="farmName">اسم المشروع</label>
           <input type="text" id="farmName" />
@@ -984,18 +723,14 @@
         </div>
 
         <div class="form-group">
-          <label for="settingsDefaultTaxPercent">النسبة الافتراضية (%)</label>
+          <label for="settingsDefaultTaxPercent">النسبة الافتراضية %</label>
           <input type="text" id="settingsDefaultTaxPercent" value="0" inputmode="decimal" />
         </div>
       </div>
 
-      <div class="field-note section-gap-sm">
-        الإعدادات عامة على البرنامج، بينما تسعير الأوردر نفسه يتغير لكل أوردر بشكل مستقل.
-      </div>
-
       <div class="inline-actions section-gap-md">
         <button type="button" class="btn btn-primary" onclick="saveConfig()">حفظ الإعدادات</button>
-        <button type="button" class="btn btn-secondary" onclick="openBambuPresetModal()">Bambu A1 Preset</button>
+        <button type="button" class="btn btn-secondary" onclick="openPrintersManagerModal()">الطابعات</button>
         <button type="button" class="btn btn-secondary" onclick="exportBackupJSON()">تصدير Backup</button>
       </div>
     </div>
