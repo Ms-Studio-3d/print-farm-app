@@ -767,6 +767,98 @@ tbody tr:hover {
   padding: 14px;
 }
 
+/* Toast */
+.toast {
+  position: fixed;
+  top: 18px;
+  left: 18px;
+  z-index: 2000;
+  max-width: 420px;
+  background:
+    linear-gradient(180deg, rgba(0, 230, 118, .18), rgba(0, 230, 118, .09)),
+    #07100d;
+  color: #d9ffe9;
+  border: 1px solid rgba(0, 230, 118, .32);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, .5);
+  border-radius: 16px;
+  padding: 13px 16px;
+  font-size: 14px;
+  font-weight: 800;
+  transition: .25s ease;
+}
+
+.toast.error {
+  background:
+    linear-gradient(180deg, rgba(239, 68, 68, .18), rgba(239, 68, 68, .08)),
+    #120707;
+  color: #ffd6d6;
+  border-color: rgba(239, 68, 68, .35);
+}
+
+/* List Cards */
+.list-card,
+.stock-item {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .018)),
+    #0b1210;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 18px;
+  padding: 14px;
+}
+
+.list-card-head,
+.stock-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.list-card-head strong,
+.stock-header span:first-child {
+  font-size: 16px;
+  font-weight: 950;
+}
+
+.list-card-body,
+.stock-details {
+  display: grid;
+  gap: 7px;
+  color: #9fb2aa;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.card-actions {
+  margin-top: 12px;
+}
+
+/* Stock Progress */
+.stock-bar {
+  width: 100%;
+  height: 10px;
+  background: rgba(255, 255, 255, .07);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 10px 0 12px;
+}
+
+.stock-progress {
+  height: 100%;
+  background: linear-gradient(90deg, #00c853, #15f58a);
+  border-radius: 999px;
+  box-shadow: 0 0 18px rgba(0, 230, 118, .28);
+}
+
+.stock-item.low {
+  border-color: rgba(245, 158, 11, .30);
+}
+
+.stock-item.low .stock-progress {
+  background: linear-gradient(90deg, #ef4444, #f59e0b);
+}
+
 /* Badges */
 .badge,
 .status-chip,
@@ -782,6 +874,7 @@ tbody tr:hover {
   background: rgba(255, 255, 255, .06);
   color: #dcece4;
   border: 1px solid rgba(255, 255, 255, .08);
+  white-space: nowrap;
 }
 
 .badge-success,
@@ -803,6 +896,43 @@ tbody tr:hover {
   background: rgba(239, 68, 68, .14);
   color: #ffb4b4;
   border-color: rgba(239, 68, 68, .28);
+}
+
+/* Table Action Buttons */
+.action-btn {
+  border: 1px solid rgba(255, 255, 255, .10);
+  background: rgba(255, 255, 255, .05);
+  color: #e8f5ee;
+  border-radius: 10px;
+  padding: 7px 10px;
+  margin: 2px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.action-btn:hover {
+  border-color: rgba(0, 230, 118, .35);
+  background: rgba(0, 230, 118, .10);
+}
+
+.action-btn.delete {
+  color: #ffb4b4;
+}
+
+.action-btn.delete:hover {
+  border-color: rgba(239, 68, 68, .35);
+  background: rgba(239, 68, 68, .12);
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  color: #8ea39a;
+  padding: 18px;
+  font-size: 14px;
+  font-weight: 800;
 }
 
 /* Import Button */
