@@ -31,8 +31,8 @@ function safeInvoke(channel, payload) {
 
 const farmAPI = {
   appInfo: {
-    name: 'Print Farm App',
-    version: '1.0.0'
+    name: 'Bambu A1 Print Farm',
+    version: '1.1.0'
   },
 
   isDesktopApp: true,
