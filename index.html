@@ -33,6 +33,63 @@
 
       <main class="app-content">
         <section class="screen screen-order active-screen">
+
+          <section class="dashboard-hero">
+            <div class="dashboard-title-card">
+              <div>
+                <span class="dashboard-eyebrow">Print Farm Dashboard</span>
+                <h2>نظرة سريعة على الشغل</h2>
+                <p>تابع المبيعات والأرباح والمخزون وحالة الطابعة قبل تسجيل أي أوردر جديد.</p>
+              </div>
+
+              <div class="dashboard-printer-pill">
+                <span class="printer-dot"></span>
+                <div>
+                  <strong id="dashPrinterName">Bambu Lab A1</strong>
+                  <small id="dashPrinterStatus">جاهز للمتابعة</small>
+                </div>
+              </div>
+            </div>
+
+            <div class="dashboard-grid">
+              <div class="dash-card">
+                <span class="dash-label">مبيعات اليوم</span>
+                <strong id="dashTodayRevenue">0 ج</strong>
+                <small>إجمالي البيع بتاريخ اليوم</small>
+              </div>
+
+              <div class="dash-card dash-card-profit">
+                <span class="dash-label">ربح اليوم</span>
+                <strong id="dashTodayProfit">0 ج</strong>
+                <small>صافي الربح من أوردرات اليوم</small>
+              </div>
+
+              <div class="dash-card">
+                <span class="dash-label">أوردرات مفتوحة</span>
+                <strong id="dashOpenOrders">0</strong>
+                <small>جديد / قيد الطباعة / جاهز</small>
+              </div>
+
+              <div class="dash-card dash-card-warning">
+                <span class="dash-label">خامات منخفضة</span>
+                <strong id="dashLowStock">0</strong>
+                <small>تحتاج متابعة قبل ما تخلص</small>
+              </div>
+
+              <div class="dash-card">
+                <span class="dash-label">إجمالي الأوردرات</span>
+                <strong id="dashTotalOrders">0</strong>
+                <small>كل الأوردرات المسجلة</small>
+              </div>
+
+              <div class="dash-card">
+                <span class="dash-label">آخر أوردر</span>
+                <strong id="dashLastOrder">-</strong>
+                <small id="dashLastOrderMeta">لا يوجد أوردرات بعد</small>
+              </div>
+            </div>
+          </section>
+
           <section class="home-grid top-grid">
             <section class="card compact-card equal-card">
               <div class="section-head">
