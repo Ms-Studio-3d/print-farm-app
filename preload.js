@@ -32,7 +32,7 @@ function safeInvoke(channel, payload) {
 const farmAPI = {
   appInfo: {
     name: 'Print Farm App',
-    version: '1.0.0'
+    version: '2.0.0-pro'
   },
 
   isDesktopApp: true,
