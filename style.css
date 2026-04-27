@@ -270,6 +270,16 @@ textarea {
   flex-shrink: 0;
 }
 
+.printer-dot-warning {
+  background: var(--warning);
+  box-shadow: 0 0 20px rgba(245, 158, 11, .75);
+}
+
+.printer-dot-danger {
+  background: var(--danger);
+  box-shadow: 0 0 20px rgba(239, 68, 68, .75);
+}
+
 .dashboard-printer-pill strong {
   display: block;
   font-size: 13px;
