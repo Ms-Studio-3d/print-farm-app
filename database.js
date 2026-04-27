@@ -109,71 +109,25 @@ function createTables() {
 
 function runMigrations() {
   ensureColumnExists('materials', 'supplier', `ALTER TABLE materials ADD COLUMN supplier TEXT DEFAULT ''`);
-  ensureColumnExists(
-    'materials',
-    'low_stock_threshold',
-    `ALTER TABLE materials ADD COLUMN low_stock_threshold REAL NOT NULL DEFAULT 150`
-  );
-  ensureColumnExists(
-    'materials',
-    'is_archived',
-    `ALTER TABLE materials ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0`
-  );
-  ensureColumnExists(
-    'printers',
-    'hourly_depreciation',
-    `ALTER TABLE printers ADD COLUMN hourly_depreciation REAL DEFAULT 0`
-  );
-  ensureColumnExists(
-    'printers',
-    'is_archived',
-    `ALTER TABLE printers ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0`
-  );
-  ensureColumnExists(
-    'orders',
-    'print_hours',
-    `ALTER TABLE orders ADD COLUMN print_hours REAL NOT NULL DEFAULT 0`
-  );
-  ensureColumnExists(
-    'orders',
-    'manual_minutes',
-    `ALTER TABLE orders ADD COLUMN manual_minutes REAL NOT NULL DEFAULT 0`
-  );
-  ensureColumnExists(
-    'orders',
-    'material_cost',
-    `ALTER TABLE orders ADD COLUMN material_cost REAL NOT NULL DEFAULT 0`
-  );
-  ensureColumnExists(
-    'orders',
-    'depreciation_cost',
-    `ALTER TABLE orders ADD COLUMN depreciation_cost REAL NOT NULL DEFAULT 0`
-  );
-  ensureColumnExists(
-    'orders',
-    'electricity_cost',
-    `ALTER TABLE orders ADD COLUMN electricity_cost REAL NOT NULL DEFAULT 0`
-  );
-  ensureColumnExists(
-    'orders',
-    'labor_cost',
-    `ALTER TABLE orders ADD COLUMN labor_cost REAL NOT NULL DEFAULT 0`
-  );
-  ensureColumnExists(
-    'orders',
-    'packaging_cost',
-    `ALTER TABLE orders ADD COLUMN packaging_cost REAL NOT NULL DEFAULT 0`
-  );
-  ensureColumnExists(
-    'orders',
-    'shipping_cost',
-    `ALTER TABLE orders ADD COLUMN shipping_cost REAL NOT NULL DEFAULT 0`
-  );
-  ensureColumnExists(
-    'orders',
-    'risk_cost',
-    `ALTER TABLE orders ADD COLUMN risk_cost REAL NOT NULL DEFAULT 0`
-  );
+  ensureColumnExists('materials', 'low_stock_threshold', `ALTER TABLE materials ADD COLUMN low_stock_threshold REAL NOT NULL DEFAULT 150`);
+  ensureColumnExists('materials', 'is_archived', `ALTER TABLE materials ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0`);
+
+  ensureColumnExists('printers', 'model', `ALTER TABLE printers ADD COLUMN model TEXT DEFAULT ''`);
+  ensureColumnExists('printers', 'status', `ALTER TABLE printers ADD COLUMN status TEXT DEFAULT 'idle'`);
+  ensureColumnExists('printers', 'hourly_depreciation', `ALTER TABLE printers ADD COLUMN hourly_depreciation REAL DEFAULT 0`);
+  ensureColumnExists('printers', 'notes', `ALTER TABLE printers ADD COLUMN notes TEXT DEFAULT ''`);
+  ensureColumnExists('printers', 'is_archived', `ALTER TABLE printers ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0`);
+
+  ensureColumnExists('orders', 'order_status', `ALTER TABLE orders ADD COLUMN order_status TEXT DEFAULT 'new'`);
+  ensureColumnExists('orders', 'print_hours', `ALTER TABLE orders ADD COLUMN print_hours REAL NOT NULL DEFAULT 0`);
+  ensureColumnExists('orders', 'manual_minutes', `ALTER TABLE orders ADD COLUMN manual_minutes REAL NOT NULL DEFAULT 0`);
+  ensureColumnExists('orders', 'material_cost', `ALTER TABLE orders ADD COLUMN material_cost REAL NOT NULL DEFAULT 0`);
+  ensureColumnExists('orders', 'depreciation_cost', `ALTER TABLE orders ADD COLUMN depreciation_cost REAL NOT NULL DEFAULT 0`);
+  ensureColumnExists('orders', 'electricity_cost', `ALTER TABLE orders ADD COLUMN electricity_cost REAL NOT NULL DEFAULT 0`);
+  ensureColumnExists('orders', 'labor_cost', `ALTER TABLE orders ADD COLUMN labor_cost REAL NOT NULL DEFAULT 0`);
+  ensureColumnExists('orders', 'packaging_cost', `ALTER TABLE orders ADD COLUMN packaging_cost REAL NOT NULL DEFAULT 0`);
+  ensureColumnExists('orders', 'shipping_cost', `ALTER TABLE orders ADD COLUMN shipping_cost REAL NOT NULL DEFAULT 0`);
+  ensureColumnExists('orders', 'risk_cost', `ALTER TABLE orders ADD COLUMN risk_cost REAL NOT NULL DEFAULT 0`);
 }
 
 function ensureColumnExists(tableName, columnName, alterSql) {
@@ -186,12 +140,11 @@ function ensureColumnExists(tableName, columnName, alterSql) {
 }
 
 function seedDefaults() {
-  const configCount = db.prepare('SELECT COUNT(*) AS count FROM app_config').get().count;
   const printersCount = db.prepare('SELECT COUNT(*) AS count FROM printers').get().count;
   const materialsCount = db.prepare('SELECT COUNT(*) AS count FROM materials').get().count;
 
   const defaults = {
-    farmName: '3D Printing Business Manager',
+    farmName: 'Bambu A1 Print Farm',
     currencyName: 'ج',
     laborRate: '50',
     electricityCostPerHour: '3',
@@ -210,11 +163,14 @@ function seedDefaults() {
     insertConfig.run(key, String(value));
   });
 
-  if (configCount > 0) {
-    const currentFarmName = db.prepare(`SELECT value FROM app_config WHERE key = 'farmName'`).get();
-    if (!currentFarmName || !String(currentFarmName.value || '').trim()) {
-      insertConfig.run('farmName', defaults.farmName);
-    }
+  const currentFarmName = db.prepare(`SELECT value FROM app_config WHERE key = 'farmName'`).get();
+
+  if (!currentFarmName || !String(currentFarmName.value || '').trim()) {
+    db.prepare(`
+      INSERT INTO app_config (key, value)
+      VALUES ('farmName', ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value
+    `).run(defaults.farmName);
   }
 
   if (printersCount === 0) {
@@ -223,8 +179,14 @@ function seedDefaults() {
       VALUES (?, ?, ?, ?, ?, ?)
     `);
 
-    insertPrinter.run('Bambu Lab A1', 'A1', 'idle', 0, '', 0);
-    insertPrinter.run('Bambu Lab P1S', 'P1S', 'idle', 0, '', 0);
+    insertPrinter.run(
+      'Bambu Lab A1',
+      'A1',
+      'idle',
+      0,
+      'الطابعة الأساسية - Bambu Lab A1',
+      0
+    );
   }
 
   if (materialsCount === 0) {
@@ -384,7 +346,10 @@ function updatePrinter(data) {
 function deletePrinter(id) {
   const printerId = Number(id);
   const printer = db.prepare('SELECT id FROM printers WHERE id = ?').get(printerId);
-  if (!printer) return { deleted: false, archived: false, reason: 'not_found' };
+
+  if (!printer) {
+    return { deleted: false, archived: false, reason: 'not_found' };
+  }
 
   const usageCount = db.prepare(`
     SELECT COUNT(*) AS count
@@ -444,6 +409,7 @@ function createMaterial(data) {
 function updateMaterial(data) {
   const materialId = Number(data.id);
   const oldMaterial = db.prepare('SELECT * FROM materials WHERE id = ?').get(materialId);
+
   if (!oldMaterial) return;
 
   const newName = String(data.name || '').trim();
@@ -506,7 +472,10 @@ function updateMaterial(data) {
 function deleteMaterial(id) {
   const materialId = Number(id);
   const material = db.prepare('SELECT id FROM materials WHERE id = ?').get(materialId);
-  if (!material) return { deleted: false, archived: false, reason: 'not_found' };
+
+  if (!material) {
+    return { deleted: false, archived: false, reason: 'not_found' };
+  }
 
   const usageCount = db.prepare(`
     SELECT COUNT(*) AS count
@@ -543,7 +512,10 @@ function getNextOrderCode() {
   }
 
   const match = String(lastOrder.code).match(/ORD-(\d+)/);
-  if (!match) return 'ORD-1001';
+
+  if (!match) {
+    return 'ORD-1001';
+  }
 
   return `ORD-${Number(match[1]) + 1}`;
 }
@@ -605,6 +577,24 @@ function createOrder(payload) {
   `);
 
   const transaction = db.transaction((data) => {
+    if (!data || !String(data.code || '').trim()) {
+      throw new Error('كود الأوردر غير صالح');
+    }
+
+    if (!String(data.itemName || '').trim()) {
+      throw new Error('اسم المجسم مطلوب');
+    }
+
+    if (!Array.isArray(data.materialUsage) || data.materialUsage.length === 0) {
+      throw new Error('لا يوجد استهلاك خامات في الأوردر');
+    }
+
+    const existingCode = db.prepare('SELECT id FROM orders WHERE code = ?').get(String(data.code || '').trim());
+
+    if (existingCode) {
+      throw new Error('كود الأوردر موجود بالفعل، حاول مرة أخرى');
+    }
+
     for (const item of data.materialUsage) {
       const material = db.prepare('SELECT * FROM materials WHERE id = ?').get(Number(item.materialId));
 
@@ -623,9 +613,11 @@ function createOrder(payload) {
 
     if (data.printerId) {
       const printer = db.prepare('SELECT id, is_archived FROM printers WHERE id = ?').get(Number(data.printerId));
+
       if (!printer) {
         throw new Error('الطابعة المحددة غير موجودة');
       }
+
       if (Number(printer.is_archived || 0) === 1) {
         throw new Error('الطابعة المحددة مؤرشفة ولا يمكن استخدامها');
       }
@@ -721,6 +713,7 @@ function updateOrder(payload) {
 
 function deleteOrder(code) {
   const order = db.prepare('SELECT id, code FROM orders WHERE code = ?').get(String(code || '').trim());
+
   if (!order) return;
 
   const materials = db.prepare(`
@@ -919,6 +912,7 @@ function replaceAllData(data) {
 
     (payload.orderMaterials || []).forEach((item) => {
       const mappedOrderId = orderIdMap.get(Number(item.orderId));
+
       if (!mappedOrderId) return;
 
       const mappedMaterialId = item.materialId != null
