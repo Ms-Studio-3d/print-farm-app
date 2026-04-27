@@ -139,6 +139,35 @@ function getOrderByCode(code) {
   return dashboardData.orders.find((item) => item.code === code);
 }
 
+function getPrinterStatusClass(status) {
+  switch (status) {
+    case 'idle':
+      return 'status-success';
+    case 'printing':
+      return 'status-warning';
+    case 'maintenance':
+    case 'offline':
+      return 'status-danger';
+    default:
+      return '';
+  }
+}
+
+function getOrderStatusClass(status) {
+  switch (status) {
+    case 'delivered':
+    case 'finished':
+      return 'status-success';
+    case 'new':
+    case 'printing':
+      return 'status-warning';
+    case 'cancelled':
+      return 'status-danger';
+    default:
+      return '';
+  }
+}
+
 function setActiveNav(view) {
   currentNavView = view;
 
@@ -277,9 +306,19 @@ function updateTopTitle() {
 }
 
 function applyConfigToInputs() {
+  const defaultTax = String(
+    toPositiveNumber(
+      dashboardData.config.defaultTaxPercent,
+      DEFAULT_CONFIG.defaultTaxPercent
+    )
+  );
+
   setValue('farmName', dashboardData.config.farmName || DEFAULT_CONFIG.farmName);
   setValue('currencyName', dashboardData.config.currencyName || DEFAULT_CONFIG.currencyName);
-  setValue('defaultTaxPercent', String(toPositiveNumber(dashboardData.config.defaultTaxPercent, DEFAULT_CONFIG.defaultTaxPercent)));
+
+  setValue('defaultTaxPercent', defaultTax);
+  setValue('settingsDefaultTaxPercent', defaultTax);
+
   setValue('laborRate', String(toPositiveNumber(dashboardData.config.laborRate, DEFAULT_CONFIG.laborRate)));
   setValue('electricityCostPerHour', String(toPositiveNumber(dashboardData.config.electricityCostPerHour, DEFAULT_CONFIG.electricityCostPerHour)));
   setValue('packagingCost', String(toPositiveNumber(dashboardData.config.packagingCost, DEFAULT_CONFIG.packagingCost)));
@@ -342,18 +381,21 @@ function renderPrinters() {
     .map((printer) => {
       const printerId = Number(printer.id);
       const statusText = getPrinterStatusText(printer.status);
+      const statusClass = getPrinterStatusClass(printer.status);
 
       return `
         <div class="list-card">
           <div class="list-card-head">
             <strong>${escapeHtml(printer.name)}</strong>
-            <span class="section-badge">${escapeHtml(statusText)}</span>
+            <span class="section-badge ${statusClass}">${escapeHtml(statusText)}</span>
           </div>
+
           <div class="list-card-body">
             <div>الموديل: ${escapeHtml(printer.model || '-')}</div>
             <div>إهلاك/ساعة: ${formatMoney(printer.hourlyDepreciation || 0)}</div>
             <div>ملاحظات: ${escapeHtml(printer.notes || '-')}</div>
           </div>
+
           <div class="inline-actions card-actions">
             <button class="btn btn-secondary" onclick="editPrinter(${printerId})">تعديل</button>
             <button class="btn btn-danger" onclick="deletePrinterAction(${printerId})">حذف</button>
@@ -464,11 +506,11 @@ function renderMaterialUsageInputs() {
 
       return `
         <div class="form-group">
-<label>
-  ${escapeHtml(material.name)}
-  <span style="color:#94a3b8">• ${escapeHtml(material.color || 'No Color')}</span>
-  (${toPositiveNumber(material.remaining, 0).toFixed(0)}g)
-</label>
+          <label>
+            ${escapeHtml(material.name)}
+            <span style="color:#94a3b8">• ${escapeHtml(material.color || 'No Color')}</span>
+            (${toPositiveNumber(material.remaining, 0).toFixed(0)}g)
+          </label>
           <input
             type="text"
             class="ams-weight"
@@ -780,6 +822,8 @@ function renderReportsTable() {
         cancelledCount += 1;
       }
 
+      const statusClass = getOrderStatusClass(order.status);
+
       return `
         <tr>
           <td>${escapeHtml(order.code)}</td>
@@ -787,7 +831,11 @@ function renderReportsTable() {
           <td>${escapeHtml(order.itemName || '')}</td>
           <td>${escapeHtml(order.customerName || '')}</td>
           <td>${escapeHtml(order.printerName || '-')}</td>
-          <td>${escapeHtml(getOrderStatusText(order.status))}</td>
+          <td>
+            <span class="status-chip ${statusClass}">
+              ${escapeHtml(getOrderStatusText(order.status))}
+            </span>
+          </td>
           <td>${formatMoney(order.totalCost || 0)}</td>
           <td>${formatMoney(order.finalPrice || 0)}</td>
           <td>${formatMoney(order.profit || 0)}</td>
@@ -949,7 +997,7 @@ function openPrinterModal() {
   setValue('printerId', '');
   setValue('printerName', '');
   setValue('printerStatus', 'idle');
-  setValue('printerModel', '');
+  setValue('printerModel', 'Bambu Lab A1');
   setValue('printerHourlyDepreciation', '0');
   setValue('printerNotes', '');
 
@@ -1037,7 +1085,7 @@ async function deletePrinterAction(id) {
 function openMaterialModal() {
   setValue('materialId', '');
   setValue('materialName', '');
-  setValue('materialType', '');
+  setValue('materialType', 'PLA');
   setValue('materialColor', '');
   setValue('materialWeight', '1000');
   setValue('materialRemaining', '1000');
@@ -1202,11 +1250,20 @@ async function saveConfig() {
   const payload = {
     farmName: getTrimmedValue('farmName') || DEFAULT_CONFIG.farmName,
     currencyName: getTrimmedValue('currencyName') || DEFAULT_CONFIG.currencyName,
-    defaultTaxPercent: String(toPositiveNumber(getValue('defaultTaxPercent'), DEFAULT_CONFIG.defaultTaxPercent)),
+
+    defaultTaxPercent: String(
+      toPositiveNumber(
+        getValue('settingsDefaultTaxPercent'),
+        DEFAULT_CONFIG.defaultTaxPercent
+      )
+    ),
+
     laborRate: String(toPositiveNumber(getValue('laborRate'), DEFAULT_CONFIG.laborRate)),
+
     electricityCostPerHour: String(
       toPositiveNumber(getValue('electricityCostPerHour'), DEFAULT_CONFIG.electricityCostPerHour)
     ),
+
     packagingCost: String(toPositiveNumber(getValue('packagingCost'), DEFAULT_CONFIG.packagingCost)),
     failurePercent: String(toPositiveNumber(getValue('failurePercent'), DEFAULT_CONFIG.failurePercent)),
     shippingCost: String(toPositiveNumber(getValue('shippingCost'), DEFAULT_CONFIG.shippingCost))
@@ -1285,7 +1342,8 @@ function attachLiveEvents() {
     'laborRate',
     'electricityCostPerHour',
     'failurePercent',
-    'defaultTaxPercent'
+    'defaultTaxPercent',
+    'settingsDefaultTaxPercent'
   ];
 
   ids.forEach((id) => {
@@ -1394,6 +1452,11 @@ window.importBackupJSON = importBackupJSON;
 window.calc = calc;
 window.saveSale = saveSale;
 window.renderReportsTable = renderReportsTable;
+
+window.addEventListener('error', function (event) {
+  console.error(event.error || event.message);
+  showToast('حصل خطأ في البرنامج. لو اتكرر ابعتلي رسالة الخطأ.', 'error');
+});
 
 window.onload = async () => {
   setValue('opDate', new Date().toISOString().slice(0, 10));
