@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3D Printing Business Manager</title>
+  <title>Print Farm App</title>
   <meta
     name="description"
     content="برنامج لإدارة أعمال الطباعة ثلاثية الأبعاد والتسعير والأوردرات والمخزون والطابعات"
@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap"
     rel="stylesheet"
   />
   <link rel="stylesheet" href="style.css" />
@@ -22,12 +22,17 @@
     <div class="app-frame">
       <header class="app-topbar">
         <div class="app-topbar-copy">
-          <h1 class="app-title">3D Printing Business Manager</h1>
-          <p class="app-subtitle">إدارة الأوردرات والتسعير بشكل سريع ومنظم</p>
+          <h1 class="app-title">Print Farm App</h1>
+          <p class="app-subtitle">إدارة الأوردرات والتسعير والمخزون لطباعة 3D</p>
         </div>
 
-        <div class="order-code-chip">
-          <span>ORD-<span id="nextOrderCode">...</span></span>
+        <div class="topbar-actions">
+          <button class="btn btn-secondary btn-small" type="button" onclick="openPipelineModal()">إدارة الأوردرات</button>
+          <button class="btn btn-secondary btn-small" type="button" onclick="openBambuPresetModal()">Bambu A1 Preset</button>
+
+          <div class="order-code-chip">
+            <span>ORD-<span id="nextOrderCode">...</span></span>
+          </div>
         </div>
       </header>
 
@@ -37,7 +42,7 @@
           <section class="dashboard-hero">
             <div class="dashboard-title-card">
               <div>
-                <span class="dashboard-eyebrow">Print Farm Dashboard</span>
+                <span class="dashboard-eyebrow">Print Farm Dashboard Pro</span>
                 <h2>نظرة سريعة على الشغل</h2>
                 <p>تابع المبيعات والأرباح والمخزون وحالة الطابعة قبل تسجيل أي أوردر جديد.</p>
               </div>
@@ -51,52 +56,99 @@
               </div>
             </div>
 
-            <div class="dashboard-grid">
-              <div class="dash-card">
+            <div class="dashboard-grid dashboard-grid-pro">
+              <button class="dash-card dash-card-clickable" type="button" onclick="openReports()">
                 <span class="dash-label">مبيعات اليوم</span>
                 <strong id="dashTodayRevenue">0 ج</strong>
                 <small>إجمالي البيع بتاريخ اليوم</small>
-              </div>
+              </button>
 
-              <div class="dash-card dash-card-profit">
+              <button class="dash-card dash-card-profit dash-card-clickable" type="button" onclick="openReports()">
                 <span class="dash-label">ربح اليوم</span>
                 <strong id="dashTodayProfit">0 ج</strong>
                 <small>صافي الربح من أوردرات اليوم</small>
-              </div>
+              </button>
 
-              <div class="dash-card">
+              <button class="dash-card dash-card-clickable" type="button" onclick="openPipelineModal()">
                 <span class="dash-label">أوردرات مفتوحة</span>
                 <strong id="dashOpenOrders">0</strong>
                 <small>جديد / قيد الطباعة / جاهز</small>
-              </div>
+              </button>
 
-              <div class="dash-card dash-card-warning">
+              <button class="dash-card dash-card-warning dash-card-clickable" type="button" onclick="openMaterialsManagerModal()">
                 <span class="dash-label">خامات منخفضة</span>
                 <strong id="dashLowStock">0</strong>
                 <small>تحتاج متابعة قبل ما تخلص</small>
-              </div>
+              </button>
 
-              <div class="dash-card">
+              <button class="dash-card dash-card-clickable" type="button" onclick="openReports()">
+                <span class="dash-label">مبيعات الشهر</span>
+                <strong id="dashMonthRevenue">0 ج</strong>
+                <small>إجمالي بيع الشهر الحالي</small>
+              </button>
+
+              <button class="dash-card dash-card-profit dash-card-clickable" type="button" onclick="openReports()">
+                <span class="dash-label">ربح الشهر</span>
+                <strong id="dashMonthProfit">0 ج</strong>
+                <small>صافي ربح الشهر الحالي</small>
+              </button>
+
+              <button class="dash-card dash-card-clickable" type="button" onclick="openPipelineModal()">
                 <span class="dash-label">إجمالي الأوردرات</span>
                 <strong id="dashTotalOrders">0</strong>
                 <small>كل الأوردرات المسجلة</small>
-              </div>
+              </button>
 
-              <div class="dash-card">
+              <button class="dash-card dash-card-clickable" type="button" onclick="openCustomersModal()">
+                <span class="dash-label">العملاء</span>
+                <strong id="dashCustomersCount">0</strong>
+                <small>عملاء تم استخراجهم من الأوردرات</small>
+              </button>
+
+              <button class="dash-card dash-card-clickable" type="button" onclick="openStockMovementsModal()">
+                <span class="dash-label">الخامات المتاحة</span>
+                <strong id="dashMaterialsCount">0</strong>
+                <small>عدد الخامات النشطة</small>
+              </button>
+
+              <button class="dash-card dash-card-clickable" type="button" onclick="openReports()">
+                <span class="dash-label">متوسط ربح الأوردر</span>
+                <strong id="dashAverageProfit">0 ج</strong>
+                <small>متوسط الربح لكل أوردر</small>
+              </button>
+
+              <button class="dash-card dash-card-clickable" type="button" onclick="openReports()">
+                <span class="dash-label">أعلى أوردر</span>
+                <strong id="dashTopOrder">0 ج</strong>
+                <small id="dashTopOrderMeta">لا يوجد بيانات</small>
+              </button>
+
+              <button class="dash-card dash-card-clickable" type="button" onclick="openLastOrderInvoice()">
                 <span class="dash-label">آخر أوردر</span>
                 <strong id="dashLastOrder">-</strong>
                 <small id="dashLastOrderMeta">لا يوجد أوردرات بعد</small>
-              </div>
+              </button>
+            </div>
+
+            <div class="quick-actions-row">
+              <button class="quick-action-btn" type="button" onclick="scrollToOrderForm()">أوردر جديد</button>
+              <button class="quick-action-btn" type="button" onclick="openPipelineModal()">Pipeline</button>
+              <button class="quick-action-btn" type="button" onclick="openReports()">التقارير</button>
+              <button class="quick-action-btn" type="button" onclick="openCustomersModal()">العملاء</button>
+              <button class="quick-action-btn" type="button" onclick="openMaterialsManagerModal()">الخامات</button>
+              <button class="quick-action-btn" type="button" onclick="exportBackupJSON()">Backup</button>
             </div>
           </section>
 
-          <section class="home-grid top-grid">
+          <section id="orderFormAnchor" class="home-grid top-grid">
             <section class="card compact-card equal-card">
               <div class="section-head">
                 <div>
                   <h3>أوردر جديد</h3>
                   <p class="section-subtext">البيانات الأساسية للأوردر الحالي</p>
                 </div>
+
+                <button class="btn btn-secondary btn-small" type="button" onclick="resetOrderForm()">تفريغ الفورم</button>
               </div>
 
               <div class="grid-2 compact-grid">
@@ -107,7 +159,8 @@
 
                 <div class="form-group">
                   <label for="customerName">اسم العميل</label>
-                  <input type="text" id="customerName" placeholder="اختياري" />
+                  <input type="text" id="customerName" placeholder="اختياري" list="customersDatalist" />
+                  <datalist id="customersDatalist"></datalist>
                 </div>
               </div>
 
@@ -157,6 +210,13 @@
                   <input type="text" id="orderNotes" placeholder="اختياري" />
                 </div>
               </div>
+
+              <div class="inline-actions section-gap-sm">
+                <button class="btn btn-secondary btn-small" type="button" onclick="setOrderStatusQuick('new')">جديد</button>
+                <button class="btn btn-secondary btn-small" type="button" onclick="setOrderStatusQuick('printing')">قيد الطباعة</button>
+                <button class="btn btn-secondary btn-small" type="button" onclick="setOrderStatusQuick('finished')">جاهز</button>
+                <button class="btn btn-secondary btn-small" type="button" onclick="setOrderStatusQuick('delivered')">تم التسليم</button>
+              </div>
             </section>
 
             <section class="card compact-card equal-card">
@@ -167,7 +227,7 @@
                 </div>
 
                 <div class="inline-actions">
-                  <button class="btn btn-secondary btn-small" onclick="openMaterialsManagerModal()">إدارة الخامات</button>
+                  <button class="btn btn-secondary btn-small" type="button" onclick="openMaterialsManagerModal()">إدارة الخامات</button>
                 </div>
               </div>
 
@@ -258,7 +318,7 @@
               </div>
 
               <div class="final-price-box">
-                <button class="btn btn-save" onclick="saveSale()">تسجيل الأوردر</button>
+                <button class="btn btn-save" type="button" onclick="saveSale()">تسجيل الأوردر</button>
               </div>
             </section>
           </section>
@@ -277,6 +337,15 @@
           <span>الأوردر</span>
         </button>
 
+        <button class="nav-btn" data-view="pipeline" type="button" onclick="openPipelineModal()" aria-label="Pipeline">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M4 6h4v12H4zM10 6h4v12h-4zM16 6h4v12h-4z" stroke="currentColor" stroke-width="1.8"/>
+            </svg>
+          </span>
+          <span>Pipeline</span>
+        </button>
+
         <button class="nav-btn" data-view="materials" type="button" onclick="openMaterialsManagerModal()" aria-label="الخامات">
           <span class="nav-icon">
             <svg viewBox="0 0 24 24" fill="none">
@@ -285,17 +354,6 @@
             </svg>
           </span>
           <span>الخامات</span>
-        </button>
-
-        <button class="nav-btn" data-view="printers" type="button" onclick="openPrintersManagerModal()" aria-label="الطابعات">
-          <span class="nav-icon">
-            <svg viewBox="0 0 24 24" fill="none">
-              <path d="M7 8V4h10v4" stroke="currentColor" stroke-width="1.8"/>
-              <rect x="5" y="8" width="14" height="7" rx="2" stroke="currentColor" stroke-width="1.8"/>
-              <path d="M8 15h8v5H8z" stroke="currentColor" stroke-width="1.8"/>
-            </svg>
-          </span>
-          <span>الطابعات</span>
         </button>
 
         <button class="nav-btn" data-view="reports" type="button" onclick="openReports()" aria-label="التقارير">
@@ -307,15 +365,14 @@
           <span>التقارير</span>
         </button>
 
-        <button class="nav-btn" data-view="stock" type="button" onclick="openStockMovementsModal()" aria-label="المخزون">
+        <button class="nav-btn" data-view="customers" type="button" onclick="openCustomersModal()" aria-label="العملاء">
           <span class="nav-icon">
             <svg viewBox="0 0 24 24" fill="none">
-              <path d="M4 7.5 12 4l8 3.5L12 11 4 7.5Z" stroke="currentColor" stroke-width="1.8"/>
-              <path d="M4 12.5 12 16l8-3.5" stroke="currentColor" stroke-width="1.8"/>
-              <path d="M4 17.5 12 21l8-3.5" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M16 11a4 4 0 1 0-8 0" stroke="currentColor" stroke-width="1.8"/>
+              <path d="M5 20a7 7 0 0 1 14 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
             </svg>
           </span>
-          <span>المخزون</span>
+          <span>العملاء</span>
         </button>
 
         <button class="nav-btn" data-view="settings" type="button" onclick="openSettingsModal()" aria-label="الإعدادات">
@@ -331,14 +388,97 @@
     </div>
   </div>
 
+  <div class="modal app-panel" id="pipelineModal" aria-hidden="true">
+    <div class="modal-content modal-xl panel-content">
+      <div class="panel-head">
+        <button type="button" onclick="closePipelineModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2>Order Pipeline</h2>
+        <div class="inline-actions">
+          <button type="button" class="btn btn-secondary btn-auto" onclick="scrollToOrderForm(); closePipelineModal();">أوردر جديد</button>
+          <button type="button" class="btn btn-secondary btn-auto" onclick="exportSalesCSV()">تصدير CSV</button>
+        </div>
+      </div>
+
+      <div class="toolbar toolbar-wrap">
+        <div class="form-group">
+          <label for="pipelineSearch">بحث في الأوردرات</label>
+          <input type="text" id="pipelineSearch" placeholder="ابحث بالكود أو المجسم أو العميل" oninput="renderPipeline()" />
+        </div>
+
+        <div class="form-group">
+          <label for="pipelinePrinterFilter">الطابعة</label>
+          <select id="pipelinePrinterFilter" oninput="renderPipeline()">
+            <option value="">كل الطابعات</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="pipelineFrom">من تاريخ</label>
+          <input type="date" id="pipelineFrom" oninput="renderPipeline()" />
+        </div>
+
+        <div class="form-group">
+          <label for="pipelineTo">إلى تاريخ</label>
+          <input type="date" id="pipelineTo" oninput="renderPipeline()" />
+        </div>
+      </div>
+
+      <div class="pipeline-board" id="pipelineBoard">
+        <section class="pipeline-column" data-status="new">
+          <div class="pipeline-column-head">
+            <h3>جديد</h3>
+            <span id="pipelineCountNew">0</span>
+          </div>
+          <div class="pipeline-list" id="pipelineNew"></div>
+        </section>
+
+        <section class="pipeline-column" data-status="printing">
+          <div class="pipeline-column-head">
+            <h3>قيد الطباعة</h3>
+            <span id="pipelineCountPrinting">0</span>
+          </div>
+          <div class="pipeline-list" id="pipelinePrinting"></div>
+        </section>
+
+        <section class="pipeline-column" data-status="finished">
+          <div class="pipeline-column-head">
+            <h3>جاهز</h3>
+            <span id="pipelineCountFinished">0</span>
+          </div>
+          <div class="pipeline-list" id="pipelineFinished"></div>
+        </section>
+
+        <section class="pipeline-column" data-status="delivered">
+          <div class="pipeline-column-head">
+            <h3>تم التسليم</h3>
+            <span id="pipelineCountDelivered">0</span>
+          </div>
+          <div class="pipeline-list" id="pipelineDelivered"></div>
+        </section>
+
+        <section class="pipeline-column" data-status="cancelled">
+          <div class="pipeline-column-head">
+            <h3>ملغي</h3>
+            <span id="pipelineCountCancelled">0</span>
+          </div>
+          <div class="pipeline-list" id="pipelineCancelled"></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
   <div class="modal app-panel" id="reportsModal" aria-hidden="true">
     <div class="modal-content modal-xl panel-content">
       <div class="panel-head">
-        <button onclick="closeReports()" class="btn btn-secondary btn-auto">رجوع</button>
-        <h2>التقارير والمبيعات</h2>
+        <button type="button" onclick="closeReports()" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2>التقارير والمبيعات Pro</h2>
+        <div class="inline-actions">
+          <button type="button" class="btn btn-secondary btn-auto" onclick="exportSalesCSV()">تصدير المبيعات CSV</button>
+          <button type="button" class="btn btn-secondary btn-auto" onclick="exportStockCSV()">تصدير المخزون CSV</button>
+        </div>
       </div>
 
-      <div class="stats-grid">
+      <div class="stats-grid stats-grid-pro">
         <div class="stat-box">
           <h4>إجمالي الإيراد</h4>
           <div id="statRev">0</div>
@@ -360,8 +500,18 @@
         </div>
 
         <div class="stat-box">
+          <h4>متوسط الربح</h4>
+          <div id="statAvgProfit">0</div>
+        </div>
+
+        <div class="stat-box">
           <h4>طلبات ملغية</h4>
           <div id="statCancelled">0</div>
+        </div>
+
+        <div class="stat-box">
+          <h4>أكثر عميل</h4>
+          <div id="statTopCustomer">-</div>
         </div>
 
         <div class="stat-box">
@@ -391,6 +541,18 @@
             <option value="delivered">تم التسليم</option>
             <option value="cancelled">ملغي</option>
           </select>
+        </div>
+
+        <div class="form-group">
+          <label for="filterPrinter">الطابعة</label>
+          <select id="filterPrinter" oninput="renderReportsTable()">
+            <option value="">كل الطابعات</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="filterCustomer">العميل</label>
+          <input type="text" id="filterCustomer" placeholder="اسم العميل" oninput="renderReportsTable()" list="customersDatalist" />
         </div>
 
         <div class="form-group">
@@ -426,11 +588,45 @@
     </div>
   </div>
 
+  <div class="modal app-panel" id="customersModal" aria-hidden="true">
+    <div class="modal-content modal-xl panel-content">
+      <div class="panel-head">
+        <button type="button" onclick="closeCustomersModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2>العملاء</h2>
+        <button type="button" class="btn btn-secondary btn-auto" onclick="exportCustomersCSV()">تصدير العملاء CSV</button>
+      </div>
+
+      <div class="toolbar toolbar-wrap">
+        <div class="form-group">
+          <label for="customersSearch">بحث في العملاء</label>
+          <input type="text" id="customersSearch" placeholder="اسم العميل" oninput="renderCustomers()" />
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>العميل</th>
+              <th>عدد الأوردرات</th>
+              <th>إجمالي الشراء</th>
+              <th>إجمالي الربح</th>
+              <th>آخر أوردر</th>
+              <th>إجراء</th>
+            </tr>
+          </thead>
+          <tbody id="customersTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <div class="modal app-panel" id="editModal" aria-hidden="true">
     <div class="modal-content modal-lg panel-content">
       <div class="panel-head">
-        <button onclick="closeEditModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <button type="button" onclick="closeEditModal()" class="btn btn-secondary btn-auto">رجوع</button>
         <h2>تعديل الأوردر</h2>
+        <button type="button" class="btn btn-secondary btn-auto" onclick="openInvoiceForCurrentEdit()">فاتورة</button>
       </div>
 
       <div class="grid-3 section-gap-lg">
@@ -456,6 +652,14 @@
         </div>
       </div>
 
+      <div class="inline-actions section-gap-sm">
+        <button class="btn btn-secondary btn-small" type="button" onclick="setEditStatusQuick('new')">جديد</button>
+        <button class="btn btn-secondary btn-small" type="button" onclick="setEditStatusQuick('printing')">قيد الطباعة</button>
+        <button class="btn btn-secondary btn-small" type="button" onclick="setEditStatusQuick('finished')">جاهز</button>
+        <button class="btn btn-secondary btn-small" type="button" onclick="setEditStatusQuick('delivered')">تم التسليم</button>
+        <button class="btn btn-secondary btn-small" type="button" onclick="setEditStatusQuick('cancelled')">ملغي</button>
+      </div>
+
       <div class="grid-2 section-gap-sm">
         <div class="form-group">
           <label for="editName">اسم المجسم</label>
@@ -464,7 +668,7 @@
 
         <div class="form-group">
           <label for="editCustomer">اسم العميل</label>
-          <input type="text" id="editCustomer" />
+          <input type="text" id="editCustomer" list="customersDatalist" />
         </div>
       </div>
 
@@ -492,16 +696,31 @@
         </div>
       </div>
 
-      <button class="btn btn-primary section-gap-sm" onclick="saveEditedSale()">حفظ التعديل</button>
+      <button type="button" class="btn btn-primary section-gap-sm" onclick="saveEditedSale()">حفظ التعديل</button>
+    </div>
+  </div>
+
+  <div class="modal app-panel" id="invoiceModal" aria-hidden="true">
+    <div class="modal-content modal-lg panel-content">
+      <div class="panel-head no-print">
+        <button type="button" onclick="closeInvoiceModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2>فاتورة / إيصال</h2>
+        <button type="button" class="btn btn-primary btn-auto" onclick="printInvoice()">طباعة / حفظ PDF</button>
+      </div>
+
+      <div id="invoiceContent" class="invoice-sheet"></div>
     </div>
   </div>
 
   <div class="modal app-panel" id="printersManagerModal" aria-hidden="true">
     <div class="modal-content modal-xl panel-content">
       <div class="panel-head">
-        <button onclick="closePrintersManagerModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <button type="button" onclick="closePrintersManagerModal()" class="btn btn-secondary btn-auto">رجوع</button>
         <h2>إدارة الطابعات</h2>
-        <button class="btn btn-primary btn-auto" onclick="openPrinterModal()">إضافة طابعة</button>
+        <div class="inline-actions">
+          <button type="button" class="btn btn-secondary btn-auto" onclick="openBambuPresetModal()">Bambu A1 Preset</button>
+          <button type="button" class="btn btn-primary btn-auto" onclick="openPrinterModal()">إضافة طابعة</button>
+        </div>
       </div>
 
       <div class="kpi-grid section-gap-md">
@@ -523,9 +742,9 @@
   <div class="modal app-panel" id="materialsManagerModal" aria-hidden="true">
     <div class="modal-content modal-xl panel-content">
       <div class="panel-head">
-        <button onclick="closeMaterialsManagerModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <button type="button" onclick="closeMaterialsManagerModal()" class="btn btn-secondary btn-auto">رجوع</button>
         <h2>إدارة الخامات</h2>
-        <button class="btn btn-primary btn-auto" onclick="openMaterialModal()">إضافة خامة</button>
+        <button type="button" class="btn btn-primary btn-auto" onclick="openMaterialModal()">إضافة خامة</button>
       </div>
 
       <div class="kpi-grid section-gap-md">
@@ -543,8 +762,9 @@
       <div id="inventoryUI" class="stack-list"></div>
 
       <div class="inline-actions section-gap-md">
-        <button class="btn btn-secondary" onclick="openStockMovementsModal()">حركة المخزون</button>
-        <button class="btn btn-secondary" onclick="exportBackupJSON()">تصدير JSON</button>
+        <button type="button" class="btn btn-secondary" onclick="openStockMovementsModal()">حركة المخزون</button>
+        <button type="button" class="btn btn-secondary" onclick="exportStockCSV()">تصدير المخزون CSV</button>
+        <button type="button" class="btn btn-secondary" onclick="exportBackupJSON()">تصدير JSON</button>
 
         <label class="btn btn-secondary import-btn">
           استيراد JSON
@@ -563,7 +783,7 @@
   <div class="modal app-panel" id="printerModal" aria-hidden="true">
     <div class="modal-content modal-md panel-content">
       <div class="panel-head">
-        <button onclick="closePrinterModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <button type="button" onclick="closePrinterModal()" class="btn btn-secondary btn-auto">رجوع</button>
         <h2>إضافة / تعديل طابعة</h2>
       </div>
 
@@ -603,14 +823,14 @@
         <textarea id="printerNotes"></textarea>
       </div>
 
-      <button class="btn btn-primary" onclick="savePrinter()">حفظ الطابعة</button>
+      <button type="button" class="btn btn-primary" onclick="savePrinter()">حفظ الطابعة</button>
     </div>
   </div>
 
   <div class="modal app-panel" id="materialModal" aria-hidden="true">
     <div class="modal-content modal-md panel-content">
       <div class="panel-head">
-        <button onclick="closeMaterialModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <button type="button" onclick="closeMaterialModal()" class="btn btn-secondary btn-auto">رجوع</button>
         <h2>إضافة / تعديل خامة</h2>
       </div>
 
@@ -662,15 +882,16 @@
         </div>
       </div>
 
-      <button class="btn btn-primary section-gap-sm" onclick="saveMaterial()">حفظ الخامة</button>
+      <button type="button" class="btn btn-primary section-gap-sm" onclick="saveMaterial()">حفظ الخامة</button>
     </div>
   </div>
 
   <div class="modal app-panel" id="stockMovementsModal" aria-hidden="true">
     <div class="modal-content modal-xl panel-content">
       <div class="panel-head">
-        <button onclick="closeStockMovementsModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <button type="button" onclick="closeStockMovementsModal()" class="btn btn-secondary btn-auto">رجوع</button>
         <h2>حركة المخزون</h2>
+        <button type="button" class="btn btn-secondary btn-auto" onclick="exportStockMovementsCSV()">تصدير الحركة CSV</button>
       </div>
 
       <div class="table-wrap section-gap-lg">
@@ -691,10 +912,63 @@
     </div>
   </div>
 
+  <div class="modal app-panel" id="bambuPresetModal" aria-hidden="true">
+    <div class="modal-content modal-md panel-content">
+      <div class="panel-head">
+        <button type="button" onclick="closeBambuPresetModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2>Bambu Lab A1 Preset</h2>
+      </div>
+
+      <div class="preset-card">
+        <h3>تطبيق إعدادات مقترحة لـ Bambu Lab A1</h3>
+        <p>
+          هذا الزر يظبط القيم الافتراضية للشغل اليومي: أجرة الساعة، الكهرباء، التغليف، الهالك،
+          ويضيف/يحدث طابعة Bambu Lab A1 في النظام.
+        </p>
+
+        <div class="grid-2 section-gap-md">
+          <div class="form-group">
+            <label for="presetLaborRate">أجرتك / ساعة</label>
+            <input type="text" id="presetLaborRate" value="50" inputmode="decimal" />
+          </div>
+
+          <div class="form-group">
+            <label for="presetElectricity">كهرباء / ساعة</label>
+            <input type="text" id="presetElectricity" value="3" inputmode="decimal" />
+          </div>
+
+          <div class="form-group">
+            <label for="presetPackaging">تغليف</label>
+            <input type="text" id="presetPackaging" value="10" inputmode="decimal" />
+          </div>
+
+          <div class="form-group">
+            <label for="presetFailure">هالك / مخاطرة %</label>
+            <input type="text" id="presetFailure" value="10" inputmode="decimal" />
+          </div>
+
+          <div class="form-group">
+            <label for="presetDepreciation">إهلاك الطابعة / ساعة</label>
+            <input type="text" id="presetDepreciation" value="0" inputmode="decimal" />
+          </div>
+
+          <div class="form-group">
+            <label for="presetTax">ضريبة / نسبة إضافية %</label>
+            <input type="text" id="presetTax" value="0" inputmode="decimal" />
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-primary section-gap-md" onclick="applyBambuA1Preset()">
+          تطبيق الإعدادات
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal app-panel" id="settingsModal" aria-hidden="true">
     <div class="modal-content modal-lg panel-content">
       <div class="panel-head">
-        <button onclick="closeSettingsModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <button type="button" onclick="closeSettingsModal()" class="btn btn-secondary btn-auto">رجوع</button>
         <h2>الإعدادات العامة</h2>
       </div>
 
@@ -720,7 +994,9 @@
       </div>
 
       <div class="inline-actions section-gap-md">
-        <button class="btn btn-primary" onclick="saveConfig()">حفظ الإعدادات</button>
+        <button type="button" class="btn btn-primary" onclick="saveConfig()">حفظ الإعدادات</button>
+        <button type="button" class="btn btn-secondary" onclick="openBambuPresetModal()">Bambu A1 Preset</button>
+        <button type="button" class="btn btn-secondary" onclick="exportBackupJSON()">تصدير Backup</button>
       </div>
     </div>
   </div>
