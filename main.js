@@ -62,9 +62,34 @@ function asNumber(value, fallback = 0) {
   return Number.isFinite(num) ? num : fallback;
 }
 
+function asPositiveNumber(value, fallback = 0) {
+  const num = asNumber(value, fallback);
+  return num >= 0 ? num : fallback;
+}
+
 function asNullableId(value) {
   const num = Number(value);
   return Number.isFinite(num) && num > 0 ? num : null;
+}
+
+function normalizeStatus(value, fallback = 'new') {
+  const status = asTrimmedString(value, fallback);
+
+  if (['new', 'printing', 'finished', 'delivered', 'cancelled'].includes(status)) {
+    return status;
+  }
+
+  return fallback;
+}
+
+function normalizePrinterStatus(value, fallback = 'idle') {
+  const status = asTrimmedString(value, fallback);
+
+  if (['idle', 'printing', 'maintenance', 'offline'].includes(status)) {
+    return status;
+  }
+
+  return fallback;
 }
 
 function createMainWindow() {
@@ -73,8 +98,8 @@ function createMainWindow() {
   }
 
   mainWindow = new BrowserWindow({
-    width: 1450,
-    height: 950,
+    width: 1500,
+    height: 960,
     minWidth: 1200,
     minHeight: 820,
     show: false,
@@ -148,8 +173,8 @@ function normalizePrinterPayload(payload) {
     id: asNullableId(data.id),
     name: asTrimmedString(data.name),
     model: asTrimmedString(data.model),
-    status: asTrimmedString(data.status, 'idle'),
-    hourlyDepreciation: asNumber(data.hourlyDepreciation, 0),
+    status: normalizePrinterStatus(data.status, 'idle'),
+    hourlyDepreciation: asPositiveNumber(data.hourlyDepreciation, 0),
     notes: asTrimmedString(data.notes)
   };
 }
@@ -162,25 +187,44 @@ function normalizeMaterialPayload(payload) {
     name: asTrimmedString(data.name),
     type: asTrimmedString(data.type),
     color: asTrimmedString(data.color),
-    weight: asNumber(data.weight, 0),
-    remaining: asNumber(data.remaining, 0),
-    price: asNumber(data.price, 0),
-    lowStockThreshold: asNumber(data.lowStockThreshold, 0),
+    weight: asPositiveNumber(data.weight, 0),
+    remaining: asPositiveNumber(data.remaining, 0),
+    price: asPositiveNumber(data.price, 0),
+    lowStockThreshold: asPositiveNumber(data.lowStockThreshold, 0),
     supplier: asTrimmedString(data.supplier)
+  };
+}
+
+function normalizeOrderPayload(payload) {
+  const data = asObject(payload);
+
+  return {
+    code: asTrimmedString(data.code),
+    itemName: asTrimmedString(data.itemName),
+    customerName: asTrimmedString(data.customerName),
+    printerId: asNullableId(data.printerId),
+    status: normalizeStatus(data.status, 'new'),
+    printHours: asPositiveNumber(data.printHours, 0),
+    manualMinutes: asPositiveNumber(data.manualMinutes, 0),
+    notes: asTrimmedString(data.notes),
+    date: asTrimmedString(data.date),
+    materialCost: asPositiveNumber(data.materialCost, 0),
+    depreciationCost: asPositiveNumber(data.depreciationCost, 0),
+    electricityCost: asPositiveNumber(data.electricityCost, 0),
+    laborCost: asPositiveNumber(data.laborCost, 0),
+    packagingCost: asPositiveNumber(data.packagingCost, 0),
+    shippingCost: asPositiveNumber(data.shippingCost, 0),
+    riskCost: asPositiveNumber(data.riskCost, 0),
+    totalCost: asPositiveNumber(data.totalCost, 0),
+    finalPrice: asPositiveNumber(data.finalPrice, 0),
+    profit: asNumber(data.profit, 0),
+    materialUsage: Array.isArray(data.materialUsage) ? data.materialUsage : []
   };
 }
 
 function validatePrinterPayload(data) {
   if (!data.name) {
     throw new Error('اسم الطابعة مطلوب');
-  }
-
-  if (!['idle', 'printing', 'maintenance', 'offline'].includes(data.status)) {
-    data.status = 'idle';
-  }
-
-  if (data.hourlyDepreciation < 0) {
-    data.hourlyDepreciation = 0;
   }
 }
 
@@ -193,16 +237,62 @@ function validateMaterialPayload(data) {
     throw new Error('وزن الخامة لازم يكون أكبر من صفر');
   }
 
-  if (data.remaining < 0) {
-    data.remaining = 0;
+  if (data.remaining > data.weight) {
+    throw new Error('المتبقي لا يمكن أن يكون أكبر من وزن البكرة');
+  }
+}
+
+function validateCreateOrderPayload(data) {
+  if (!data.code) {
+    throw new Error('كود الأوردر غير صالح');
   }
 
-  if (data.price < 0) {
-    data.price = 0;
+  if (!data.itemName) {
+    throw new Error('اسم المجسم مطلوب');
   }
 
-  if (data.lowStockThreshold < 0) {
-    data.lowStockThreshold = 0;
+  if (!data.printerId) {
+    throw new Error('اختار الطابعة المستخدمة');
+  }
+
+  if (!data.date) {
+    throw new Error('تاريخ الأوردر مطلوب');
+  }
+
+  if (data.printHours <= 0) {
+    throw new Error('وقت الطباعة لازم يكون أكبر من صفر');
+  }
+
+  if (!Array.isArray(data.materialUsage) || data.materialUsage.length === 0) {
+    throw new Error('أدخل استهلاك خامة واحدة على الأقل');
+  }
+
+  for (const item of data.materialUsage) {
+    if (!item || !item.materialId) {
+      throw new Error('بيانات الخامة غير صالحة');
+    }
+
+    if (asPositiveNumber(item.grams, 0) <= 0) {
+      throw new Error('كمية الخامة لازم تكون أكبر من صفر');
+    }
+  }
+
+  if (data.finalPrice < data.totalCost) {
+    throw new Error('سعر البيع أقل من التكلفة');
+  }
+}
+
+function validateUpdateOrderPayload(data) {
+  if (!data.code) {
+    throw new Error('كود الأوردر غير صالح');
+  }
+
+  if (!data.itemName) {
+    throw new Error('اسم المجسم مطلوب');
+  }
+
+  if (!data.date) {
+    throw new Error('تاريخ الأوردر مطلوب');
   }
 }
 
@@ -301,7 +391,9 @@ function registerIpcHandlers() {
   handleIpc(
     CHANNELS.createOrder,
     async (payload) => {
-      createOrder(payload);
+      const data = normalizeOrderPayload(payload);
+      validateCreateOrderPayload(data);
+      createOrder(data);
       return ok();
     },
     'فشل في حفظ الأوردر'
@@ -310,7 +402,9 @@ function registerIpcHandlers() {
   handleIpc(
     CHANNELS.updateOrder,
     async (payload) => {
-      updateOrder(payload);
+      const data = normalizeOrderPayload(payload);
+      validateUpdateOrderPayload(data);
+      updateOrder(data);
       return ok();
     },
     'فشل في تعديل الأوردر'
@@ -340,7 +434,8 @@ function registerIpcHandlers() {
   handleIpc(
     CHANNELS.importBackup,
     async (payload) => {
-      replaceAllData(payload);
+      const confirmedPayload = asObject(payload);
+      replaceAllData(confirmedPayload);
       return ok();
     },
     'فشل في استيراد النسخة الاحتياطية'
