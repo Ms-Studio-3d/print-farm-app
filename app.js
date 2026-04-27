@@ -1,1558 +1,1744 @@
-let dashboardData = {
-  config: {},
-  printers: [],
-  materials: [],
-  orders: [],
-  stockMovements: []
-};
+:root {
+  --bg: #050807;
+  --bg-2: #07110d;
 
-let currentCalc = createEmptyCalc();
-let editingOrderCode = null;
-let currentNavView = 'order';
+  --panel: #0b1210;
+  --panel-2: #0f1915;
+  --panel-3: #121f1a;
 
-const DEFAULT_CONFIG = {
-  farmName: '3D Printing Business Manager',
-  currencyName: 'ج',
-  laborRate: 50,
-  electricityCostPerHour: 3,
-  packagingCost: 10,
-  failurePercent: 10,
-  shippingCost: 0,
-  defaultTaxPercent: 0
-};
+  --text: #f3f7f4;
+  --text-soft: #8ea39a;
+  --text-muted: #64746d;
 
-const MODAL_IDS = [
-  'reportsModal',
-  'editModal',
-  'printerModal',
-  'materialModal',
-  'stockMovementsModal',
-  'settingsModal',
-  'printersManagerModal',
-  'materialsManagerModal'
-];
+  --primary: #00e676;
+  --primary-2: #00c853;
+  --primary-soft: rgba(0, 230, 118, .12);
+  --primary-border: rgba(0, 230, 118, .35);
 
-const NAV_MODAL_MAP = {
-  order: null,
-  materials: 'materialsManagerModal',
-  printers: 'printersManagerModal',
-  reports: 'reportsModal',
-  settings: 'settingsModal',
-  stock: 'stockMovementsModal'
-};
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #38bdf8;
 
-function createEmptyCalc() {
-  return {
-    materialCost: 0,
-    depreciationCost: 0,
-    electricityCost: 0,
-    laborCost: 0,
-    packagingCost: 0,
-    shippingCost: 0,
-    riskCost: 0,
-    totalCost: 0,
-    finalPrice: 0,
-    profit: 0,
-    materialUsage: []
-  };
+  --border: rgba(255, 255, 255, .08);
+  --border-strong: rgba(255, 255, 255, .14);
+
+  --shadow: 0 24px 80px rgba(0, 0, 0, .55);
+  --shadow-soft: 0 12px 34px rgba(0, 0, 0, .35);
+
+  --radius-xl: 24px;
+  --radius-lg: 18px;
+  --radius-md: 14px;
+
+  --nav-height: 82px;
 }
 
-function $(id) {
-  return document.getElementById(id);
+* {
+  box-sizing: border-box;
 }
 
-function normalizeDigits(value) {
-  return String(value ?? '')
-    .replace(/[٠-٩]/g, (d) => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
-    .replace(/[٫]/g, '.')
-    .replace(/[٬]/g, '')
-    .replace(/,/g, '.')
-    .trim();
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: "Cairo", sans-serif;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(0, 230, 118, .13), transparent 34%),
+    radial-gradient(circle at 88% 10%, rgba(0, 200, 83, .08), transparent 34%),
+    linear-gradient(180deg, #050807 0%, #020403 100%);
+  color: var(--text);
+  overflow: hidden;
 }
 
-function toNumber(value, fallback = 0) {
-  const normalized = normalizeDigits(value);
-  if (normalized === '') return fallback;
-
-  const num = Number(normalized);
-  return Number.isFinite(num) ? num : fallback;
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
 }
 
-function toPositiveNumber(value, fallback = 0) {
-  const num = toNumber(value, fallback);
-  return num >= 0 ? num : fallback;
+button {
+  color: inherit;
 }
 
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+::selection {
+  background: rgba(0, 230, 118, .35);
+  color: #fff;
 }
 
-function getCurrency() {
-  return String(dashboardData.config.currencyName || DEFAULT_CONFIG.currencyName || 'ج').trim() || 'ج';
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
 }
 
-function formatMoney(value) {
-  return `${Number(value || 0).toFixed(2)} ${getCurrency()}`;
+::-webkit-scrollbar-track {
+  background: #07100d;
 }
 
-function formatDateTime(value) {
-  if (!value) return '-';
-  return String(value).replace('T', ' ').slice(0, 19);
+::-webkit-scrollbar-thumb {
+  background: #1d332a;
+  border-radius: 999px;
+  border: 2px solid #07100d;
 }
 
-function getTodayDateString() {
-  return new Date().toISOString().slice(0, 10);
+::-webkit-scrollbar-thumb:hover {
+  background: #285242;
 }
 
-function setText(id, value) {
-  const el = $(id);
-  if (el) el.innerText = value;
+/* Main Shell */
+.app-shell {
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
 }
 
-function setValue(id, value) {
-  const el = $(id);
-  if (el) el.value = value;
+.tablet-shell {
+  padding: 0;
 }
 
-function getValue(id, fallback = '') {
-  return String($(id)?.value ?? fallback);
+.app-frame {
+  width: 100%;
+  height: 100vh;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-function getTrimmedValue(id, fallback = '') {
-  return getValue(id, fallback).trim();
+/* Topbar */
+.app-topbar {
+  min-height: 86px;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border);
+  background:
+    linear-gradient(90deg, rgba(0, 230, 118, .08), transparent 38%),
+    rgba(7, 16, 13, .88);
+  backdrop-filter: blur(18px);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  flex-shrink: 0;
 }
 
-function getConfigNumber(key) {
-  return toPositiveNumber(dashboardData.config[key], toPositiveNumber(DEFAULT_CONFIG[key], 0));
+.app-topbar-copy {
+  min-width: 0;
 }
 
-function getPrinterById(id) {
-  return dashboardData.printers.find((printer) => String(printer.id) === String(id));
+.app-title {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.15;
+  font-weight: 900;
+  letter-spacing: -.5px;
 }
 
-function getMaterialById(id) {
-  return dashboardData.materials.find((material) => String(material.id) === String(id));
+.app-title::after {
+  content: " A1";
+  color: var(--primary);
+  text-shadow: 0 0 18px rgba(0, 230, 118, .35);
 }
 
-function getOrderByCode(code) {
-  return dashboardData.orders.find((item) => item.code === code);
+.app-subtitle {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--text-soft);
 }
 
-function getPrinterStatusClass(status) {
-  switch (status) {
-    case 'idle':
-      return 'status-success';
-    case 'printing':
-      return 'status-warning';
-    case 'maintenance':
-    case 'offline':
-      return 'status-danger';
-    default:
-      return '';
-  }
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
-function getOrderStatusClass(status) {
-  switch (status) {
-    case 'delivered':
-    case 'finished':
-      return 'status-success';
-    case 'new':
-    case 'printing':
-      return 'status-warning';
-    case 'cancelled':
-      return 'status-danger';
-    default:
-      return '';
-  }
+.order-code-chip {
+  background:
+    linear-gradient(180deg, rgba(0, 230, 118, .16), rgba(0, 230, 118, .07));
+  color: #b8ffd8;
+  border: 1px solid var(--primary-border);
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 900;
+  box-shadow: 0 0 28px rgba(0, 230, 118, .12);
+  white-space: nowrap;
 }
 
-function setActiveNav(view) {
-  currentNavView = view;
-
-  document.querySelectorAll('.nav-btn').forEach((button) => {
-    const isActive = button.dataset.view === view;
-    button.classList.toggle('nav-btn-active', isActive);
-  });
+/* Content */
+.app-content {
+  flex: 1;
+  overflow: auto;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 30% 0%, rgba(0, 230, 118, .055), transparent 32%),
+    transparent;
 }
 
-function openModal(id) {
-  const modal = $(id);
-  if (!modal) return;
-
-  modal.style.display = 'flex';
-  modal.setAttribute('aria-hidden', 'false');
+.screen {
+  display: none;
 }
 
-function closeModal(id) {
-  const modal = $(id);
-  if (!modal) return;
-
-  modal.style.display = 'none';
-  modal.setAttribute('aria-hidden', 'true');
+.active-screen {
+  display: block;
 }
 
-function isModalOpen(id) {
-  const modal = $(id);
-  return !!modal && modal.style.display === 'flex';
+/* Dashboard */
+.dashboard-hero {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
 }
 
-function activateNavForModal(modalId) {
-  const entry = Object.entries(NAV_MODAL_MAP).find(([, value]) => value === modalId);
-  if (entry) {
-    setActiveNav(entry[0]);
-  }
+.dashboard-title-card {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(0, 230, 118, .18), transparent 34%),
+    radial-gradient(circle at 92% 20%, rgba(255, 255, 255, .08), transparent 24%),
+    linear-gradient(180deg, rgba(255, 255, 255, .055), rgba(255, 255, 255, .018)),
+    #07100d;
+  border: 1px solid rgba(0, 230, 118, .18);
+  border-radius: var(--radius-xl);
+  padding: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+  position: relative;
 }
 
-function returnToOrderNav() {
-  const hasMainPanelOpen = Object.values(NAV_MODAL_MAP).some((modalId) => {
-    return modalId && isModalOpen(modalId);
-  });
-
-  if (!hasMainPanelOpen) {
-    setActiveNav('order');
-  }
-}
-
-function showToast(message, type = 'success') {
-  const oldToast = $('toastMsg');
-  if (oldToast) oldToast.remove();
-
-  const toast = document.createElement('div');
-  toast.id = 'toastMsg';
-  toast.className = `toast ${type}`;
-  toast.innerText = message;
-
-  document.body.appendChild(toast);
-
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateY(-8px)';
-  }, 2200);
-
-  setTimeout(() => {
-    if (toast.parentNode) toast.remove();
-  }, 2600);
-}
-
-async function askConfirm(message) {
-  try {
-    const response = await window.farmAPI.confirm(message);
-    return !!response?.success && !!response?.confirmed;
-  } catch {
-    return false;
-  }
-}
-
-function getPrinterStatusText(status) {
-  switch (status) {
-    case 'idle':
-      return 'متاحة';
-    case 'printing':
-      return 'تطبع الآن';
-    case 'maintenance':
-      return 'صيانة';
-    case 'offline':
-      return 'متوقفة';
-    default:
-      return 'غير محدد';
-  }
-}
-
-function getOrderStatusText(status) {
-  switch (status) {
-    case 'new':
-      return 'جديد';
-    case 'printing':
-      return 'قيد الطباعة';
-    case 'finished':
-      return 'جاهز';
-    case 'delivered':
-      return 'تم التسليم';
-    case 'cancelled':
-      return 'ملغي';
-    default:
-      return 'غير محدد';
-  }
-}
-
-function getMovementTypeText(type) {
-  switch (type) {
-    case 'in':
-      return 'إضافة';
-    case 'out':
-      return 'خصم';
-    case 'return':
-      return 'استرجاع';
-    case 'adjust_in':
-      return 'زيادة يدوية';
-    case 'adjust_out':
-      return 'نقص يدوي';
-    default:
-      return type || '-';
-  }
-}
-
-function updateTopTitle() {
-  const appTitle = document.querySelector('.app-title');
-  const farmName = dashboardData.config.farmName || DEFAULT_CONFIG.farmName;
-
-  if (appTitle) {
-    appTitle.innerText = farmName;
-  }
-
-  document.title = farmName;
-}
-
-function applyConfigToInputs() {
-  const defaultTax = String(
-    toPositiveNumber(
-      dashboardData.config.defaultTaxPercent,
-      DEFAULT_CONFIG.defaultTaxPercent
-    )
-  );
-
-  setValue('farmName', dashboardData.config.farmName || DEFAULT_CONFIG.farmName);
-  setValue('currencyName', dashboardData.config.currencyName || DEFAULT_CONFIG.currencyName);
-
-  setValue('defaultTaxPercent', defaultTax);
-  setValue('settingsDefaultTaxPercent', defaultTax);
-
-  setValue('laborRate', String(toPositiveNumber(dashboardData.config.laborRate, DEFAULT_CONFIG.laborRate)));
-  setValue('electricityCostPerHour', String(toPositiveNumber(dashboardData.config.electricityCostPerHour, DEFAULT_CONFIG.electricityCostPerHour)));
-  setValue('packagingCost', String(toPositiveNumber(dashboardData.config.packagingCost, DEFAULT_CONFIG.packagingCost)));
-  setValue('failurePercent', String(toPositiveNumber(dashboardData.config.failurePercent, DEFAULT_CONFIG.failurePercent)));
-  setValue('shippingCost', String(toPositiveNumber(dashboardData.config.shippingCost, DEFAULT_CONFIG.shippingCost)));
-}
-
-async function setNextOrderCode() {
-  const response = await window.farmAPI.getNextOrderCode();
-  if (!response?.success) return;
-
-  const nextCode = String(response.data || 'ORD-1001');
-  setText('nextOrderCode', nextCode.replace('ORD-', ''));
-}
-
-function getPrimaryPrinter() {
-  if (!dashboardData.printers.length) return null;
-
-  const selectedPrinterId = getValue('selectedPrinter');
-  const selectedPrinter = selectedPrinterId ? getPrinterById(selectedPrinterId) : null;
-
-  if (selectedPrinter) return selectedPrinter;
-
-  const bambuA1 = dashboardData.printers.find((printer) => {
-    const text = `${printer.name || ''} ${printer.model || ''}`.toLowerCase();
-    return text.includes('a1') || text.includes('bambu');
-  });
-
-  return bambuA1 || dashboardData.printers[0];
-}
-
-function renderDashboard() {
-  const today = getTodayDateString();
-
-  const todayOrders = dashboardData.orders.filter((order) => {
-    return String(order.date || '').slice(0, 10) === today && String(order.status || '') !== 'cancelled';
-  });
-
-  const todayRevenue = todayOrders.reduce((sum, order) => {
-    return sum + Number(order.finalPrice || 0);
-  }, 0);
-
-  const todayProfit = todayOrders.reduce((sum, order) => {
-    return sum + Number(order.profit || 0);
-  }, 0);
-
-  const openOrders = dashboardData.orders.filter((order) => {
-    return ['new', 'printing', 'finished'].includes(String(order.status || ''));
-  });
-
-  const lowStockMaterials = dashboardData.materials.filter((material) => {
-    return Number(material.remaining || 0) <= Number(material.lowStockThreshold || 0);
-  });
-
-  const sortedOrders = [...dashboardData.orders].sort((a, b) => {
-    return String(b.date || '').localeCompare(String(a.date || '')) || Number(b.id || 0) - Number(a.id || 0);
-  });
-
-  const lastOrder = sortedOrders[0] || null;
-  const primaryPrinter = getPrimaryPrinter();
-
-  setText('dashTodayRevenue', formatMoney(todayRevenue));
-  setText('dashTodayProfit', formatMoney(todayProfit));
-  setText('dashOpenOrders', String(openOrders.length));
-  setText('dashLowStock', String(lowStockMaterials.length));
-  setText('dashTotalOrders', String(dashboardData.orders.length));
-
-  if (lastOrder) {
-    setText('dashLastOrder', lastOrder.code || '-');
-    setText(
-      'dashLastOrderMeta',
-      `${lastOrder.itemName || '-'} • ${formatMoney(lastOrder.finalPrice || 0)}`
+.dashboard-title-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(0, 230, 118, .10), transparent 45%),
+    repeating-linear-gradient(
+      135deg,
+      rgba(255, 255, 255, .025) 0,
+      rgba(255, 255, 255, .025) 1px,
+      transparent 1px,
+      transparent 12px
     );
-  } else {
-    setText('dashLastOrder', '-');
-    setText('dashLastOrderMeta', 'لا يوجد أوردرات بعد');
+  opacity: .8;
+}
+
+.dashboard-title-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.dashboard-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  color: #b8ffd8;
+  background: rgba(0, 230, 118, .10);
+  border: 1px solid rgba(0, 230, 118, .22);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .4px;
+  margin-bottom: 8px;
+}
+
+.dashboard-title-card h2 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.25;
+  font-weight: 950;
+  letter-spacing: -.5px;
+}
+
+.dashboard-title-card p {
+  margin: 6px 0 0;
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.dashboard-printer-pill {
+  min-width: 240px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, .045);
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 999px;
+  padding: 11px 14px;
+}
+
+.printer-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 999px;
+  background: var(--primary);
+  box-shadow: 0 0 20px rgba(0, 230, 118, .75);
+  flex-shrink: 0;
+}
+
+.printer-dot-warning {
+  background: var(--warning);
+  box-shadow: 0 0 20px rgba(245, 158, 11, .75);
+}
+
+.printer-dot-danger {
+  background: var(--danger);
+  box-shadow: 0 0 20px rgba(239, 68, 68, .75);
+}
+
+.dashboard-printer-pill strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.dashboard-printer-pill small {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-soft);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.dashboard-grid-pro {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.dash-card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .018)),
+    #0b1210;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 14px;
+  min-height: 122px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .24);
+  position: relative;
+  overflow: hidden;
+  text-align: right;
+}
+
+button.dash-card {
+  cursor: pointer;
+}
+
+.dash-card-clickable {
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.dash-card-clickable:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 230, 118, .26);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, .32);
+}
+
+.dash-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at top left, rgba(0, 230, 118, .10), transparent 42%),
+    radial-gradient(circle at bottom right, rgba(255, 255, 255, .045), transparent 34%);
+  opacity: .85;
+}
+
+.dash-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.dash-label {
+  display: block;
+  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.dash-card strong {
+  display: block;
+  margin-top: 6px;
+  color: #f4fff8;
+  font-size: 24px;
+  line-height: 1.1;
+  font-weight: 950;
+  letter-spacing: -.4px;
+}
+
+.dash-card small {
+  display: block;
+  margin-top: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.dash-card-profit {
+  border-color: rgba(0, 230, 118, .18);
+}
+
+.dash-card-profit strong {
+  color: var(--primary);
+  text-shadow: 0 0 18px rgba(0, 230, 118, .20);
+}
+
+.dash-card-warning {
+  border-color: rgba(245, 158, 11, .18);
+}
+
+.dash-card-warning strong {
+  color: #ffd892;
+}
+
+.quick-actions-row {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.quick-action-btn {
+  min-height: 44px;
+  border: 1px solid rgba(0, 230, 118, .18);
+  background:
+    linear-gradient(180deg, rgba(0, 230, 118, .09), rgba(255, 255, 255, .025)),
+    #07100d;
+  color: #d9ffe9;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: .18s ease;
+}
+
+.quick-action-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(0, 230, 118, .35);
+  background:
+    linear-gradient(180deg, rgba(0, 230, 118, .15), rgba(255, 255, 255, .035)),
+    #07100d;
+}
+
+/* Layout Grids */
+.home-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(360px, .95fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+.top-grid,
+.bottom-grid {
+  width: 100%;
+}
+
+.grid-2,
+.grid-3,
+.compact-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grid-3,
+.compact-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.top-grid .compact-grid,
+.bottom-grid .compact-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.section-gap-sm {
+  margin-top: 12px;
+}
+
+.section-gap-md {
+  margin-top: 16px;
+}
+
+.section-gap-lg {
+  margin-top: 18px;
+}
+
+/* Cards */
+.card {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .018)),
+    var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 16px;
+  box-shadow: var(--shadow-soft);
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(120deg, rgba(0, 230, 118, .08), transparent 28%),
+    radial-gradient(circle at 100% 0%, rgba(255, 255, 255, .06), transparent 24%);
+  opacity: .75;
+}
+
+.card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.compact-card {
+  padding: 16px;
+}
+
+.equal-card {
+  min-height: 100%;
+}
+
+/* Section Headers */
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.section-head h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: -.2px;
+}
+
+.section-subtext {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.section-head-light h3 {
+  color: #f4fff8;
+}
+
+.light-text {
+  color: rgba(216, 255, 233, .75);
+}
+
+.section-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 900;
+  border: 1px solid var(--border);
+}
+
+.section-badge-light {
+  color: #b8ffd8;
+  background: rgba(0, 230, 118, .12);
+  border-color: rgba(0, 230, 118, .25);
+}
+
+/* Forms */
+.form-group {
+  min-width: 0;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 7px;
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .035), rgba(255, 255, 255, .015)),
+    #07100d;
+  color: #fff;
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+input,
+select {
+  height: 46px;
+}
+
+textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: rgba(142, 163, 154, .7);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--primary-border);
+  box-shadow: 0 0 0 4px rgba(0, 230, 118, .10);
+  background:
+    linear-gradient(180deg, rgba(0, 230, 118, .055), rgba(255, 255, 255, .015)),
+    #07100d;
+}
+
+input[readonly] {
+  opacity: .8;
+  cursor: not-allowed;
+}
+
+/* Mini Sections */
+.compact-section-block {
+  background: rgba(255, 255, 255, .025);
+  border: 1px solid rgba(255, 255, 255, .065);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+}
+
+.fill-block {
+  min-height: 222px;
+}
+
+.mini-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.mini-section-head h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.mini-section-head span {
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+/* Notes */
+.field-note {
+  background: rgba(0, 230, 118, .07);
+  color: #c9ffe0;
+  border: 1px solid rgba(0, 230, 118, .14);
+  border-radius: var(--radius-md);
+  padding: 11px 13px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+/* Buttons */
+.btn {
+  border: 1px solid transparent;
+  cursor: pointer;
+  min-height: 44px;
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 900;
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease, border-color .18s ease;
+  user-select: none;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0) scale(.99);
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, #15f58a, #00b85c);
+  color: #03100a;
+  border-color: rgba(255, 255, 255, .12);
+  box-shadow: 0 14px 30px rgba(0, 230, 118, .20);
+}
+
+.btn-primary:hover {
+  box-shadow: 0 18px 42px rgba(0, 230, 118, .28);
+}
+
+.btn-secondary {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .075), rgba(255, 255, 255, .035));
+  color: #e8f5ee;
+  border: 1px solid var(--border-strong);
+}
+
+.btn-secondary:hover {
+  border-color: rgba(0, 230, 118, .32);
+  background:
+    linear-gradient(180deg, rgba(0, 230, 118, .10), rgba(255, 255, 255, .035));
+}
+
+.btn-danger {
+  background: linear-gradient(180deg, #ff5a5a, #dc2626);
+  color: #fff;
+  box-shadow: 0 14px 30px rgba(239, 68, 68, .20);
+}
+
+.btn-save {
+  width: 100%;
+  background: linear-gradient(180deg, #15f58a, #00b85c);
+  color: #03100a;
+  min-height: 54px;
+  font-size: 16px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  box-shadow: 0 18px 45px rgba(0, 230, 118, .22);
+}
+
+.btn-small {
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.btn-auto {
+  width: auto;
+  min-width: 92px;
+}
+
+.inline-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Result Card */
+.result-card {
+  background:
+    radial-gradient(circle at top right, rgba(0, 230, 118, .18), transparent 38%),
+    linear-gradient(180deg, #07100d, #0b1210);
+  border-color: rgba(0, 230, 118, .16);
+}
+
+.compact-result-card {
+  padding: 16px;
+}
+
+.summary-card {
+  position: sticky;
+  top: 0;
+  align-self: start;
+}
+
+.summary-main {
+  display: grid;
+  gap: 10px;
+}
+
+.summary-stat {
+  padding: 13px;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, .035);
+  border: 1px solid rgba(255, 255, 255, .07);
+}
+
+.summary-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-soft);
+  font-weight: 800;
+}
+
+.summary-value {
+  display: block;
+  margin-top: 3px;
+  font-size: 27px;
+  line-height: 1.15;
+  font-weight: 950;
+  letter-spacing: -.5px;
+}
+
+.summary-stat:nth-child(2) .summary-value {
+  color: var(--primary);
+  text-shadow: 0 0 22px rgba(0, 230, 118, .24);
+}
+
+.final-price-box {
+  margin-top: 14px;
+}
+
+/* Bottom Nav */
+.bottom-nav {
+  height: var(--nav-height);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .04), rgba(255, 255, 255, .015)),
+    rgba(7, 16, 13, .94);
+  backdrop-filter: blur(18px);
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  padding: 10px;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.nav-btn {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-soft);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+  transition: .18s ease;
+}
+
+.nav-btn:hover {
+  background: rgba(255, 255, 255, .045);
+  color: #dcece4;
+}
+
+.nav-btn-active {
+  background: var(--primary-soft);
+  color: #b8ffd8;
+  border-color: rgba(0, 230, 118, .22);
+  box-shadow: inset 0 0 0 1px rgba(0, 230, 118, .08), 0 10px 24px rgba(0, 0, 0, .18);
+}
+
+.nav-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+}
+
+.nav-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Tables */
+.table-wrap {
+  background: #07100d;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: auto;
+  max-height: 460px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #0e1a15;
+  color: #dff7ea;
+  padding: 12px 10px;
+  font-size: 12px;
+  text-align: start;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+tbody td {
+  padding: 11px 10px;
+  color: #c8d8d0;
+  border-bottom: 1px solid rgba(255, 255, 255, .06);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+tbody tr {
+  transition: background .16s ease;
+}
+
+tbody tr:hover {
+  background: rgba(0, 230, 118, .055);
+}
+
+/* Modal Panels */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .76);
+  display: none;
+  z-index: 999;
+  backdrop-filter: blur(10px);
+}
+
+.modal-content {
+  width: min(1180px, calc(100% - 28px));
+  height: min(860px, calc(100% - 28px));
+  margin: 14px auto;
+  background:
+    radial-gradient(circle at top right, rgba(0, 230, 118, .10), transparent 34%),
+    #0b1210;
+  border: 1px solid var(--border-strong);
+  border-radius: 26px;
+  padding: 20px;
+  overflow: auto;
+  box-shadow: var(--shadow);
+}
+
+.modal-xl {
+  width: min(1420px, calc(100% - 28px));
+}
+
+.modal-lg {
+  width: min(980px, calc(100% - 28px));
+}
+
+.modal-md {
+  width: min(760px, calc(100% - 28px));
+}
+
+.panel-content {
+  display: block;
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.panel-head h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 950;
+  letter-spacing: -.3px;
+}
+
+/* Stats */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stats-grid-pro {
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+}
+
+.stat-box,
+.mini-kpi {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .02));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+}
+
+.stat-box h4,
+.mini-kpi span {
+  margin: 0 0 8px;
+  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.stat-box div,
+.mini-kpi strong {
+  display: block;
+  color: #f3fff8;
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 950;
+}
+
+.stat-box:nth-child(1) div,
+.stat-box:nth-child(2) div,
+.mini-kpi strong {
+  color: var(--primary);
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 220px));
+  gap: 12px;
+}
+
+/* Toolbar */
+.toolbar {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.toolbar-wrap {
+  align-items: end;
+}
+
+/* Lists */
+.stack-list {
+  display: grid;
+  gap: 12px;
+}
+
+.stack-list > * {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .018));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+}
+
+/* Pipeline */
+.pipeline-board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(260px, 1fr));
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  min-height: 520px;
+}
+
+.pipeline-column {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .035), rgba(255, 255, 255, .015)),
+    rgba(7, 16, 13, .88);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  min-width: 260px;
+}
+
+.pipeline-column-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, .07);
+}
+
+.pipeline-column-head h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 950;
+}
+
+.pipeline-column-head span {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(0, 230, 118, .10);
+  color: #b8ffd8;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: 950;
+  border: 1px solid rgba(0, 230, 118, .18);
+}
+
+.pipeline-list {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.pipeline-card {
+  background:
+    radial-gradient(circle at top right, rgba(0, 230, 118, .09), transparent 38%),
+    linear-gradient(180deg, rgba(255, 255, 255, .055), rgba(255, 255, 255, .02)),
+    #0b1210;
+  border: 1px solid rgba(255, 255, 255, .09);
+  border-radius: 16px;
+  padding: 12px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .22);
+}
+
+.pipeline-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.pipeline-code {
+  color: #b8ffd8;
+  font-weight: 950;
+  font-size: 13px;
+}
+
+.pipeline-title {
+  display: block;
+  margin-top: 4px;
+  font-weight: 950;
+  color: #f4fff8;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.pipeline-meta {
+  display: grid;
+  gap: 4px;
+  color: var(--text-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.pipeline-price {
+  margin-top: 8px;
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: #c8d8d0;
+}
+
+.pipeline-price strong {
+  color: var(--primary);
+  font-size: 15px;
+}
+
+.pipeline-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.pipeline-actions .action-btn {
+  margin: 0;
+  padding: 6px 8px;
+}
+
+.status-step-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.status-step-btn {
+  border: 1px solid rgba(255, 255, 255, .10);
+  background: rgba(255, 255, 255, .045);
+  color: #dcece4;
+  border-radius: 999px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.status-step-btn:hover {
+  background: rgba(0, 230, 118, .10);
+  border-color: rgba(0, 230, 118, .28);
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  top: 18px;
+  left: 18px;
+  z-index: 2000;
+  max-width: 420px;
+  background:
+    linear-gradient(180deg, rgba(0, 230, 118, .18), rgba(0, 230, 118, .09)),
+    #07100d;
+  color: #d9ffe9;
+  border: 1px solid rgba(0, 230, 118, .32);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, .5);
+  border-radius: 16px;
+  padding: 13px 16px;
+  font-size: 14px;
+  font-weight: 800;
+  transition: .25s ease;
+}
+
+.toast.error {
+  background:
+    linear-gradient(180deg, rgba(239, 68, 68, .18), rgba(239, 68, 68, .08)),
+    #120707;
+  color: #ffd6d6;
+  border-color: rgba(239, 68, 68, .35);
+}
+
+/* List Cards */
+.list-card,
+.stock-item {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .018)),
+    #0b1210;
+  border: 1px solid rgba(255, 255, 255, .08);
+  border-radius: 18px;
+  padding: 14px;
+}
+
+.list-card-head,
+.stock-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.list-card-head strong,
+.stock-header span:first-child {
+  font-size: 16px;
+  font-weight: 950;
+}
+
+.list-card-body,
+.stock-details {
+  display: grid;
+  gap: 7px;
+  color: #9fb2aa;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.card-actions {
+  margin-top: 12px;
+}
+
+/* Stock Progress */
+.stock-bar {
+  width: 100%;
+  height: 10px;
+  background: rgba(255, 255, 255, .07);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 10px 0 12px;
+}
+
+.stock-progress {
+  height: 100%;
+  background: linear-gradient(90deg, #00c853, #15f58a);
+  border-radius: 999px;
+  box-shadow: 0 0 18px rgba(0, 230, 118, .28);
+}
+
+.stock-item.low {
+  border-color: rgba(245, 158, 11, .30);
+}
+
+.stock-item.low .stock-progress {
+  background: linear-gradient(90deg, #ef4444, #f59e0b);
+}
+
+/* Badges */
+.badge,
+.status-chip,
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 900;
+  background: rgba(255, 255, 255, .06);
+  color: #dcece4;
+  border: 1px solid rgba(255, 255, 255, .08);
+  white-space: nowrap;
+}
+
+.badge-success,
+.status-success {
+  background: rgba(34, 197, 94, .14);
+  color: #9fffc4;
+  border-color: rgba(34, 197, 94, .28);
+}
+
+.badge-warning,
+.status-warning {
+  background: rgba(245, 158, 11, .14);
+  color: #ffd892;
+  border-color: rgba(245, 158, 11, .28);
+}
+
+.badge-danger,
+.status-danger {
+  background: rgba(239, 68, 68, .14);
+  color: #ffb4b4;
+  border-color: rgba(239, 68, 68, .28);
+}
+
+/* Table Action Buttons */
+.action-btn {
+  border: 1px solid rgba(255, 255, 255, .10);
+  background: rgba(255, 255, 255, .05);
+  color: #e8f5ee;
+  border-radius: 10px;
+  padding: 7px 10px;
+  margin: 2px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.action-btn:hover {
+  border-color: rgba(0, 230, 118, .35);
+  background: rgba(0, 230, 118, .10);
+}
+
+.action-btn.delete {
+  color: #ffb4b4;
+}
+
+.action-btn.delete:hover {
+  border-color: rgba(239, 68, 68, .35);
+  background: rgba(239, 68, 68, .12);
+}
+
+/* Invoice */
+.invoice-sheet {
+  background: #ffffff;
+  color: #111827;
+  border-radius: 18px;
+  padding: 28px;
+  max-width: 820px;
+  margin: 0 auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .24);
+}
+
+.invoice-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 18px;
+  margin-bottom: 20px;
+}
+
+.invoice-brand h1 {
+  margin: 0;
+  font-size: 28px;
+  color: #111827;
+}
+
+.invoice-brand p,
+.invoice-meta p {
+  margin: 5px 0;
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.invoice-badge {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 7px 12px;
+  color: #065f46;
+  background: #d1fae5;
+  font-weight: 900;
+  font-size: 12px;
+}
+
+.invoice-section {
+  margin-top: 20px;
+}
+
+.invoice-section h3 {
+  margin: 0 0 10px;
+  color: #111827;
+  font-size: 16px;
+}
+
+.invoice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.invoice-box {
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.invoice-box span {
+  display: block;
+  color: #6b7280;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.invoice-box strong {
+  display: block;
+  color: #111827;
+  font-size: 16px;
+}
+
+.invoice-total {
+  margin-top: 22px;
+  border-radius: 18px;
+  background: #111827;
+  color: #fff;
+  padding: 18px;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+}
+
+.invoice-total span {
+  color: #d1d5db;
+  font-size: 13px;
+}
+
+.invoice-total strong {
+  color: #86efac;
+  font-size: 30px;
+}
+
+.invoice-notes {
+  margin-top: 20px;
+  color: #4b5563;
+  background: #f3f4f6;
+  border-radius: 14px;
+  padding: 12px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+/* Preset */
+.preset-card {
+  background:
+    radial-gradient(circle at top right, rgba(0, 230, 118, .13), transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .018)),
+    #0b1210;
+  border: 1px solid rgba(0, 230, 118, .16);
+  border-radius: var(--radius-xl);
+  padding: 18px;
+}
+
+.preset-card h3 {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 950;
+}
+
+.preset-card p {
+  margin: 0;
+  color: var(--text-soft);
+  line-height: 1.8;
+  font-size: 14px;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  color: #8ea39a;
+  padding: 18px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+/* Import Button */
+.import-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Utilities */
+.hidden {
+  display: none !important;
+}
+
+.muted {
+  color: var(--text-soft);
+}
+
+.text-success {
+  color: var(--success);
+}
+
+.text-danger {
+  color: var(--danger);
+}
+
+.text-warning {
+  color: var(--warning);
+}
+
+.no-print {
+  display: flex;
+}
+
+/* Responsive */
+@media (max-width: 1500px) {
+  .dashboard-grid-pro {
+    grid-template-columns: repeat(4, 1fr);
   }
 
-  if (primaryPrinter) {
-    setText('dashPrinterName', primaryPrinter.name || 'Bambu Lab A1');
-    setText('dashPrinterStatus', getPrinterStatusText(primaryPrinter.status));
-  } else {
-    setText('dashPrinterName', 'لا توجد طابعة');
-    setText('dashPrinterStatus', 'أضف طابعة من إدارة الطابعات');
-  }
-
-  const printerDot = document.querySelector('.printer-dot');
-  if (printerDot) {
-    printerDot.classList.remove('printer-dot-warning', 'printer-dot-danger');
-
-    if (primaryPrinter?.status === 'printing') {
-      printerDot.classList.add('printer-dot-warning');
-    }
-
-    if (primaryPrinter?.status === 'maintenance' || primaryPrinter?.status === 'offline' || !primaryPrinter) {
-      printerDot.classList.add('printer-dot-danger');
-    }
+  .stats-grid-pro {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
-async function loadDashboardData() {
-  const response = await window.farmAPI.getDashboardData();
-
-  if (!response?.success) {
-    showToast(response?.message || 'فشل في تحميل البيانات', 'error');
-    return;
+@media (max-width: 1360px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(3, 1fr);
   }
 
-  dashboardData = {
-    config: { ...DEFAULT_CONFIG, ...(response.data?.config || {}) },
-    printers: Array.isArray(response.data?.printers) ? response.data.printers : [],
-    materials: Array.isArray(response.data?.materials) ? response.data.materials : [],
-    orders: Array.isArray(response.data?.orders) ? response.data.orders : [],
-    stockMovements: Array.isArray(response.data?.stockMovements) ? response.data.stockMovements : []
-  };
-
-  applyConfigToInputs();
-  updateTopTitle();
-  renderDashboard();
-  renderPrinters();
-  renderPrinterSelects();
-  renderInventory();
-  renderMaterialUsageInputs();
-  renderReportsTableSafe();
-  renderStockMovementsTableSafe();
-  await setNextOrderCode();
-  calc();
-}
-
-function renderPrinters() {
-  const printersList = $('printersList');
-  if (!printersList) return;
-
-  setText('printersCount', String(dashboardData.printers.length));
-  setText(
-    'activePrintersCount',
-    String(dashboardData.printers.filter((printer) => printer.status === 'printing').length)
-  );
-
-  if (!dashboardData.printers.length) {
-    printersList.innerHTML = `<div class="empty-state">لا توجد طابعات مضافة.</div>`;
-    return;
-  }
-
-  const html = dashboardData.printers
-    .map((printer) => {
-      const printerId = Number(printer.id);
-      const statusText = getPrinterStatusText(printer.status);
-      const statusClass = getPrinterStatusClass(printer.status);
-
-      return `
-        <div class="list-card">
-          <div class="list-card-head">
-            <strong>${escapeHtml(printer.name)}</strong>
-            <span class="section-badge ${statusClass}">${escapeHtml(statusText)}</span>
-          </div>
-
-          <div class="list-card-body">
-            <div>الموديل: ${escapeHtml(printer.model || '-')}</div>
-            <div>إهلاك/ساعة: ${formatMoney(printer.hourlyDepreciation || 0)}</div>
-            <div>ملاحظات: ${escapeHtml(printer.notes || '-')}</div>
-          </div>
-
-          <div class="inline-actions card-actions">
-            <button class="btn btn-secondary" onclick="editPrinter(${printerId})">تعديل</button>
-            <button class="btn btn-danger" onclick="deletePrinterAction(${printerId})">حذف</button>
-          </div>
-        </div>
-      `;
-    })
-    .join('');
-
-  printersList.innerHTML = html;
-}
-
-function renderPrinterSelects() {
-  const options = [
-    `<option value="">اختر طابعة</option>`,
-    ...dashboardData.printers.map(
-      (printer) => `<option value="${Number(printer.id)}">${escapeHtml(printer.name)}</option>`
-    )
-  ].join('');
-
-  ['selectedPrinter', 'editPrinter'].forEach((id) => {
-    const select = $(id);
-    if (!select) return;
-
-    const oldValue = select.value;
-    select.innerHTML = options;
-
-    if ([...select.options].some((opt) => opt.value === oldValue)) {
-      select.value = oldValue;
-    }
-  });
-}
-
-function renderInventory() {
-  const inventoryUI = $('inventoryUI');
-  if (!inventoryUI) return;
-
-  setText('materialsCount', String(dashboardData.materials.length));
-
-  const lowMaterials = dashboardData.materials.filter((material) => {
-    return Number(material.remaining || 0) <= Number(material.lowStockThreshold || 0);
-  });
-
-  setText('lowStockCount', String(lowMaterials.length));
-
-  if (!dashboardData.materials.length) {
-    inventoryUI.innerHTML = `<div class="empty-state">لا توجد خامات مضافة.</div>`;
-    return;
-  }
-
-  const html = dashboardData.materials
-    .map((material) => {
-      const materialId = Number(material.id);
-      const weight = Math.max(Number(material.weight || 0), 1);
-      const remaining = toPositiveNumber(material.remaining, 0);
-      const percentage = Math.max(0, Math.min(100, (remaining / weight) * 100));
-      const isLow = remaining <= Number(material.lowStockThreshold || 0);
-
-      return `
-        <div class="stock-item ${isLow ? 'low' : ''}">
-          <div class="stock-header">
-            <span>${escapeHtml(material.name)}</span>
-            <span>${remaining.toFixed(0)}g / ${weight.toFixed(0)}g</span>
-          </div>
-
-          <div class="stock-bar">
-            <div class="stock-progress" style="width:${percentage}%"></div>
-          </div>
-
-          <div class="list-card-body stock-details">
-            <div>النوع: ${escapeHtml(material.type || '-')}</div>
-            <div>اللون: ${escapeHtml(material.color || '-')}</div>
-            <div>المورد: ${escapeHtml(material.supplier || '-')}</div>
-            <div>السعر: ${formatMoney(material.price || 0)}</div>
-            <div>حد التنبيه: ${toPositiveNumber(material.lowStockThreshold, 0).toFixed(0)}g</div>
-          </div>
-
-          <div class="inline-actions card-actions">
-            <button class="btn btn-secondary" onclick="editMaterial(${materialId})">تعديل</button>
-            <button class="btn btn-danger" onclick="deleteMaterialAction(${materialId})">حذف</button>
-          </div>
-        </div>
-      `;
-    })
-    .join('');
-
-  inventoryUI.innerHTML = html;
-}
-
-function renderMaterialUsageInputs() {
-  const amsInputs = $('amsInputs');
-  if (!amsInputs) return;
-
-  const previousValues = {};
-  document.querySelectorAll('.ams-weight').forEach((input) => {
-    previousValues[String(input.dataset.id)] = input.value;
-  });
-
-  if (!dashboardData.materials.length) {
-    amsInputs.innerHTML = `<div class="empty-state">أضف خامة أولًا لكي يظهر إدخال الاستهلاك.</div>`;
-    return;
-  }
-
-  const html = dashboardData.materials
-    .map((material) => {
-      const isLow = Number(material.remaining || 0) <= Number(material.lowStockThreshold || 0);
-      const lowHint = isLow ? '<div class="field-note">تنبيه: المخزون منخفض</div>' : '';
-
-      return `
-        <div class="form-group">
-          <label>
-            ${escapeHtml(material.name)}
-            <span style="color:#94a3b8">• ${escapeHtml(material.color || 'No Color')}</span>
-            (${toPositiveNumber(material.remaining, 0).toFixed(0)}g)
-          </label>
-          <input
-            type="text"
-            class="ams-weight"
-            data-id="${Number(material.id)}"
-            placeholder="جرام"
-            inputmode="decimal"
-          />
-          ${lowHint}
-        </div>
-      `;
-    })
-    .join('');
-
-  amsInputs.innerHTML = html;
-
-  document.querySelectorAll('.ams-weight').forEach((input) => {
-    const oldValue = previousValues[String(input.dataset.id)];
-    if (oldValue != null) {
-      input.value = oldValue;
-    }
-
-    input.addEventListener('input', calc);
-    input.addEventListener('change', calc);
-  });
-}
-
-function getMaterialUsageFromInputs() {
-  const usage = [];
-
-  document.querySelectorAll('.ams-weight').forEach((input) => {
-    const grams = toPositiveNumber(input.value, 0);
-    const material = getMaterialById(String(input.dataset.id));
-
-    if (!material || grams <= 0) return;
-
-    const pricePerGram = Number(material.weight || 0) > 0
-      ? Number(material.price || 0) / Number(material.weight || 0)
-      : 0;
-
-    usage.push({
-      materialId: Number(material.id),
-      materialName: material.name,
-      grams: Number(grams.toFixed(2)),
-      pricePerGram: Number(pricePerGram.toFixed(6)),
-      totalCost: Number((grams * pricePerGram).toFixed(2)),
-      remaining: Number(material.remaining || 0)
-    });
-  });
-
-  return usage;
-}
-
-function calc() {
-  const materialUsage = getMaterialUsageFromInputs();
-
-  const printHours = toPositiveNumber(getValue('printHours'), 0);
-  const manualMinutes = toPositiveNumber(getValue('manualMins'), 0);
-  const profitMargin = toPositiveNumber(getValue('profitMargin'), 0);
-  const packagingCost = toPositiveNumber(getValue('packagingCost'), getConfigNumber('packagingCost'));
-  const shippingCost = toPositiveNumber(getValue('shippingCost'), getConfigNumber('shippingCost'));
-  const laborRate = toPositiveNumber(getValue('laborRate'), getConfigNumber('laborRate'));
-  const electricityCostPerHour = toPositiveNumber(
-    getValue('electricityCostPerHour'),
-    getConfigNumber('electricityCostPerHour')
-  );
-  const failurePercent = toPositiveNumber(
-    getValue('failurePercent'),
-    getConfigNumber('failurePercent')
-  );
-  const defaultTaxPercent = toPositiveNumber(
-    getValue('defaultTaxPercent'),
-    getConfigNumber('defaultTaxPercent')
-  );
-
-  const materialCost = materialUsage.reduce((sum, entry) => {
-    return sum + Number(entry.totalCost || 0);
-  }, 0);
-
-  const selectedPrinterId = getValue('selectedPrinter');
-  const printer = selectedPrinterId ? getPrinterById(selectedPrinterId) : null;
-  const hourlyDepreciation = toPositiveNumber(printer?.hourlyDepreciation, 0);
-
-  const depreciationCost = printHours * hourlyDepreciation;
-  const electricityCost = printHours * electricityCostPerHour;
-  const laborCost = (manualMinutes / 60) * laborRate;
-
-  const baseCost =
-    materialCost +
-    depreciationCost +
-    electricityCost +
-    laborCost +
-    packagingCost +
-    shippingCost;
-
-  const riskCost = baseCost * (failurePercent / 100);
-  const costBeforeTax = baseCost + riskCost;
-  const taxCost = costBeforeTax * (defaultTaxPercent / 100);
-  const totalCost = costBeforeTax + taxCost;
-  const finalPrice = Math.ceil(totalCost * (1 + (profitMargin / 100)));
-  const profit = finalPrice - totalCost;
-
-  setText('resMat', formatMoney(materialCost));
-  setText('resDep', formatMoney(depreciationCost));
-  setText('resElectricity', formatMoney(electricityCost));
-  setText('resLabor', formatMoney(laborCost));
-  setText('resPackaging', formatMoney(packagingCost));
-  setText('resShipping', formatMoney(shippingCost));
-  setText('resRisk', formatMoney(riskCost + taxCost));
-  setText('resTotal', formatMoney(totalCost));
-  setText('resFinal', formatMoney(finalPrice));
-  setText('resProfit', formatMoney(profit));
-
-  currentCalc = {
-    materialCost: Number(materialCost.toFixed(2)),
-    depreciationCost: Number(depreciationCost.toFixed(2)),
-    electricityCost: Number(electricityCost.toFixed(2)),
-    laborCost: Number(laborCost.toFixed(2)),
-    packagingCost: Number(packagingCost.toFixed(2)),
-    shippingCost: Number(shippingCost.toFixed(2)),
-    riskCost: Number((riskCost + taxCost).toFixed(2)),
-    totalCost: Number(totalCost.toFixed(2)),
-    finalPrice: Number(finalPrice.toFixed(2)),
-    profit: Number(profit.toFixed(2)),
-    materialUsage
-  };
-}
-
-function resetResultsPanel() {
-  setText('resMat', formatMoney(0));
-  setText('resDep', formatMoney(0));
-  setText('resElectricity', formatMoney(0));
-  setText('resLabor', formatMoney(0));
-  setText('resPackaging', formatMoney(0));
-  setText('resShipping', formatMoney(0));
-  setText('resRisk', formatMoney(0));
-  setText('resTotal', formatMoney(0));
-  setText('resFinal', formatMoney(0));
-  setText('resProfit', formatMoney(0));
-}
-
-function resetOrderForm() {
-  setValue('itemName', '');
-  setValue('customerName', '');
-  setValue('selectedPrinter', '');
-  setValue('printHours', '0');
-  setValue('manualMins', '15');
-  setValue('opDate', new Date().toISOString().slice(0, 10));
-  setValue('orderStatus', 'new');
-  setValue('orderNotes', '');
-  setValue('profitMargin', '100');
-
-  document.querySelectorAll('.ams-weight').forEach((input) => {
-    input.value = '';
-  });
-
-  applyConfigToInputs();
-  currentCalc = createEmptyCalc();
-
-  resetResultsPanel();
-  setNextOrderCode();
-  calc();
-  renderDashboard();
-}
-
-function validateOrderBeforeSave() {
-  const itemName = getTrimmedValue('itemName');
-  const printHours = toPositiveNumber(getValue('printHours'), 0);
-  const printerId = getValue('selectedPrinter');
-  const materialUsage = getMaterialUsageFromInputs();
-
-  if (!itemName) {
-    showToast('اسم المجسم مطلوب', 'error');
-    $('itemName')?.focus();
-    return { valid: false };
-  }
-
-  if (!printerId) {
-    showToast('اختار الطابعة المستخدمة', 'error');
-    $('selectedPrinter')?.focus();
-    return { valid: false };
-  }
-
-  if (printHours <= 0) {
-    showToast('وقت الطباعة لازم يكون أكبر من صفر', 'error');
-    $('printHours')?.focus();
-    return { valid: false };
-  }
-
-  if (!materialUsage.length) {
-    showToast('أدخل استهلاك خامة واحدة على الأقل', 'error');
-    return { valid: false };
-  }
-
-  for (const item of materialUsage) {
-    if (Number(item.grams || 0) > Number(item.remaining || 0)) {
-      showToast(`المخزون غير كافٍ في ${item.materialName}`, 'error');
-      return { valid: false };
-    }
-  }
-
-  if (Number(currentCalc.totalCost || 0) <= 0 || Number(currentCalc.finalPrice || 0) <= 0) {
-    showToast('راجع بيانات التسعير أولًا', 'error');
-    return { valid: false };
-  }
-
-  return {
-    valid: true,
-    itemName,
-    printerId,
-    materialUsage
-  };
-}
-
-async function saveSale() {
-  const validation = validateOrderBeforeSave();
-  if (!validation.valid) return;
-
-  const responseCode = await window.farmAPI.getNextOrderCode();
-  if (!responseCode?.success) {
-    showToast(responseCode?.message || 'فشل في إنشاء كود الأوردر', 'error');
-    return;
-  }
-
-  const payload = {
-    code: String(responseCode.data || 'ORD-1001'),
-    itemName: validation.itemName,
-    customerName: getTrimmedValue('customerName'),
-    printerId: Number(validation.printerId),
-    status: getTrimmedValue('orderStatus', 'new'),
-    printHours: toPositiveNumber(getValue('printHours'), 0),
-    manualMinutes: toPositiveNumber(getValue('manualMins'), 0),
-    notes: getTrimmedValue('orderNotes'),
-    date: getValue('opDate') || new Date().toISOString().slice(0, 10),
-    materialCost: currentCalc.materialCost,
-    depreciationCost: currentCalc.depreciationCost,
-    electricityCost: currentCalc.electricityCost,
-    laborCost: currentCalc.laborCost,
-    packagingCost: currentCalc.packagingCost,
-    shippingCost: currentCalc.shippingCost,
-    riskCost: currentCalc.riskCost,
-    totalCost: currentCalc.totalCost,
-    finalPrice: currentCalc.finalPrice,
-    profit: currentCalc.profit,
-    materialUsage: validation.materialUsage
-  };
-
-  const response = await window.farmAPI.createOrder(payload);
-
-  if (!response?.success) {
-    showToast(response?.message || 'فشل في حفظ الأوردر', 'error');
-    return;
-  }
-
-  showToast('تم تسجيل الأوردر وخصم المخزون بنجاح');
-  await loadDashboardData();
-  resetOrderForm();
-  setActiveNav('order');
-}
-
-function getFilteredOrders() {
-  const search = getTrimmedValue('salesSearch').toLowerCase();
-  const from = getValue('filterFrom');
-  const to = getValue('filterTo');
-  const filterStatus = getValue('filterStatus');
-
-  return [...dashboardData.orders]
-    .filter((order) => {
-      const code = String(order.code || '').toLowerCase();
-      const itemName = String(order.itemName || '').toLowerCase();
-      const customerName = String(order.customerName || '').toLowerCase();
-      const notes = String(order.notes || '').toLowerCase();
-      const status = String(order.status || '');
-
-      const matchesSearch =
-        !search ||
-        code.includes(search) ||
-        itemName.includes(search) ||
-        customerName.includes(search) ||
-        notes.includes(search);
-
-      const matchesFrom = !from || (order.date && order.date >= from);
-      const matchesTo = !to || (order.date && order.date <= to);
-      const matchesStatus = !filterStatus || status === filterStatus;
-
-      return matchesSearch && matchesFrom && matchesTo && matchesStatus;
-    })
-    .sort((a, b) => {
-      return String(b.date || '').localeCompare(String(a.date || '')) || Number(b.id || 0) - Number(a.id || 0);
-    });
-}
-
-function renderReportsTable() {
-  const salesTableBody = $('salesTableBody');
-  if (!salesTableBody) return;
-
-  const orders = getFilteredOrders();
-
-  let totalRevenue = 0;
-  let totalProfit = 0;
-  let topSale = 0;
-  let cancelledCount = 0;
-
-  const rowsHtml = orders
-    .map((order) => {
-      totalRevenue += Number(order.finalPrice || 0);
-      totalProfit += Number(order.profit || 0);
-      topSale = Math.max(topSale, Number(order.finalPrice || 0));
-
-      if (String(order.status || '') === 'cancelled') {
-        cancelledCount += 1;
-      }
-
-      const statusClass = getOrderStatusClass(order.status);
-
-      return `
-        <tr>
-          <td>${escapeHtml(order.code)}</td>
-          <td>${escapeHtml(order.date || '')}</td>
-          <td>${escapeHtml(order.itemName || '')}</td>
-          <td>${escapeHtml(order.customerName || '')}</td>
-          <td>${escapeHtml(order.printerName || '-')}</td>
-          <td>
-            <span class="status-chip ${statusClass}">
-              ${escapeHtml(getOrderStatusText(order.status))}
-            </span>
-          </td>
-          <td>${formatMoney(order.totalCost || 0)}</td>
-          <td>${formatMoney(order.finalPrice || 0)}</td>
-          <td>${formatMoney(order.profit || 0)}</td>
-          <td>
-            <button class="action-btn edit" onclick="openEditSale('${escapeHtml(order.code)}')">تعديل</button>
-            <button class="action-btn delete" onclick="deleteSale('${escapeHtml(order.code)}')">حذف</button>
-          </td>
-        </tr>
-      `;
-    })
-    .join('');
-
-  salesTableBody.innerHTML = orders.length
-    ? rowsHtml
-    : `
-      <tr>
-        <td colspan="10">
-          <div class="empty-state">لا توجد نتائج مطابقة.</div>
-        </td>
-      </tr>
-    `;
-
-  const lowestStockMaterial = [...dashboardData.materials]
-    .sort((a, b) => Number(a.remaining || 0) - Number(b.remaining || 0))[0];
-
-  setText('statRev', formatMoney(totalRevenue));
-  setText('statProfit', formatMoney(totalProfit));
-  setText('statCount', String(orders.length));
-  setText('statTop', formatMoney(topSale));
-  setText('statCancelled', String(cancelledCount));
-  setText(
-    'statLowestStock',
-    lowestStockMaterial
-      ? `${lowestStockMaterial.name} (${toPositiveNumber(lowestStockMaterial.remaining, 0).toFixed(0)}g)`
-      : '-'
-  );
-}
-
-function renderReportsTableSafe() {
-  if (isModalOpen('reportsModal')) {
-    renderReportsTable();
+  .quick-actions-row {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
-function openReports() {
-  setActiveNav('reports');
-  openModal('reportsModal');
-  renderReportsTable();
-}
-
-function closeReports() {
-  closeModal('reportsModal');
-  returnToOrderNav();
-}
-
-function openEditSale(code) {
-  const order = getOrderByCode(code);
-  if (!order) {
-    showToast('الأوردر غير موجود', 'error');
-    return;
+@media (max-width: 1180px) {
+  .home-grid {
+    grid-template-columns: 1fr;
   }
 
-  editingOrderCode = code;
-
-  setValue('editCode', order.code || '');
-  setValue('editDate', order.date || '');
-  setValue('editStatus', order.status || 'new');
-  setValue('editName', order.itemName || '');
-  setValue('editCustomer', order.customerName || '');
-  setValue('editPrinter', order.printerId ? String(order.printerId) : '');
-  setValue('editNotes', order.notes || '');
-  setValue('editCost', String(toPositiveNumber(order.totalCost, 0)));
-  setValue('editPrice', String(toPositiveNumber(order.finalPrice, 0)));
-
-  openModal('editModal');
-}
-
-function closeEditModal() {
-  editingOrderCode = null;
-  closeModal('editModal');
-  returnToOrderNav();
-}
-
-async function saveEditedSale() {
-  if (!editingOrderCode) {
-    showToast('لا يوجد أوردر مفتوح للتعديل', 'error');
-    return;
+  .summary-card {
+    position: relative;
+    top: auto;
   }
 
-  const payload = {
-    code: editingOrderCode,
-    date: getValue('editDate'),
-    status: getTrimmedValue('editStatus', 'new'),
-    itemName: getTrimmedValue('editName'),
-    customerName: getTrimmedValue('editCustomer'),
-    printerId: getValue('editPrinter') ? Number(getValue('editPrinter')) : null,
-    notes: getTrimmedValue('editNotes'),
-    totalCost: toPositiveNumber(getValue('editCost'), 0),
-    finalPrice: toPositiveNumber(getValue('editPrice'), 0)
-  };
-
-  if (!payload.itemName) {
-    showToast('اسم المجسم مطلوب', 'error');
-    return;
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
   }
 
-  payload.profit = Number((payload.finalPrice - payload.totalCost).toFixed(2));
-
-  const response = await window.farmAPI.updateOrder(payload);
-
-  if (!response?.success) {
-    showToast(response?.message || 'فشل في تعديل الأوردر', 'error');
-    return;
+  .stats-grid-pro {
+    grid-template-columns: repeat(2, 1fr);
   }
 
-  closeEditModal();
-  showToast('تم تعديل الأوردر بنجاح');
-  await loadDashboardData();
-}
-
-async function deleteSale(code) {
-  const confirmed = await askConfirm('هل تريد حذف الأوردر؟ سيتم استرجاع الخامات للمخزون.');
-  if (!confirmed) return;
-
-  const response = await window.farmAPI.deleteOrder(code);
-
-  if (!response?.success) {
-    showToast(response?.message || 'فشل في حذف الأوردر', 'error');
-    return;
+  .toolbar {
+    grid-template-columns: repeat(2, 1fr);
   }
 
-  showToast('تم حذف الأوردر واسترجاع الخامات');
-  await loadDashboardData();
-}
-
-function openPrintersManagerModal() {
-  setActiveNav('printers');
-  renderPrinters();
-  openModal('printersManagerModal');
-}
-
-function closePrintersManagerModal() {
-  closeModal('printersManagerModal');
-  returnToOrderNav();
-}
-
-function openMaterialsManagerModal() {
-  setActiveNav('materials');
-  renderInventory();
-  openModal('materialsManagerModal');
-}
-
-function closeMaterialsManagerModal() {
-  closeModal('materialsManagerModal');
-  returnToOrderNav();
-}
-
-function openPrinterModal() {
-  setValue('printerId', '');
-  setValue('printerName', '');
-  setValue('printerStatus', 'idle');
-  setValue('printerModel', 'Bambu Lab A1');
-  setValue('printerHourlyDepreciation', '0');
-  setValue('printerNotes', '');
-
-  openModal('printerModal');
-}
-
-function closePrinterModal() {
-  closeModal('printerModal');
-  activateNavForModal('printersManagerModal');
-}
-
-function editPrinter(id) {
-  const printer = getPrinterById(id);
-  if (!printer) {
-    showToast('الطابعة غير موجودة', 'error');
-    return;
+  .dashboard-title-card {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
-  setValue('printerId', printer.id);
-  setValue('printerName', printer.name || '');
-  setValue('printerStatus', printer.status || 'idle');
-  setValue('printerModel', printer.model || '');
-  setValue('printerHourlyDepreciation', String(toPositiveNumber(printer.hourlyDepreciation, 0)));
-  setValue('printerNotes', printer.notes || '');
-
-  openModal('printerModal');
-}
-
-async function savePrinter() {
-  const payload = {
-    id: getValue('printerId'),
-    name: getTrimmedValue('printerName'),
-    status: getTrimmedValue('printerStatus', 'idle'),
-    model: getTrimmedValue('printerModel'),
-    hourlyDepreciation: toPositiveNumber(getValue('printerHourlyDepreciation'), 0),
-    notes: getTrimmedValue('printerNotes')
-  };
-
-  if (!payload.name) {
-    showToast('اسم الطابعة مطلوب', 'error');
-    return;
+  .dashboard-printer-pill {
+    width: 100%;
+    min-width: 0;
   }
 
-  const response = await window.farmAPI.savePrinter(payload);
-
-  if (!response?.success) {
-    showToast(response?.message || 'فشل في حفظ الطابعة', 'error');
-    return;
+  .topbar-actions {
+    justify-content: flex-start;
   }
 
-  closePrinterModal();
-  showToast('تم حفظ الطابعة بنجاح');
-  await loadDashboardData();
-  openPrintersManagerModal();
-}
-
-function getDeletePrinterToastMessage(result) {
-  if (result?.archived) {
-    return 'الطابعة مستخدمة في أوردرات سابقة، لذلك تم أرشفتها بدل حذفها';
-  }
-
-  if (result?.deleted) {
-    return 'تم حذف الطابعة نهائيًا';
-  }
-
-  return 'تم تنفيذ العملية';
-}
-
-async function deletePrinterAction(id) {
-  const confirmed = await askConfirm('هل تريد حذف الطابعة؟ إذا كانت مستخدمة سابقًا فسيتم أرشفتها بدل حذفها.');
-  if (!confirmed) return;
-
-  const response = await window.farmAPI.deletePrinter(id);
-
-  if (!response?.success) {
-    showToast(response?.message || 'فشل في حذف الطابعة', 'error');
-    return;
-  }
-
-  showToast(getDeletePrinterToastMessage(response.data));
-  await loadDashboardData();
-  openPrintersManagerModal();
-}
-
-function openMaterialModal() {
-  setValue('materialId', '');
-  setValue('materialName', '');
-  setValue('materialType', 'PLA');
-  setValue('materialColor', '');
-  setValue('materialWeight', '1000');
-  setValue('materialRemaining', '1000');
-  setValue('materialPrice', '0');
-  setValue('materialLowStock', '150');
-  setValue('materialSupplier', '');
-
-  openModal('materialModal');
-}
-
-function closeMaterialModal() {
-  closeModal('materialModal');
-  activateNavForModal('materialsManagerModal');
-}
-
-function editMaterial(id) {
-  const material = getMaterialById(id);
-  if (!material) {
-    showToast('الخامة غير موجودة', 'error');
-    return;
-  }
-
-  setValue('materialId', material.id);
-  setValue('materialName', material.name || '');
-  setValue('materialType', material.type || '');
-  setValue('materialColor', material.color || '');
-  setValue('materialWeight', String(toPositiveNumber(material.weight, 1000)));
-  setValue('materialRemaining', String(toPositiveNumber(material.remaining, 0)));
-  setValue('materialPrice', String(toPositiveNumber(material.price, 0)));
-  setValue('materialLowStock', String(toPositiveNumber(material.lowStockThreshold, 150)));
-  setValue('materialSupplier', material.supplier || '');
-
-  openModal('materialModal');
-}
-
-async function saveMaterial() {
-  const payload = {
-    id: getValue('materialId'),
-    name: getTrimmedValue('materialName'),
-    type: getTrimmedValue('materialType'),
-    color: getTrimmedValue('materialColor'),
-    weight: toPositiveNumber(getValue('materialWeight'), 0),
-    remaining: toPositiveNumber(getValue('materialRemaining'), 0),
-    price: toPositiveNumber(getValue('materialPrice'), 0),
-    lowStockThreshold: toPositiveNumber(getValue('materialLowStock'), 0),
-    supplier: getTrimmedValue('materialSupplier')
-  };
-
-  if (!payload.name) {
-    showToast('اسم الخامة مطلوب', 'error');
-    return;
-  }
-
-  if (payload.weight <= 0) {
-    showToast('وزن الخامة لازم يكون أكبر من صفر', 'error');
-    return;
-  }
-
-  const response = await window.farmAPI.saveMaterial(payload);
-
-  if (!response?.success) {
-    showToast(response?.message || 'فشل في حفظ الخامة', 'error');
-    return;
-  }
-
-  closeMaterialModal();
-  showToast('تم حفظ الخامة بنجاح');
-  await loadDashboardData();
-  openMaterialsManagerModal();
-}
-
-function getDeleteMaterialToastMessage(result) {
-  if (result?.archived) {
-    return 'الخامة مستخدمة في أوردرات سابقة، لذلك تم أرشفتها بدل حذفها';
-  }
-
-  if (result?.deleted) {
-    return 'تم حذف الخامة نهائيًا';
-  }
-
-  return 'تم تنفيذ العملية';
-}
-
-async function deleteMaterialAction(id) {
-  const confirmed = await askConfirm('هل تريد حذف الخامة؟ إذا كانت مستخدمة سابقًا فسيتم أرشفتها بدل حذفها.');
-  if (!confirmed) return;
-
-  const response = await window.farmAPI.deleteMaterial(id);
-
-  if (!response?.success) {
-    showToast(response?.message || 'فشل في حذف الخامة', 'error');
-    return;
-  }
-
-  showToast(getDeleteMaterialToastMessage(response.data));
-  await loadDashboardData();
-  openMaterialsManagerModal();
-}
-
-function renderStockMovementsTable() {
-  const stockMovementsBody = $('stockMovementsBody');
-  if (!stockMovementsBody) return;
-
-  if (!dashboardData.stockMovements.length) {
-    stockMovementsBody.innerHTML = `
-      <tr>
-        <td colspan="6">
-          <div class="empty-state">لا توجد حركة مخزون.</div>
-        </td>
-      </tr>
-    `;
-    return;
-  }
-
-  const html = dashboardData.stockMovements
-    .map((movement) => {
-      return `
-        <tr>
-          <td>${escapeHtml(formatDateTime(movement.createdAt))}</td>
-          <td>${escapeHtml(movement.materialName || '')}</td>
-          <td>${escapeHtml(getMovementTypeText(movement.movementType))}</td>
-          <td>${Number(movement.quantity || 0).toFixed(2)} g</td>
-          <td>${escapeHtml(movement.reason || '')}</td>
-          <td>${escapeHtml(movement.referenceCode || '-')}</td>
-        </tr>
-      `;
-    })
-    .join('');
-
-  stockMovementsBody.innerHTML = html;
-}
-
-function renderStockMovementsTableSafe() {
-  if (isModalOpen('stockMovementsModal')) {
-    renderStockMovementsTable();
+  .app-topbar {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 
-function openStockMovementsModal() {
-  setActiveNav('stock');
-  renderStockMovementsTable();
-  openModal('stockMovementsModal');
-}
-
-function closeStockMovementsModal() {
-  closeModal('stockMovementsModal');
-  returnToOrderNav();
-}
-
-function openSettingsModal() {
-  setActiveNav('settings');
-  applyConfigToInputs();
-  openModal('settingsModal');
-}
-
-function closeSettingsModal() {
-  closeModal('settingsModal');
-  returnToOrderNav();
-}
-
-async function saveConfig() {
-  const payload = {
-    farmName: getTrimmedValue('farmName') || DEFAULT_CONFIG.farmName,
-    currencyName: getTrimmedValue('currencyName') || DEFAULT_CONFIG.currencyName,
-
-    defaultTaxPercent: String(
-      toPositiveNumber(
-        getValue('settingsDefaultTaxPercent'),
-        DEFAULT_CONFIG.defaultTaxPercent
-      )
-    ),
-
-    laborRate: String(toPositiveNumber(getValue('laborRate'), DEFAULT_CONFIG.laborRate)),
-
-    electricityCostPerHour: String(
-      toPositiveNumber(getValue('electricityCostPerHour'), DEFAULT_CONFIG.electricityCostPerHour)
-    ),
-
-    packagingCost: String(toPositiveNumber(getValue('packagingCost'), DEFAULT_CONFIG.packagingCost)),
-    failurePercent: String(toPositiveNumber(getValue('failurePercent'), DEFAULT_CONFIG.failurePercent)),
-    shippingCost: String(toPositiveNumber(getValue('shippingCost'), DEFAULT_CONFIG.shippingCost))
-  };
-
-  const response = await window.farmAPI.saveConfig(payload);
-
-  if (!response?.success) {
-    showToast(response?.message || 'فشل في حفظ الإعدادات', 'error');
-    return;
+@media (max-width: 820px) {
+  html,
+  body {
+    overflow: auto;
   }
 
-  showToast('تم حفظ الإعدادات');
-  await loadDashboardData();
-  closeSettingsModal();
-}
-
-async function exportBackupJSON() {
-  const response = await window.farmAPI.exportBackup();
-
-  if (!response?.success) {
-    showToast(response?.message || 'فشل في تصدير النسخة الاحتياطية', 'error');
-    return;
+  .app-shell,
+  .app-frame {
+    min-height: 100vh;
+    height: auto;
+    overflow: visible;
   }
 
-  const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
+  .app-content {
+    overflow: visible;
+  }
 
-  link.href = url;
-  link.download = `3d-printing-business-manager-backup-${new Date().toISOString().slice(0, 10)}.json`;
-  link.click();
+  .grid-2,
+  .grid-3,
+  .compact-grid,
+  .top-grid .compact-grid,
+  .bottom-grid .compact-grid {
+    grid-template-columns: 1fr;
+  }
 
-  URL.revokeObjectURL(url);
-  showToast('تم تصدير النسخة الاحتياطية');
+  .bottom-nav {
+    grid-template-columns: repeat(3, 1fr);
+    height: auto;
+  }
+
+  .stats-grid,
+  .stats-grid-pro {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .btn-auto {
+    width: 100%;
+  }
+
+  .dashboard-grid,
+  .dashboard-grid-pro {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .quick-actions-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .invoice-header,
+  .invoice-total {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .invoice-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
-function importBackupJSON(event) {
-  const file = event.target.files?.[0];
-  if (!file) return;
+@media (max-width: 640px) {
+  .app-title {
+    font-size: 24px;
+  }
 
-  const reader = new FileReader();
+  .app-content {
+    padding: 12px;
+  }
 
-  reader.onload = async (e) => {
-    try {
-      const parsed = JSON.parse(String(e.target?.result || '{}'));
-      const response = await window.farmAPI.importBackup(parsed);
+  .card {
+    border-radius: 18px;
+    padding: 14px;
+  }
 
-      if (!response?.success) {
-        showToast(response?.message || 'فشل في استيراد النسخة الاحتياطية', 'error');
-        return;
-      }
+  .modal-content {
+    width: calc(100% - 16px);
+    height: calc(100% - 16px);
+    margin: 8px;
+    border-radius: 18px;
+  }
 
-      showToast('تم استيراد النسخة الاحتياطية بنجاح');
-      await loadDashboardData();
-      resetOrderForm();
-      setActiveNav('order');
-    } catch {
-      showToast('ملف الاستيراد غير صالح', 'error');
-    } finally {
-      event.target.value = '';
-    }
-  };
+  .stats-grid,
+  .stats-grid-pro,
+  .dashboard-grid,
+  .dashboard-grid-pro,
+  .quick-actions-row {
+    grid-template-columns: 1fr;
+  }
 
-  reader.readAsText(file);
+  .dashboard-title-card h2 {
+    font-size: 21px;
+  }
+
+  .invoice-sheet {
+    padding: 18px;
+  }
 }
 
-function attachLiveEvents() {
-  const ids = [
-    'printHours',
-    'manualMins',
-    'profitMargin',
-    'selectedPrinter',
-    'packagingCost',
-    'shippingCost',
-    'laborRate',
-    'electricityCostPerHour',
-    'failurePercent',
-    'defaultTaxPercent',
-    'settingsDefaultTaxPercent'
-  ];
+/* Print */
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #111827 !important;
+    overflow: visible !important;
+  }
 
-  ids.forEach((id) => {
-    const el = $(id);
-    if (!el) return;
+  body * {
+    visibility: hidden;
+  }
 
-    el.addEventListener('input', calc);
-    el.addEventListener('change', calc);
-  });
+  #invoiceContent,
+  #invoiceContent * {
+    visibility: visible;
+  }
 
-  ['salesSearch', 'filterFrom', 'filterTo', 'filterStatus'].forEach((id) => {
-    const el = $(id);
-    if (!el) return;
+  #invoiceContent {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+  }
 
-    el.addEventListener('input', renderReportsTableSafe);
-    el.addEventListener('change', renderReportsTableSafe);
-  });
+  .no-print,
+  .bottom-nav,
+  .app-topbar {
+    display: none !important;
+  }
 
-  document.querySelectorAll('.nav-btn').forEach((button) => {
-    button.addEventListener('click', () => {
-      const view = button.dataset.view;
-      if (!view) return;
+  .modal {
+    position: static !important;
+    display: block !important;
+    background: #fff !important;
+    backdrop-filter: none !important;
+  }
 
-      if (view === 'order') {
-        MODAL_IDS.forEach((modalId) => closeModal(modalId));
-        setActiveNav('order');
-        return;
-      }
+  .modal-content {
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #fff !important;
+    overflow: visible !important;
+  }
 
-      const modalId = NAV_MODAL_MAP[view];
-      if (!modalId) return;
-
-      MODAL_IDS.forEach((id) => {
-        if (id !== modalId && NAV_MODAL_MAP.order !== id) {
-          closeModal(id);
-        }
-      });
-
-      switch (view) {
-        case 'materials':
-          openMaterialsManagerModal();
-          break;
-        case 'printers':
-          openPrintersManagerModal();
-          break;
-        case 'reports':
-          openReports();
-          break;
-        case 'settings':
-          openSettingsModal();
-          break;
-        case 'stock':
-          openStockMovementsModal();
-          break;
-        default:
-          setActiveNav('order');
-      }
-    });
-  });
+  .invoice-sheet {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    max-width: none !important;
+  }
 }
-
-function handleWindowClick(event) {
-  MODAL_IDS.forEach((modalId) => {
-    const modal = $(modalId);
-    if (event.target === modal) {
-      closeModal(modalId);
-      returnToOrderNav();
-    }
-  });
-}
-
-window.onclick = handleWindowClick;
-
-window.openReports = openReports;
-window.closeReports = closeReports;
-window.openEditSale = openEditSale;
-window.closeEditModal = closeEditModal;
-window.saveEditedSale = saveEditedSale;
-window.deleteSale = deleteSale;
-
-window.openPrintersManagerModal = openPrintersManagerModal;
-window.closePrintersManagerModal = closePrintersManagerModal;
-window.openPrinterModal = openPrinterModal;
-window.closePrinterModal = closePrinterModal;
-window.editPrinter = editPrinter;
-window.savePrinter = savePrinter;
-window.deletePrinterAction = deletePrinterAction;
-
-window.openMaterialsManagerModal = openMaterialsManagerModal;
-window.closeMaterialsManagerModal = closeMaterialsManagerModal;
-window.openMaterialModal = openMaterialModal;
-window.closeMaterialModal = closeMaterialModal;
-window.editMaterial = editMaterial;
-window.saveMaterial = saveMaterial;
-window.deleteMaterialAction = deleteMaterialAction;
-
-window.openStockMovementsModal = openStockMovementsModal;
-window.closeStockMovementsModal = closeStockMovementsModal;
-
-window.openSettingsModal = openSettingsModal;
-window.closeSettingsModal = closeSettingsModal;
-window.saveConfig = saveConfig;
-
-window.exportBackupJSON = exportBackupJSON;
-window.importBackupJSON = importBackupJSON;
-window.calc = calc;
-window.saveSale = saveSale;
-window.renderReportsTable = renderReportsTable;
-window.renderDashboard = renderDashboard;
-
-window.addEventListener('error', function (event) {
-  console.error(event.error || event.message);
-  showToast('حصل خطأ في البرنامج. لو اتكرر ابعتلي رسالة الخطأ.', 'error');
-});
-
-window.onload = async () => {
-  setValue('opDate', new Date().toISOString().slice(0, 10));
-  attachLiveEvents();
-  setActiveNav('order');
-  await loadDashboardData();
-};
