@@ -16,6 +16,7 @@
   />
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
   <div class="app-shell tablet-shell">
     <div class="app-frame">
@@ -107,6 +108,7 @@
                   <h3>الخامات والتسعير</h3>
                   <p class="section-subtext">الاستهلاك المباشر للأوردر</p>
                 </div>
+
                 <div class="inline-actions">
                   <button class="btn btn-secondary btn-small" onclick="openMaterialsManagerModal()">إدارة الخامات</button>
                 </div>
@@ -117,6 +119,7 @@
                   <h4>استهلاك الخامات</h4>
                   <span>أدخل الجرامات المستخدمة فقط</span>
                 </div>
+
                 <div id="amsInputs" class="grid-2 compact-grid"></div>
               </div>
             </section>
@@ -176,6 +179,7 @@
                   <h3>ملخص التسعير</h3>
                   <p class="section-subtext light-text">النتيجة النهائية للأوردر الحالي</p>
                 </div>
+
                 <span class="section-badge section-badge-light">Live</span>
               </div>
 
@@ -448,6 +452,7 @@
           <span>إجمالي الطابعات</span>
           <strong id="printersCount">0</strong>
         </div>
+
         <div class="mini-kpi">
           <span>الشغالة الآن</span>
           <strong id="activePrintersCount">0</strong>
@@ -471,6 +476,7 @@
           <span>عدد الخامات</span>
           <strong id="materialsCount">0</strong>
         </div>
+
         <div class="mini-kpi">
           <span>منخفضة المخزون</span>
           <strong id="lowStockCount">0</strong>
@@ -482,6 +488,7 @@
       <div class="inline-actions section-gap-md">
         <button class="btn btn-secondary" onclick="openStockMovementsModal()">حركة المخزون</button>
         <button class="btn btn-secondary" onclick="exportBackupJSON()">تصدير JSON</button>
+
         <label class="btn btn-secondary import-btn">
           استيراد JSON
           <input
@@ -646,8 +653,8 @@
         </div>
 
         <div class="form-group">
-          <label for="defaultTaxPercent">النسبة الافتراضية (%)</label>
-          <input type="text" id="defaultTaxPercent" value="0" inputmode="decimal" />
+          <label for="settingsDefaultTaxPercent">النسبة الافتراضية (%)</label>
+          <input type="text" id="settingsDefaultTaxPercent" value="0" inputmode="decimal" />
         </div>
       </div>
 
