@@ -67,7 +67,6 @@ function asNullableId(value) {
   return Number.isFinite(num) && num > 0 ? num : null;
 }
 
-/* 🔥 النسخة المعدلة */
 function createMainWindow() {
   if (mainWindow && !mainWindow.isDestroyed()) {
     return mainWindow;
@@ -81,8 +80,8 @@ function createMainWindow() {
     show: false,
     center: true,
     autoHideMenuBar: true,
-    backgroundColor: '#0b0f19',
-    title: '3D Printing Business Manager',
+    backgroundColor: '#050807',
+    title: 'Print Farm App',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -96,7 +95,8 @@ function createMainWindow() {
 
   mainWindow.once('ready-to-show', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
-    mainWindow.maximize(); // 🔥 Full Screen
+
+    mainWindow.maximize();
     mainWindow.show();
   });
 
@@ -104,14 +104,21 @@ function createMainWindow() {
     if (typeof url === 'string' && /^https?:\/\//i.test(url)) {
       shell.openExternal(url);
     }
+
     return { action: 'deny' };
   });
 
   mainWindow.webContents.on('will-navigate', (event, url) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+
     const currentUrl = mainWindow.webContents.getURL();
+
     if (url !== currentUrl) {
       event.preventDefault();
-      if (/^https?:\/\//i.test(url)) shell.openExternal(url);
+
+      if (/^https?:\/\//i.test(url)) {
+        shell.openExternal(url);
+      }
     }
   });
 
@@ -128,13 +135,15 @@ function handleIpc(channel, handler, fallbackMessage) {
       ensureDbReady();
       return await handler(payload);
     } catch (error) {
-      return fail(error?.message || fallbackMessage);
+      console.error(`[IPC ERROR] ${channel}`, error);
+      return fail(error?.message || fallbackMessage || 'حدث خطأ غير متوقع');
     }
   });
 }
 
 function normalizePrinterPayload(payload) {
   const data = asObject(payload);
+
   return {
     id: asNullableId(data.id),
     name: asTrimmedString(data.name),
@@ -147,6 +156,7 @@ function normalizePrinterPayload(payload) {
 
 function normalizeMaterialPayload(payload) {
   const data = asObject(payload);
+
   return {
     id: asNullableId(data.id),
     name: asTrimmedString(data.name),
@@ -160,65 +170,181 @@ function normalizeMaterialPayload(payload) {
   };
 }
 
+function validatePrinterPayload(data) {
+  if (!data.name) {
+    throw new Error('اسم الطابعة مطلوب');
+  }
+
+  if (!['idle', 'printing', 'maintenance', 'offline'].includes(data.status)) {
+    data.status = 'idle';
+  }
+
+  if (data.hourlyDepreciation < 0) {
+    data.hourlyDepreciation = 0;
+  }
+}
+
+function validateMaterialPayload(data) {
+  if (!data.name) {
+    throw new Error('اسم الخامة مطلوب');
+  }
+
+  if (data.weight <= 0) {
+    throw new Error('وزن الخامة لازم يكون أكبر من صفر');
+  }
+
+  if (data.remaining < 0) {
+    data.remaining = 0;
+  }
+
+  if (data.price < 0) {
+    data.price = 0;
+  }
+
+  if (data.lowStockThreshold < 0) {
+    data.lowStockThreshold = 0;
+  }
+}
+
 function registerIpcHandlers() {
   if (ipcHandlersRegistered) return;
   ipcHandlersRegistered = true;
 
-  handleIpc(CHANNELS.getDashboardData, async () => ok(getDashboardData()), 'فشل');
-  handleIpc(CHANNELS.getNextOrderCode, async () => ok(getNextOrderCode()), 'فشل');
+  handleIpc(
+    CHANNELS.getDashboardData,
+    async () => ok(getDashboardData()),
+    'فشل في تحميل البيانات'
+  );
 
-  handleIpc(CHANNELS.saveConfig, async (payload) => {
-    for (const [key, value] of Object.entries(asObject(payload))) {
-      setConfig(key, value);
-    }
-    return ok();
-  }, 'فشل');
+  handleIpc(
+    CHANNELS.getNextOrderCode,
+    async () => ok(getNextOrderCode()),
+    'فشل في إنشاء كود الأوردر'
+  );
 
-  handleIpc(CHANNELS.savePrinter, async (payload) => {
-    const data = normalizePrinterPayload(payload);
-    if (data.id) updatePrinter(data);
-    else createPrinter(data);
-    return ok();
-  }, 'فشل');
+  handleIpc(
+    CHANNELS.saveConfig,
+    async (payload) => {
+      for (const [key, value] of Object.entries(asObject(payload))) {
+        setConfig(key, value);
+      }
 
-  handleIpc(CHANNELS.deletePrinter, async (payload) => {
-    deletePrinter(asNullableId(asObject(payload).id));
-    return ok();
-  }, 'فشل');
+      return ok();
+    },
+    'فشل في حفظ الإعدادات'
+  );
 
-  handleIpc(CHANNELS.saveMaterial, async (payload) => {
-    const data = normalizeMaterialPayload(payload);
-    if (data.id) updateMaterial(data);
-    else createMaterial(data);
-    return ok();
-  }, 'فشل');
+  handleIpc(
+    CHANNELS.savePrinter,
+    async (payload) => {
+      const data = normalizePrinterPayload(payload);
+      validatePrinterPayload(data);
 
-  handleIpc(CHANNELS.deleteMaterial, async (payload) => {
-    deleteMaterial(asNullableId(asObject(payload).id));
-    return ok();
-  }, 'فشل');
+      if (data.id) {
+        updatePrinter(data);
+      } else {
+        createPrinter(data);
+      }
 
-  handleIpc(CHANNELS.createOrder, async (payload) => {
-    createOrder(payload);
-    return ok();
-  }, 'فشل');
+      return ok();
+    },
+    'فشل في حفظ الطابعة'
+  );
 
-  handleIpc(CHANNELS.updateOrder, async (payload) => {
-    updateOrder(payload);
-    return ok();
-  }, 'فشل');
+  handleIpc(
+    CHANNELS.deletePrinter,
+    async (payload) => {
+      const id = asNullableId(asObject(payload).id);
 
-  handleIpc(CHANNELS.deleteOrder, async (payload) => {
-    deleteOrder(asObject(payload).code);
-    return ok();
-  }, 'فشل');
+      if (!id) {
+        throw new Error('رقم الطابعة غير صالح');
+      }
 
-  handleIpc(CHANNELS.exportBackup, async () => ok(exportBackupData()), 'فشل');
+      const result = deletePrinter(id);
+      return ok(result);
+    },
+    'فشل في حذف الطابعة'
+  );
 
-  handleIpc(CHANNELS.importBackup, async (payload) => {
-    replaceAllData(payload);
-    return ok();
-  }, 'فشل');
+  handleIpc(
+    CHANNELS.saveMaterial,
+    async (payload) => {
+      const data = normalizeMaterialPayload(payload);
+      validateMaterialPayload(data);
+
+      if (data.id) {
+        updateMaterial(data);
+      } else {
+        createMaterial(data);
+      }
+
+      return ok();
+    },
+    'فشل في حفظ الخامة'
+  );
+
+  handleIpc(
+    CHANNELS.deleteMaterial,
+    async (payload) => {
+      const id = asNullableId(asObject(payload).id);
+
+      if (!id) {
+        throw new Error('رقم الخامة غير صالح');
+      }
+
+      const result = deleteMaterial(id);
+      return ok(result);
+    },
+    'فشل في حذف الخامة'
+  );
+
+  handleIpc(
+    CHANNELS.createOrder,
+    async (payload) => {
+      createOrder(payload);
+      return ok();
+    },
+    'فشل في حفظ الأوردر'
+  );
+
+  handleIpc(
+    CHANNELS.updateOrder,
+    async (payload) => {
+      updateOrder(payload);
+      return ok();
+    },
+    'فشل في تعديل الأوردر'
+  );
+
+  handleIpc(
+    CHANNELS.deleteOrder,
+    async (payload) => {
+      const code = asTrimmedString(asObject(payload).code);
+
+      if (!code) {
+        throw new Error('كود الأوردر غير صالح');
+      }
+
+      deleteOrder(code);
+      return ok();
+    },
+    'فشل في حذف الأوردر'
+  );
+
+  handleIpc(
+    CHANNELS.exportBackup,
+    async () => ok(exportBackupData()),
+    'فشل في تصدير النسخة الاحتياطية'
+  );
+
+  handleIpc(
+    CHANNELS.importBackup,
+    async (payload) => {
+      replaceAllData(payload);
+      return ok();
+    },
+    'فشل في استيراد النسخة الاحتياطية'
+  );
 
   ipcMain.handle(CHANNELS.confirmDialog, async (_event, payload) => {
     const result = await dialog.showMessageBox({
@@ -258,5 +384,7 @@ app.on('web-contents-created', (_event, contents) => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
 });
