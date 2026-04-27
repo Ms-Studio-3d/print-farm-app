@@ -105,6 +105,10 @@ function formatDateTime(value) {
   return String(value).replace('T', ' ').slice(0, 19);
 }
 
+function getTodayDateString() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 function setText(id, value) {
   const el = $(id);
   if (el) el.innerText = value;
@@ -334,6 +338,91 @@ async function setNextOrderCode() {
   setText('nextOrderCode', nextCode.replace('ORD-', ''));
 }
 
+function getPrimaryPrinter() {
+  if (!dashboardData.printers.length) return null;
+
+  const selectedPrinterId = getValue('selectedPrinter');
+  const selectedPrinter = selectedPrinterId ? getPrinterById(selectedPrinterId) : null;
+
+  if (selectedPrinter) return selectedPrinter;
+
+  const bambuA1 = dashboardData.printers.find((printer) => {
+    const text = `${printer.name || ''} ${printer.model || ''}`.toLowerCase();
+    return text.includes('a1') || text.includes('bambu');
+  });
+
+  return bambuA1 || dashboardData.printers[0];
+}
+
+function renderDashboard() {
+  const today = getTodayDateString();
+
+  const todayOrders = dashboardData.orders.filter((order) => {
+    return String(order.date || '').slice(0, 10) === today && String(order.status || '') !== 'cancelled';
+  });
+
+  const todayRevenue = todayOrders.reduce((sum, order) => {
+    return sum + Number(order.finalPrice || 0);
+  }, 0);
+
+  const todayProfit = todayOrders.reduce((sum, order) => {
+    return sum + Number(order.profit || 0);
+  }, 0);
+
+  const openOrders = dashboardData.orders.filter((order) => {
+    return ['new', 'printing', 'finished'].includes(String(order.status || ''));
+  });
+
+  const lowStockMaterials = dashboardData.materials.filter((material) => {
+    return Number(material.remaining || 0) <= Number(material.lowStockThreshold || 0);
+  });
+
+  const sortedOrders = [...dashboardData.orders].sort((a, b) => {
+    return String(b.date || '').localeCompare(String(a.date || '')) || Number(b.id || 0) - Number(a.id || 0);
+  });
+
+  const lastOrder = sortedOrders[0] || null;
+  const primaryPrinter = getPrimaryPrinter();
+
+  setText('dashTodayRevenue', formatMoney(todayRevenue));
+  setText('dashTodayProfit', formatMoney(todayProfit));
+  setText('dashOpenOrders', String(openOrders.length));
+  setText('dashLowStock', String(lowStockMaterials.length));
+  setText('dashTotalOrders', String(dashboardData.orders.length));
+
+  if (lastOrder) {
+    setText('dashLastOrder', lastOrder.code || '-');
+    setText(
+      'dashLastOrderMeta',
+      `${lastOrder.itemName || '-'} • ${formatMoney(lastOrder.finalPrice || 0)}`
+    );
+  } else {
+    setText('dashLastOrder', '-');
+    setText('dashLastOrderMeta', 'لا يوجد أوردرات بعد');
+  }
+
+  if (primaryPrinter) {
+    setText('dashPrinterName', primaryPrinter.name || 'Bambu Lab A1');
+    setText('dashPrinterStatus', getPrinterStatusText(primaryPrinter.status));
+  } else {
+    setText('dashPrinterName', 'لا توجد طابعة');
+    setText('dashPrinterStatus', 'أضف طابعة من إدارة الطابعات');
+  }
+
+  const printerDot = document.querySelector('.printer-dot');
+  if (printerDot) {
+    printerDot.classList.remove('printer-dot-warning', 'printer-dot-danger');
+
+    if (primaryPrinter?.status === 'printing') {
+      printerDot.classList.add('printer-dot-warning');
+    }
+
+    if (primaryPrinter?.status === 'maintenance' || primaryPrinter?.status === 'offline' || !primaryPrinter) {
+      printerDot.classList.add('printer-dot-danger');
+    }
+  }
+}
+
 async function loadDashboardData() {
   const response = await window.farmAPI.getDashboardData();
 
@@ -352,6 +441,7 @@ async function loadDashboardData() {
 
   applyConfigToInputs();
   updateTopTitle();
+  renderDashboard();
   renderPrinters();
   renderPrinterSelects();
   renderInventory();
@@ -672,6 +762,7 @@ function resetOrderForm() {
   resetResultsPanel();
   setNextOrderCode();
   calc();
+  renderDashboard();
 }
 
 function validateOrderBeforeSave() {
@@ -1452,6 +1543,7 @@ window.importBackupJSON = importBackupJSON;
 window.calc = calc;
 window.saveSale = saveSale;
 window.renderReportsTable = renderReportsTable;
+window.renderDashboard = renderDashboard;
 
 window.addEventListener('error', function (event) {
   console.error(event.error || event.message);
