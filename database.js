@@ -76,6 +76,10 @@ function createTables() {
       risk_cost REAL NOT NULL DEFAULT 0,
       tax_cost REAL NOT NULL DEFAULT 0,
       total_cost REAL NOT NULL DEFAULT 0,
+      price_before_discount REAL NOT NULL DEFAULT 0,
+      discount_value REAL NOT NULL DEFAULT 0,
+      price_after_discount REAL NOT NULL DEFAULT 0,
+      rounded_adjustment REAL NOT NULL DEFAULT 0,
       final_price REAL NOT NULL DEFAULT 0,
       profit REAL NOT NULL DEFAULT 0,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -130,6 +134,12 @@ function runMigrations() {
   ensureColumnExists('orders', 'shipping_cost', `ALTER TABLE orders ADD COLUMN shipping_cost REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'risk_cost', `ALTER TABLE orders ADD COLUMN risk_cost REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'tax_cost', `ALTER TABLE orders ADD COLUMN tax_cost REAL NOT NULL DEFAULT 0`);
+  ensureColumnExists('orders', 'price_before_discount', `ALTER TABLE orders ADD COLUMN price_before_discount REAL NOT NULL DEFAULT 0`);
+  ensureColumnExists('orders', 'discount_value', `ALTER TABLE orders ADD COLUMN discount_value REAL NOT NULL DEFAULT 0`);
+  ensureColumnExists('orders', 'price_after_discount', `ALTER TABLE orders ADD COLUMN price_after_discount REAL NOT NULL DEFAULT 0`);
+  ensureColumnExists('orders', 'rounded_adjustment', `ALTER TABLE orders ADD COLUMN rounded_adjustment REAL NOT NULL DEFAULT 0`);
+
+  backfillPricingBreakdown();
 }
 
 function ensureColumnExists(tableName, columnName, alterSql) {
@@ -139,6 +149,21 @@ function ensureColumnExists(tableName, columnName, alterSql) {
   if (!exists) {
     db.exec(alterSql);
   }
+}
+
+function backfillPricingBreakdown() {
+  db.prepare(`
+    UPDATE orders
+    SET
+      price_before_discount = CASE
+        WHEN price_before_discount IS NULL OR price_before_discount = 0 THEN final_price
+        ELSE price_before_discount
+      END,
+      price_after_discount = CASE
+        WHEN price_after_discount IS NULL OR price_after_discount = 0 THEN final_price
+        ELSE price_after_discount
+      END
+  `).run();
 }
 
 function seedDefaults() {
@@ -291,6 +316,10 @@ function getDashboardData() {
       o.risk_cost AS riskCost,
       o.tax_cost AS taxCost,
       o.total_cost AS totalCost,
+      o.price_before_discount AS priceBeforeDiscount,
+      o.discount_value AS discountValue,
+      o.price_after_discount AS priceAfterDiscount,
+      o.rounded_adjustment AS roundedAdjustment,
       o.final_price AS finalPrice,
       o.profit
     FROM orders o
@@ -559,10 +588,14 @@ function createOrder(payload) {
       risk_cost,
       tax_cost,
       total_cost,
+      price_before_discount,
+      discount_value,
+      price_after_discount,
+      rounded_adjustment,
       final_price,
       profit
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertMaterialUsage = db.prepare(`
@@ -642,6 +675,8 @@ function createOrder(payload) {
       }
     }
 
+    const finalPrice = Number(data.finalPrice || 0);
+
     const orderResult = insertOrder.run(
       String(data.code || '').trim(),
       String(data.itemName || '').trim(),
@@ -661,7 +696,11 @@ function createOrder(payload) {
       Number(data.riskCost || 0),
       Number(data.taxCost || 0),
       Number(data.totalCost || 0),
-      Number(data.finalPrice || 0),
+      Number(data.priceBeforeDiscount || finalPrice),
+      Number(data.discountValue || 0),
+      Number(data.priceAfterDiscount || finalPrice),
+      Number(data.roundedAdjustment || 0),
+      finalPrice,
       Number(data.profit || 0)
     );
 
@@ -846,6 +885,8 @@ function updateOrder(payload) {
       }
     }
 
+    const finalPrice = Number(data.finalPrice || 0);
+
     db.prepare(`
       UPDATE orders
       SET
@@ -866,6 +907,10 @@ function updateOrder(payload) {
         risk_cost = ?,
         tax_cost = ?,
         total_cost = ?,
+        price_before_discount = ?,
+        discount_value = ?,
+        price_after_discount = ?,
+        rounded_adjustment = ?,
         final_price = ?,
         profit = ?
       WHERE code = ?
@@ -887,7 +932,11 @@ function updateOrder(payload) {
       Number(data.riskCost || 0),
       Number(data.taxCost || 0),
       Number(data.totalCost || 0),
-      Number(data.finalPrice || 0),
+      Number(data.priceBeforeDiscount || finalPrice),
+      Number(data.discountValue || 0),
+      Number(data.priceAfterDiscount || finalPrice),
+      Number(data.roundedAdjustment || 0),
+      finalPrice,
       Number(data.profit || 0),
       code
     );
@@ -993,10 +1042,14 @@ function replaceAllData(data) {
         risk_cost,
         tax_cost,
         total_cost,
+        price_before_discount,
+        discount_value,
+        price_after_discount,
+        rounded_adjustment,
         final_price,
         profit
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const insertMovement = db.prepare(`
@@ -1076,6 +1129,8 @@ function replaceAllData(data) {
         ? (printerIdMap.get(Number(order.printerId)) ?? null)
         : null;
 
+      const finalPrice = Number(order.finalPrice || 0);
+
       const result = insertOrder.run(
         String(order.code || '').trim(),
         String(order.itemName || '').trim(),
@@ -1095,7 +1150,11 @@ function replaceAllData(data) {
         Number(order.riskCost || 0),
         Number(order.taxCost || 0),
         Number(order.totalCost || 0),
-        Number(order.finalPrice || 0),
+        Number(order.priceBeforeDiscount || finalPrice),
+        Number(order.discountValue || 0),
+        Number(order.priceAfterDiscount || finalPrice),
+        Number(order.roundedAdjustment || 0),
+        finalPrice,
         Number(order.profit || 0)
       );
 
@@ -1208,7 +1267,7 @@ function exportBackupData() {
   return {
     exportedAt: new Date().toISOString(),
     appName: 'Print Farm App',
-    schemaVersion: 3,
+    schemaVersion: 4,
     ...data,
     printers: [...data.printers, ...archivedPrinters],
     materials: [...data.materials, ...archivedMaterials],
