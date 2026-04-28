@@ -32,6 +32,7 @@
           <button class="btn btn-secondary btn-small" type="button" onclick="openReports()">التقارير</button>
           <button class="btn btn-secondary btn-small" type="button" onclick="openPipelineModal()">الأوردرات</button>
           <button class="btn btn-secondary btn-small" type="button" onclick="openMaterialsManagerModal()">الخامات</button>
+          <button class="btn btn-secondary btn-small" type="button" onclick="openPrintersManagerModal()">الطابعات</button>
 
           <div class="order-code-chip">
             <span>ORD-<span id="nextOrderCode">...</span></span>
@@ -269,7 +270,7 @@
       </main>
 
       <nav class="bottom-nav">
-        <button class="nav-btn nav-btn-active" data-view="order" type="button">
+        <button class="nav-btn nav-btn-active" data-view="order" type="button" onclick="closeAllPanels()">
           <span>الأوردر</span>
         </button>
 
@@ -279,6 +280,10 @@
 
         <button class="nav-btn" data-view="materials" type="button" onclick="openMaterialsManagerModal()">
           <span>الخامات</span>
+        </button>
+
+        <button class="nav-btn" data-view="printers" type="button" onclick="openPrintersManagerModal()">
+          <span>الطابعات</span>
         </button>
 
         <button class="nav-btn" data-view="reports" type="button" onclick="openReports()">
@@ -767,8 +772,12 @@
 
       <div class="inline-actions section-gap-md">
         <button type="button" class="btn btn-primary" onclick="saveConfig()">حفظ الإعدادات</button>
-        <button type="button" class="btn btn-secondary" onclick="openPrintersManagerModal()">الطابعات</button>
         <button type="button" class="btn btn-secondary" onclick="exportBackupJSON()">تصدير Backup</button>
+
+        <label class="btn btn-secondary import-btn">
+          استيراد Backup
+          <input type="file" id="settingsImportInput" hidden onchange="importBackupJSON(event)" accept="application/json" />
+        </label>
       </div>
     </div>
   </div>
