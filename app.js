@@ -13,12 +13,16 @@ let currentInvoiceOrderCode = null;
 const DEFAULT_CONFIG = {
   farmName: '3D Print Farm App',
   currencyName: 'جنيه',
+  defaultProfitMargin: 100,
+  defaultManualMinutes: 15,
   laborRate: 50,
   electricityCostPerHour: 3,
   packagingCost: 10,
   failurePercent: 10,
   shippingCost: 0,
-  defaultTaxPercent: 0
+  defaultTaxPercent: 0,
+  defaultDiscountValue: 0,
+  roundingStep: 5
 };
 
 const ORDER_STATUS_FLOW = ['new', 'printing', 'finished', 'delivered', 'cancelled'];
@@ -99,7 +103,8 @@ function roundMoney(value) {
 
 function roundUpToNearest5(value) {
   const safeValue = Math.max(0, Number(value || 0));
-  return Math.ceil(safeValue / 5) * 5;
+  const step = Math.max(1, toPositiveNumber(dashboardData.config.roundingStep, DEFAULT_CONFIG.roundingStep));
+  return Math.ceil(safeValue / step) * step;
 }
 
 function escapeHtml(value) {
@@ -393,20 +398,42 @@ function updateTopTitle() {
 }
 
 function applyConfigToInputs() {
+  const defaultProfitMargin = String(toPositiveNumber(dashboardData.config.defaultProfitMargin, DEFAULT_CONFIG.defaultProfitMargin));
+  const defaultManualMinutes = String(toPositiveNumber(dashboardData.config.defaultManualMinutes, DEFAULT_CONFIG.defaultManualMinutes));
+  const laborRate = String(toPositiveNumber(dashboardData.config.laborRate, DEFAULT_CONFIG.laborRate));
+  const electricityCostPerHour = String(toPositiveNumber(dashboardData.config.electricityCostPerHour, DEFAULT_CONFIG.electricityCostPerHour));
+  const packagingCost = String(toPositiveNumber(dashboardData.config.packagingCost, DEFAULT_CONFIG.packagingCost));
+  const failurePercent = String(toPositiveNumber(dashboardData.config.failurePercent, DEFAULT_CONFIG.failurePercent));
+  const shippingCost = String(toPositiveNumber(dashboardData.config.shippingCost, DEFAULT_CONFIG.shippingCost));
   const defaultTax = String(toPositiveNumber(dashboardData.config.defaultTaxPercent, DEFAULT_CONFIG.defaultTaxPercent));
+  const defaultDiscount = String(toPositiveNumber(dashboardData.config.defaultDiscountValue, DEFAULT_CONFIG.defaultDiscountValue));
+  const roundingStep = String(toPositiveNumber(dashboardData.config.roundingStep, DEFAULT_CONFIG.roundingStep));
   const currencyName = getCurrency();
 
   setValue('farmName', dashboardData.config.farmName || DEFAULT_CONFIG.farmName);
   setValue('currencyName', currencyName);
 
-  setValue('defaultTaxPercent', defaultTax);
-  setValue('settingsDefaultTaxPercent', defaultTax);
+  setValue('profitMargin', defaultProfitMargin);
+  setValue('manualMins', defaultManualMinutes);
+  setValue('discountValue', defaultDiscount);
 
-  setValue('laborRate', String(toPositiveNumber(dashboardData.config.laborRate, DEFAULT_CONFIG.laborRate)));
-  setValue('electricityCostPerHour', String(toPositiveNumber(dashboardData.config.electricityCostPerHour, DEFAULT_CONFIG.electricityCostPerHour)));
-  setValue('packagingCost', String(toPositiveNumber(dashboardData.config.packagingCost, DEFAULT_CONFIG.packagingCost)));
-  setValue('failurePercent', String(toPositiveNumber(dashboardData.config.failurePercent, DEFAULT_CONFIG.failurePercent)));
-  setValue('shippingCost', String(toPositiveNumber(dashboardData.config.shippingCost, DEFAULT_CONFIG.shippingCost)));
+  setValue('laborRate', laborRate);
+  setValue('electricityCostPerHour', electricityCostPerHour);
+  setValue('packagingCost', packagingCost);
+  setValue('failurePercent', failurePercent);
+  setValue('shippingCost', shippingCost);
+  setValue('defaultTaxPercent', defaultTax);
+
+  setValue('settingsDefaultProfitMargin', defaultProfitMargin);
+  setValue('settingsDefaultManualMinutes', defaultManualMinutes);
+  setValue('settingsLaborRate', laborRate);
+  setValue('settingsElectricityCostPerHour', electricityCostPerHour);
+  setValue('settingsPackagingCost', packagingCost);
+  setValue('settingsFailurePercent', failurePercent);
+  setValue('settingsShippingCost', shippingCost);
+  setValue('settingsDefaultTaxPercent', defaultTax);
+  setValue('settingsDefaultDiscountValue', defaultDiscount);
+  setValue('settingsRoundingStep', roundingStep);
 }
 
 async function setNextOrderCode() {
@@ -648,8 +675,8 @@ function calc() {
 
   const printHours = toPositiveNumber(getValue('printHours'), 0);
   const manualMinutes = toPositiveNumber(getValue('manualMins'), 0);
-  const profitMargin = toPositiveNumber(getValue('profitMargin'), 0);
-  const discountValue = toPositiveNumber(getValue('discountValue'), 0);
+  const profitMargin = toPositiveNumber(getValue('profitMargin'), getConfigNumber('defaultProfitMargin'));
+  const discountValue = toPositiveNumber(getValue('discountValue'), getConfigNumber('defaultDiscountValue'));
 
   const packagingCost = toPositiveNumber(getValue('packagingCost'), getConfigNumber('packagingCost'));
   const shippingCost = toPositiveNumber(getValue('shippingCost'), getConfigNumber('shippingCost'));
@@ -745,12 +772,9 @@ function resetOrderForm() {
   setValue('customerName', '');
   setValue('selectedPrinter', '');
   setValue('printHours', '0');
-  setValue('manualMins', '15');
   setValue('opDate', new Date().toISOString().slice(0, 10));
   setValue('orderStatus', 'new');
   setValue('orderNotes', '');
-  setValue('profitMargin', '100');
-  setValue('discountValue', '0');
 
   document.querySelectorAll('.ams-weight').forEach((input) => {
     input.value = '';
@@ -1755,12 +1779,17 @@ async function saveConfig() {
   const payload = {
     farmName: getTrimmedValue('farmName') || DEFAULT_CONFIG.farmName,
     currencyName: currencyName === 'ج' ? 'جنيه' : currencyName,
+
+    defaultProfitMargin: String(toPositiveNumber(getValue('settingsDefaultProfitMargin'), DEFAULT_CONFIG.defaultProfitMargin)),
+    defaultManualMinutes: String(toPositiveNumber(getValue('settingsDefaultManualMinutes'), DEFAULT_CONFIG.defaultManualMinutes)),
+    laborRate: String(toPositiveNumber(getValue('settingsLaborRate'), DEFAULT_CONFIG.laborRate)),
+    electricityCostPerHour: String(toPositiveNumber(getValue('settingsElectricityCostPerHour'), DEFAULT_CONFIG.electricityCostPerHour)),
+    packagingCost: String(toPositiveNumber(getValue('settingsPackagingCost'), DEFAULT_CONFIG.packagingCost)),
+    failurePercent: String(toPositiveNumber(getValue('settingsFailurePercent'), DEFAULT_CONFIG.failurePercent)),
+    shippingCost: String(toPositiveNumber(getValue('settingsShippingCost'), DEFAULT_CONFIG.shippingCost)),
     defaultTaxPercent: String(toPositiveNumber(getValue('settingsDefaultTaxPercent'), DEFAULT_CONFIG.defaultTaxPercent)),
-    laborRate: String(toPositiveNumber(getValue('laborRate'), DEFAULT_CONFIG.laborRate)),
-    electricityCostPerHour: String(toPositiveNumber(getValue('electricityCostPerHour'), DEFAULT_CONFIG.electricityCostPerHour)),
-    packagingCost: String(toPositiveNumber(getValue('packagingCost'), DEFAULT_CONFIG.packagingCost)),
-    failurePercent: String(toPositiveNumber(getValue('failurePercent'), DEFAULT_CONFIG.failurePercent)),
-    shippingCost: String(toPositiveNumber(getValue('shippingCost'), DEFAULT_CONFIG.shippingCost))
+    defaultDiscountValue: String(toPositiveNumber(getValue('settingsDefaultDiscountValue'), DEFAULT_CONFIG.defaultDiscountValue)),
+    roundingStep: String(toPositiveNumber(getValue('settingsRoundingStep'), DEFAULT_CONFIG.roundingStep))
   };
 
   const response = await window.farmAPI.saveConfig(payload);
@@ -1770,7 +1799,7 @@ async function saveConfig() {
     return;
   }
 
-  showToast('تم حفظ الإعدادات');
+  showToast('تم حفظ الإعدادات الافتراضية');
   await loadDashboardData();
   closeSettingsModal();
 }
@@ -1982,7 +2011,17 @@ function attachLiveEvents() {
     'electricityCostPerHour',
     'failurePercent',
     'defaultTaxPercent',
-    'settingsDefaultTaxPercent'
+
+    'settingsDefaultTaxPercent',
+    'settingsDefaultProfitMargin',
+    'settingsDefaultManualMinutes',
+    'settingsLaborRate',
+    'settingsElectricityCostPerHour',
+    'settingsPackagingCost',
+    'settingsFailurePercent',
+    'settingsShippingCost',
+    'settingsDefaultDiscountValue',
+    'settingsRoundingStep'
   ];
 
   ids.forEach((id) => {
