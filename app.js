@@ -12,7 +12,7 @@ let currentInvoiceOrderCode = null;
 
 const DEFAULT_CONFIG = {
   farmName: 'Print Farm App',
-  currencyName: 'ج',
+  currencyName: 'جنيه',
   laborRate: 50,
   electricityCostPerHour: 3,
   packagingCost: 10,
@@ -46,6 +46,7 @@ function createEmptyCalc() {
     packagingCost: 0,
     shippingCost: 0,
     riskCost: 0,
+    taxCost: 0,
     totalCost: 0,
     finalPrice: 0,
     profit: 0,
@@ -89,7 +90,13 @@ function escapeHtml(value) {
 }
 
 function getCurrency() {
-  return String(dashboardData.config.currencyName || DEFAULT_CONFIG.currencyName || 'ج').trim() || 'ج';
+  const rawCurrency = String(dashboardData.config.currencyName || DEFAULT_CONFIG.currencyName || 'جنيه').trim();
+
+  if (!rawCurrency || rawCurrency === 'ج') {
+    return 'جنيه';
+  }
+
+  return rawCurrency;
 }
 
 function formatMoney(value) {
@@ -350,9 +357,10 @@ function updateTopTitle() {
 
 function applyConfigToInputs() {
   const defaultTax = String(toPositiveNumber(dashboardData.config.defaultTaxPercent, DEFAULT_CONFIG.defaultTaxPercent));
+  const currencyName = getCurrency();
 
   setValue('farmName', dashboardData.config.farmName || DEFAULT_CONFIG.farmName);
-  setValue('currencyName', dashboardData.config.currencyName || DEFAULT_CONFIG.currencyName);
+  setValue('currencyName', currencyName);
 
   setValue('defaultTaxPercent', defaultTax);
   setValue('settingsDefaultTaxPercent', defaultTax);
@@ -387,6 +395,10 @@ async function loadDashboardData() {
     orders: Array.isArray(response.data?.orders) ? response.data.orders : [],
     stockMovements: Array.isArray(response.data?.stockMovements) ? response.data.stockMovements : []
   };
+
+  if (String(dashboardData.config.currencyName || '').trim() === 'ج') {
+    dashboardData.config.currencyName = 'جنيه';
+  }
 
   applyConfigToInputs();
   updateTopTitle();
@@ -639,7 +651,8 @@ function calc() {
   setText('resLabor', formatMoney(laborCost));
   setText('resPackaging', formatMoney(packagingCost));
   setText('resShipping', formatMoney(shippingCost));
-  setText('resRisk', formatMoney(riskCost + taxCost));
+  setText('resRisk', formatMoney(riskCost));
+  setText('resTax', formatMoney(taxCost));
   setText('resTotal', formatMoney(totalCost));
   setText('resFinal', formatMoney(finalPrice));
   setText('resProfit', formatMoney(profit));
@@ -651,7 +664,8 @@ function calc() {
     laborCost: Number(laborCost.toFixed(2)),
     packagingCost: Number(packagingCost.toFixed(2)),
     shippingCost: Number(shippingCost.toFixed(2)),
-    riskCost: Number((riskCost + taxCost).toFixed(2)),
+    riskCost: Number(riskCost.toFixed(2)),
+    taxCost: Number(taxCost.toFixed(2)),
     totalCost: Number(totalCost.toFixed(2)),
     finalPrice: Number(finalPrice.toFixed(2)),
     profit: Number(profit.toFixed(2)),
@@ -667,6 +681,7 @@ function resetResultsPanel() {
   setText('resPackaging', formatMoney(0));
   setText('resShipping', formatMoney(0));
   setText('resRisk', formatMoney(0));
+  setText('resTax', formatMoney(0));
   setText('resTotal', formatMoney(0));
   setText('resFinal', formatMoney(0));
   setText('resProfit', formatMoney(0));
@@ -776,6 +791,7 @@ async function saveSale() {
     packagingCost: currentCalc.packagingCost,
     shippingCost: currentCalc.shippingCost,
     riskCost: currentCalc.riskCost,
+    taxCost: currentCalc.taxCost,
     totalCost: currentCalc.totalCost,
     finalPrice: currentCalc.finalPrice,
     profit: currentCalc.profit,
@@ -1066,7 +1082,17 @@ async function updateOrderStatusQuick(code, status) {
     itemName: order.itemName,
     customerName: order.customerName,
     printerId: order.printerId || null,
+    printHours: Number(order.printHours || 0),
+    manualMinutes: Number(order.manualMinutes || 0),
     notes: order.notes || '',
+    materialCost: Number(order.materialCost || 0),
+    depreciationCost: Number(order.depreciationCost || 0),
+    electricityCost: Number(order.electricityCost || 0),
+    laborCost: Number(order.laborCost || 0),
+    packagingCost: Number(order.packagingCost || 0),
+    shippingCost: Number(order.shippingCost || 0),
+    riskCost: Number(order.riskCost || 0),
+    taxCost: Number(order.taxCost || 0),
     totalCost: Number(order.totalCost || 0),
     finalPrice: Number(order.finalPrice || 0),
     profit: Number(order.profit || 0)
@@ -1119,6 +1145,13 @@ async function saveEditedSale() {
     return;
   }
 
+  const oldOrder = getOrderByCode(editingOrderCode);
+
+  if (!oldOrder) {
+    showToast('الأوردر غير موجود', 'error');
+    return;
+  }
+
   const payload = {
     code: editingOrderCode,
     date: getValue('editDate'),
@@ -1126,7 +1159,17 @@ async function saveEditedSale() {
     itemName: getTrimmedValue('editName'),
     customerName: getTrimmedValue('editCustomer'),
     printerId: getValue('editPrinter') ? Number(getValue('editPrinter')) : null,
+    printHours: Number(oldOrder.printHours || 0),
+    manualMinutes: Number(oldOrder.manualMinutes || 0),
     notes: getTrimmedValue('editNotes'),
+    materialCost: Number(oldOrder.materialCost || 0),
+    depreciationCost: Number(oldOrder.depreciationCost || 0),
+    electricityCost: Number(oldOrder.electricityCost || 0),
+    laborCost: Number(oldOrder.laborCost || 0),
+    packagingCost: Number(oldOrder.packagingCost || 0),
+    shippingCost: Number(oldOrder.shippingCost || 0),
+    riskCost: Number(oldOrder.riskCost || 0),
+    taxCost: Number(oldOrder.taxCost || 0),
     totalCost: toPositiveNumber(getValue('editCost'), 0),
     finalPrice: toPositiveNumber(getValue('editPrice'), 0)
   };
@@ -1283,6 +1326,51 @@ function renderInvoice(order) {
         <div class="invoice-box">
           <span>الربح</span>
           <strong>${formatMoney(order.profit || 0)}</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="invoice-section">
+      <h3>تفاصيل التكلفة</h3>
+      <div class="invoice-grid">
+        <div class="invoice-box">
+          <span>الخامة</span>
+          <strong>${formatMoney(order.materialCost || 0)}</strong>
+        </div>
+
+        <div class="invoice-box">
+          <span>إهلاك الطابعة</span>
+          <strong>${formatMoney(order.depreciationCost || 0)}</strong>
+        </div>
+
+        <div class="invoice-box">
+          <span>الكهرباء</span>
+          <strong>${formatMoney(order.electricityCost || 0)}</strong>
+        </div>
+
+        <div class="invoice-box">
+          <span>الشغل اليدوي</span>
+          <strong>${formatMoney(order.laborCost || 0)}</strong>
+        </div>
+
+        <div class="invoice-box">
+          <span>التغليف</span>
+          <strong>${formatMoney(order.packagingCost || 0)}</strong>
+        </div>
+
+        <div class="invoice-box">
+          <span>الشحن</span>
+          <strong>${formatMoney(order.shippingCost || 0)}</strong>
+        </div>
+
+        <div class="invoice-box">
+          <span>هامش الفشل / الهالك</span>
+          <strong>${formatMoney(order.riskCost || 0)}</strong>
+        </div>
+
+        <div class="invoice-box">
+          <span>الضريبة</span>
+          <strong>${formatMoney(order.taxCost || 0)}</strong>
         </div>
       </div>
     </div>
@@ -1566,9 +1654,11 @@ function closeSettingsModal() {
 }
 
 async function saveConfig() {
+  const currencyName = getTrimmedValue('currencyName') || DEFAULT_CONFIG.currencyName;
+
   const payload = {
     farmName: getTrimmedValue('farmName') || DEFAULT_CONFIG.farmName,
-    currencyName: getTrimmedValue('currencyName') || DEFAULT_CONFIG.currencyName,
+    currencyName: currencyName === 'ج' ? 'جنيه' : currencyName,
     defaultTaxPercent: String(toPositiveNumber(getValue('settingsDefaultTaxPercent'), DEFAULT_CONFIG.defaultTaxPercent)),
     laborRate: String(toPositiveNumber(getValue('laborRate'), DEFAULT_CONFIG.laborRate)),
     electricityCostPerHour: String(toPositiveNumber(getValue('electricityCostPerHour'), DEFAULT_CONFIG.electricityCostPerHour)),
@@ -1672,6 +1762,14 @@ function exportSalesCSV() {
     order.customerName,
     order.printerName,
     getOrderStatusText(order.status),
+    formatNumber(order.materialCost),
+    formatNumber(order.depreciationCost),
+    formatNumber(order.electricityCost),
+    formatNumber(order.laborCost),
+    formatNumber(order.packagingCost),
+    formatNumber(order.shippingCost),
+    formatNumber(order.riskCost),
+    formatNumber(order.taxCost),
     formatNumber(order.totalCost),
     formatNumber(order.finalPrice),
     formatNumber(order.profit),
@@ -1679,7 +1777,26 @@ function exportSalesCSV() {
   ]);
 
   const csv = buildCSV(
-    ['الكود', 'التاريخ', 'المجسم', 'العميل', 'الطابعة', 'الحالة', 'التكلفة', 'البيع', 'الربح', 'ملاحظات'],
+    [
+      'الكود',
+      'التاريخ',
+      'المجسم',
+      'العميل',
+      'الطابعة',
+      'الحالة',
+      'تكلفة الخامة',
+      'إهلاك الطابعة',
+      'الكهرباء',
+      'الشغل اليدوي',
+      'التغليف',
+      'الشحن',
+      'هامش الفشل / الهالك',
+      'الضريبة',
+      'إجمالي التكلفة',
+      'البيع',
+      'الربح',
+      'ملاحظات'
+    ],
     rows
   );
 
