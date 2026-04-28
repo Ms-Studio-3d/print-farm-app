@@ -106,7 +106,7 @@ function createMainWindow() {
     center: true,
     autoHideMenuBar: true,
     backgroundColor: '#050807',
-    title: 'Print Farm App',
+    title: '3D Print Farm App',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -195,8 +195,22 @@ function normalizeMaterialPayload(payload) {
   };
 }
 
+function normalizeMaterialUsageItem(item) {
+  const data = asObject(item);
+
+  return {
+    materialId: asNullableId(data.materialId),
+    materialName: asTrimmedString(data.materialName),
+    grams: asPositiveNumber(data.grams, 0),
+    pricePerGram: asPositiveNumber(data.pricePerGram, 0),
+    totalCost: asPositiveNumber(data.totalCost, 0),
+    remaining: asPositiveNumber(data.remaining, 0)
+  };
+}
+
 function normalizeOrderPayload(payload) {
   const data = asObject(payload);
+  const finalPrice = asPositiveNumber(data.finalPrice, 0);
 
   return {
     code: asTrimmedString(data.code),
@@ -208,6 +222,7 @@ function normalizeOrderPayload(payload) {
     manualMinutes: asPositiveNumber(data.manualMinutes, 0),
     notes: asTrimmedString(data.notes),
     date: asTrimmedString(data.date),
+
     materialCost: asPositiveNumber(data.materialCost, 0),
     depreciationCost: asPositiveNumber(data.depreciationCost, 0),
     electricityCost: asPositiveNumber(data.electricityCost, 0),
@@ -215,10 +230,20 @@ function normalizeOrderPayload(payload) {
     packagingCost: asPositiveNumber(data.packagingCost, 0),
     shippingCost: asPositiveNumber(data.shippingCost, 0),
     riskCost: asPositiveNumber(data.riskCost, 0),
+    taxCost: asPositiveNumber(data.taxCost, 0),
     totalCost: asPositiveNumber(data.totalCost, 0),
-    finalPrice: asPositiveNumber(data.finalPrice, 0),
+
+    priceBeforeDiscount: asPositiveNumber(data.priceBeforeDiscount, finalPrice),
+    discountValue: asPositiveNumber(data.discountValue, 0),
+    priceAfterDiscount: asPositiveNumber(data.priceAfterDiscount, finalPrice),
+    roundedAdjustment: asPositiveNumber(data.roundedAdjustment, 0),
+
+    finalPrice,
     profit: asNumber(data.profit, 0),
-    materialUsage: Array.isArray(data.materialUsage) ? data.materialUsage : []
+
+    materialUsage: Array.isArray(data.materialUsage)
+      ? data.materialUsage.map(normalizeMaterialUsageItem)
+      : []
   };
 }
 
