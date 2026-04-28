@@ -23,6 +23,15 @@ const DEFAULT_CONFIG = {
 
 const ORDER_STATUS_FLOW = ['new', 'printing', 'finished', 'delivered', 'cancelled'];
 
+const MAIN_PANEL_IDS = [
+  'reportsModal',
+  'materialsManagerModal',
+  'printersManagerModal',
+  'customersModal',
+  'pipelineModal',
+  'settingsModal'
+];
+
 const MODAL_IDS = [
   'reportsModal',
   'editModal',
@@ -247,11 +256,16 @@ function setActiveNav(view) {
   });
 }
 
+function getOpenModalsCount() {
+  return MODAL_IDS.filter((modalId) => isModalOpen(modalId)).length;
+}
+
 function openModal(id) {
   const modal = $(id);
   if (!modal) return;
 
   modal.style.display = 'flex';
+  modal.style.zIndex = String(10000 + getOpenModalsCount());
   modal.setAttribute('aria-hidden', 'false');
 }
 
@@ -260,6 +274,7 @@ function closeModal(id) {
   if (!modal) return;
 
   modal.style.display = 'none';
+  modal.style.zIndex = '';
   modal.setAttribute('aria-hidden', 'true');
 }
 
@@ -268,8 +283,17 @@ function isModalOpen(id) {
   return !!modal && modal.style.display === 'flex';
 }
 
+function closeMainPanels() {
+  MAIN_PANEL_IDS.forEach((id) => closeModal(id));
+}
+
 function closeAllModals() {
   MODAL_IDS.forEach((id) => closeModal(id));
+}
+
+function closeAllPanels() {
+  closeAllModals();
+  setActiveNav('order');
 }
 
 function returnToOrderNav() {
@@ -966,6 +990,7 @@ function renderReportsTableSafe() {
 
 function openReports() {
   setActiveNav('reports');
+  closeMainPanels();
   renderPrinterSelects();
   renderReportsTable();
   openModal('reportsModal');
@@ -1096,6 +1121,7 @@ function renderPipelineCard(order) {
 
 function openPipelineModal() {
   setActiveNav('pipeline');
+  closeMainPanels();
   renderPrinterSelects();
   renderPipeline();
   openModal('pipelineModal');
@@ -1285,6 +1311,7 @@ function renderCustomers() {
 
 function openCustomersModal() {
   setActiveNav('customers');
+  closeMainPanels();
   renderCustomers();
   openModal('customersModal');
 }
@@ -1465,6 +1492,7 @@ function printInvoice() {
 /* Materials */
 function openMaterialsManagerModal() {
   setActiveNav('materials');
+  closeMainPanels();
   renderInventory();
   openModal('materialsManagerModal');
 }
@@ -1577,7 +1605,8 @@ async function deleteMaterialAction(id) {
 
 /* Printers */
 function openPrintersManagerModal() {
-  setActiveNav('settings');
+  setActiveNav('printers');
+  closeMainPanels();
   renderPrinters();
   openModal('printersManagerModal');
 }
@@ -1710,6 +1739,7 @@ function closeStockMovementsModal() {
 /* Settings */
 function openSettingsModal() {
   setActiveNav('settings');
+  closeMainPanels();
   applyConfigToInputs();
   openModal('settingsModal');
 }
@@ -1990,8 +2020,7 @@ function attachLiveEvents() {
       if (!view) return;
 
       if (view === 'order') {
-        closeAllModals();
-        setActiveNav('order');
+        closeAllPanels();
         return;
       }
 
@@ -2001,6 +2030,9 @@ function attachLiveEvents() {
           break;
         case 'materials':
           openMaterialsManagerModal();
+          break;
+        case 'printers':
+          openPrintersManagerModal();
           break;
         case 'reports':
           openReports();
@@ -2012,7 +2044,7 @@ function attachLiveEvents() {
           openSettingsModal();
           break;
         default:
-          setActiveNav('order');
+          closeAllPanels();
       }
     });
   });
@@ -2088,6 +2120,8 @@ window.exportCustomersCSV = exportCustomersCSV;
 window.calc = calc;
 window.saveSale = saveSale;
 window.resetOrderForm = resetOrderForm;
+window.closeAllPanels = closeAllPanels;
+window.closeAllModals = closeAllModals;
 
 window.addEventListener('error', function (event) {
   console.error(event.error || event.message);
