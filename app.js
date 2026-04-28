@@ -48,6 +48,10 @@ function createEmptyCalc() {
     riskCost: 0,
     taxCost: 0,
     totalCost: 0,
+    priceBeforeDiscount: 0,
+    discountValue: 0,
+    priceAfterDiscount: 0,
+    roundedAdjustment: 0,
     finalPrice: 0,
     profit: 0,
     materialUsage: []
@@ -78,6 +82,15 @@ function toNumber(value, fallback = 0) {
 function toPositiveNumber(value, fallback = 0) {
   const num = toNumber(value, fallback);
   return num >= 0 ? num : fallback;
+}
+
+function roundMoney(value) {
+  return Number(Number(value || 0).toFixed(2));
+}
+
+function roundUpToNearest5(value) {
+  const safeValue = Math.max(0, Number(value || 0));
+  return Math.ceil(safeValue / 5) * 5;
 }
 
 function escapeHtml(value) {
@@ -466,7 +479,7 @@ function renderPrinters() {
 
         <div class="list-card-body">
           <div>الموديل: ${escapeHtml(printer.model || '-')}</div>
-          <div>إهلاك/ساعة: ${formatMoney(printer.hourlyDepreciation || 0)}</div>
+          <div>تكلفة الماكينة / ساعة: ${formatMoney(printer.hourlyDepreciation || 0)}</div>
           <div>ملاحظات: ${escapeHtml(printer.notes || '-')}</div>
         </div>
 
@@ -612,6 +625,7 @@ function calc() {
   const printHours = toPositiveNumber(getValue('printHours'), 0);
   const manualMinutes = toPositiveNumber(getValue('manualMins'), 0);
   const profitMargin = toPositiveNumber(getValue('profitMargin'), 0);
+  const discountValue = toPositiveNumber(getValue('discountValue'), 0);
 
   const packagingCost = toPositiveNumber(getValue('packagingCost'), getConfigNumber('packagingCost'));
   const shippingCost = toPositiveNumber(getValue('shippingCost'), getConfigNumber('shippingCost'));
@@ -642,7 +656,12 @@ function calc() {
   const costBeforeTax = baseCost + riskCost;
   const taxCost = costBeforeTax * (defaultTaxPercent / 100);
   const totalCost = costBeforeTax + taxCost;
-  const finalPrice = Math.ceil(totalCost * (1 + (profitMargin / 100)));
+
+  const priceBeforeDiscount = totalCost * (1 + (profitMargin / 100));
+  const safeDiscountValue = Math.min(discountValue, priceBeforeDiscount);
+  const priceAfterDiscount = Math.max(0, priceBeforeDiscount - safeDiscountValue);
+  const finalPrice = roundUpToNearest5(priceAfterDiscount);
+  const roundedAdjustment = finalPrice - priceAfterDiscount;
   const profit = finalPrice - totalCost;
 
   setText('resMat', formatMoney(materialCost));
@@ -654,21 +673,28 @@ function calc() {
   setText('resRisk', formatMoney(riskCost));
   setText('resTax', formatMoney(taxCost));
   setText('resTotal', formatMoney(totalCost));
+  setText('resBeforeDiscount', formatMoney(priceBeforeDiscount));
+  setText('resDiscount', formatMoney(safeDiscountValue));
+  setText('resRoundedAdjustment', formatMoney(roundedAdjustment));
   setText('resFinal', formatMoney(finalPrice));
   setText('resProfit', formatMoney(profit));
 
   currentCalc = {
-    materialCost: Number(materialCost.toFixed(2)),
-    depreciationCost: Number(depreciationCost.toFixed(2)),
-    electricityCost: Number(electricityCost.toFixed(2)),
-    laborCost: Number(laborCost.toFixed(2)),
-    packagingCost: Number(packagingCost.toFixed(2)),
-    shippingCost: Number(shippingCost.toFixed(2)),
-    riskCost: Number(riskCost.toFixed(2)),
-    taxCost: Number(taxCost.toFixed(2)),
-    totalCost: Number(totalCost.toFixed(2)),
-    finalPrice: Number(finalPrice.toFixed(2)),
-    profit: Number(profit.toFixed(2)),
+    materialCost: roundMoney(materialCost),
+    depreciationCost: roundMoney(depreciationCost),
+    electricityCost: roundMoney(electricityCost),
+    laborCost: roundMoney(laborCost),
+    packagingCost: roundMoney(packagingCost),
+    shippingCost: roundMoney(shippingCost),
+    riskCost: roundMoney(riskCost),
+    taxCost: roundMoney(taxCost),
+    totalCost: roundMoney(totalCost),
+    priceBeforeDiscount: roundMoney(priceBeforeDiscount),
+    discountValue: roundMoney(safeDiscountValue),
+    priceAfterDiscount: roundMoney(priceAfterDiscount),
+    roundedAdjustment: roundMoney(roundedAdjustment),
+    finalPrice: roundMoney(finalPrice),
+    profit: roundMoney(profit),
     materialUsage
   };
 }
@@ -683,6 +709,9 @@ function resetResultsPanel() {
   setText('resRisk', formatMoney(0));
   setText('resTax', formatMoney(0));
   setText('resTotal', formatMoney(0));
+  setText('resBeforeDiscount', formatMoney(0));
+  setText('resDiscount', formatMoney(0));
+  setText('resRoundedAdjustment', formatMoney(0));
   setText('resFinal', formatMoney(0));
   setText('resProfit', formatMoney(0));
 }
@@ -697,6 +726,7 @@ function resetOrderForm() {
   setValue('orderStatus', 'new');
   setValue('orderNotes', '');
   setValue('profitMargin', '100');
+  setValue('discountValue', '0');
 
   document.querySelectorAll('.ams-weight').forEach((input) => {
     input.value = '';
@@ -765,6 +795,8 @@ function validateOrderBeforeSave() {
 }
 
 async function saveSale() {
+  calc();
+
   const validation = validateOrderBeforeSave();
   if (!validation.valid) return;
 
@@ -774,8 +806,10 @@ async function saveSale() {
     return;
   }
 
+  const responseOrderCode = String(responseCode.data || 'ORD-1001');
+
   const payload = {
-    code: String(responseCode.data || 'ORD-1001'),
+    code: responseOrderCode,
     itemName: validation.itemName,
     customerName: getTrimmedValue('customerName'),
     printerId: Number(validation.printerId),
@@ -1319,7 +1353,7 @@ function renderInvoice(order) {
         </div>
 
         <div class="invoice-box">
-          <span>التكلفة</span>
+          <span>إجمالي التكلفة</span>
           <strong>${formatMoney(order.totalCost || 0)}</strong>
         </div>
 
@@ -1339,7 +1373,7 @@ function renderInvoice(order) {
         </div>
 
         <div class="invoice-box">
-          <span>إهلاك الطابعة</span>
+          <span>تكلفة الماكينة</span>
           <strong>${formatMoney(order.depreciationCost || 0)}</strong>
         </div>
 
@@ -1359,12 +1393,12 @@ function renderInvoice(order) {
         </div>
 
         <div class="invoice-box">
-          <span>الشحن</span>
+          <span>الشحن / المصاريف</span>
           <strong>${formatMoney(order.shippingCost || 0)}</strong>
         </div>
 
         <div class="invoice-box">
-          <span>هامش الفشل / الهالك</span>
+          <span>الهالك</span>
           <strong>${formatMoney(order.riskCost || 0)}</strong>
         </div>
 
@@ -1785,12 +1819,12 @@ function exportSalesCSV() {
       'الطابعة',
       'الحالة',
       'تكلفة الخامة',
-      'إهلاك الطابعة',
+      'تكلفة الماكينة',
       'الكهرباء',
       'الشغل اليدوي',
       'التغليف',
-      'الشحن',
-      'هامش الفشل / الهالك',
+      'الشحن / المصاريف',
+      'الهالك',
       'الضريبة',
       'إجمالي التكلفة',
       'البيع',
@@ -1870,6 +1904,7 @@ function attachLiveEvents() {
     'printHours',
     'manualMins',
     'profitMargin',
+    'discountValue',
     'selectedPrinter',
     'packagingCost',
     'shippingCost',
