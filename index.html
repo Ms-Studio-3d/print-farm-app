@@ -46,7 +46,7 @@
               <div class="section-head">
                 <div>
                   <h3>أوردر جديد</h3>
-                  <p class="section-subtext">اكتب بيانات القطعة واحسب السعر فورًا</p>
+                  <p class="section-subtext">اكتب بيانات القطعة واحسب السعر فورًا بنفس معادلة تطبيق الموبايل</p>
                 </div>
 
                 <button class="btn btn-secondary btn-small" type="button" onclick="resetOrderForm()">تفريغ</button>
@@ -95,15 +95,20 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="manualMins">شغل يدوي / دقيقة</label>
+                  <label for="manualMins">دقائق شغلك اليدوي في الطلب</label>
                   <input type="text" id="manualMins" value="15" inputmode="decimal" />
                 </div>
               </div>
 
-              <div class="grid-2 section-gap-sm">
+              <div class="grid-3 section-gap-sm">
                 <div class="form-group">
                   <label for="profitMargin">نسبة المكسب %</label>
                   <input type="text" id="profitMargin" value="100" inputmode="decimal" />
+                </div>
+
+                <div class="form-group">
+                  <label for="discountValue">الخصم</label>
+                  <input type="text" id="discountValue" value="0" inputmode="decimal" />
                 </div>
 
                 <div class="form-group">
@@ -130,42 +135,32 @@
               <div class="section-head">
                 <div>
                   <h3>تفاصيل التسعير</h3>
-                  <p class="section-subtext">القيم التي تدخل في الحساب</p>
+                  <p class="section-subtext">القيم المطابقة لحساب تطبيق الموبايل</p>
                 </div>
               </div>
 
               <div class="grid-3">
                 <div class="form-group">
-                  <label for="laborRate">أجرتك / ساعة</label>
+                  <label for="laborRate">سعر ساعة شغلك اليدوي</label>
                   <input type="text" id="laborRate" value="50" inputmode="decimal" />
-                </div>
-
-                <div class="form-group">
-                  <label for="electricityCostPerHour">كهرباء / ساعة</label>
-                  <input type="text" id="electricityCostPerHour" value="3" inputmode="decimal" />
                 </div>
 
                 <div class="form-group">
                   <label for="packagingCost">التغليف</label>
                   <input type="text" id="packagingCost" value="10" inputmode="decimal" />
                 </div>
-              </div>
 
-              <div class="grid-3 section-gap-sm">
                 <div class="form-group">
                   <label for="failurePercent">الهالك %</label>
                   <input type="text" id="failurePercent" value="10" inputmode="decimal" />
                 </div>
+              </div>
 
-                <div class="form-group">
-                  <label for="shippingCost">شحن / مصاريف</label>
-                  <input type="text" id="shippingCost" value="0" inputmode="decimal" />
-                </div>
-
-                <div class="form-group">
-                  <label for="defaultTaxPercent">ضريبة / نسبة إضافية %</label>
-                  <input type="text" id="defaultTaxPercent" value="0" inputmode="decimal" />
-                </div>
+              <div class="helper-box section-gap-sm">
+                <strong>توضيح الشغل اليدوي:</strong>
+                <span>دقائق شغلك اليدوي = الوقت الذي قضيته في الطلب الحالي.</span>
+                <span>سعر ساعة شغلك اليدوي = قيمة ساعة شغلك.</span>
+                <span>مثال: 30 دقيقة × 120 جنيه/ساعة = 60 جنيه.</span>
               </div>
             </section>
           </section>
@@ -175,59 +170,59 @@
               <div class="section-head section-head-light">
                 <div>
                   <h3>ملخص السعر</h3>
-                  <p class="section-subtext light-text">الحساب النهائي للأوردر الحالي</p>
+                  <p class="section-subtext light-text">نفس طريقة حساب تطبيق الموبايل</p>
                 </div>
               </div>
 
               <div class="summary-main">
                 <div class="summary-stat">
                   <span class="summary-label">تكلفة الخامة</span>
-                  <strong id="resMat" class="summary-value">0 ج</strong>
+                  <strong id="resMat" class="summary-value">0 جنيه</strong>
                 </div>
 
                 <div class="summary-stat">
-                  <span class="summary-label">إهلاك الطابعة</span>
-                  <strong id="resDep" class="summary-value">0 ج</strong>
-                </div>
-
-                <div class="summary-stat">
-                  <span class="summary-label">الكهرباء</span>
-                  <strong id="resElectricity" class="summary-value">0 ج</strong>
+                  <span class="summary-label">تكلفة الماكينة</span>
+                  <strong id="resDep" class="summary-value">0 جنيه</strong>
                 </div>
 
                 <div class="summary-stat">
                   <span class="summary-label">الشغل اليدوي</span>
-                  <strong id="resLabor" class="summary-value">0 ج</strong>
+                  <strong id="resLabor" class="summary-value">0 جنيه</strong>
                 </div>
 
                 <div class="summary-stat">
                   <span class="summary-label">التغليف</span>
-                  <strong id="resPackaging" class="summary-value">0 ج</strong>
+                  <strong id="resPackaging" class="summary-value">0 جنيه</strong>
                 </div>
 
                 <div class="summary-stat">
-                  <span class="summary-label">الشحن / المصاريف</span>
-                  <strong id="resShipping" class="summary-value">0 ج</strong>
+                  <span class="summary-label">الهالك</span>
+                  <strong id="resRisk" class="summary-value">0 جنيه</strong>
                 </div>
 
                 <div class="summary-stat">
-                  <span class="summary-label">الهالك / الضريبة</span>
-                  <strong id="resRisk" class="summary-value">0 ج</strong>
+                  <span class="summary-label">قبل الخصم</span>
+                  <strong id="resBeforeDiscount" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">الخصم</span>
+                  <strong id="resDiscount" class="summary-value">0 جنيه</strong>
                 </div>
 
                 <div class="summary-stat total-stat">
                   <span class="summary-label">إجمالي التكلفة</span>
-                  <strong id="resTotal" class="summary-value">0 ج</strong>
+                  <strong id="resTotal" class="summary-value">0 جنيه</strong>
                 </div>
 
                 <div class="summary-stat final-stat">
-                  <span class="summary-label">سعر البيع المقترح</span>
-                  <strong id="resFinal" class="summary-value">0 ج</strong>
+                  <span class="summary-label">سعر البيع بعد التقريب</span>
+                  <strong id="resFinal" class="summary-value">0 جنيه</strong>
                 </div>
 
                 <div class="summary-stat profit-stat">
                   <span class="summary-label">صافي الربح</span>
-                  <strong id="resProfit" class="summary-value">0 ج</strong>
+                  <strong id="resProfit" class="summary-value">0 جنيه</strong>
                 </div>
               </div>
 
@@ -605,7 +600,7 @@
         </div>
 
         <div class="form-group">
-          <label for="printerHourlyDepreciation">إهلاك / ساعة</label>
+          <label for="printerHourlyDepreciation">تكلفة الماكينة / ساعة</label>
           <input type="text" id="printerHourlyDepreciation" inputmode="decimal" />
         </div>
       </div>
@@ -719,13 +714,19 @@
 
         <div class="form-group">
           <label for="currencyName">العملة</label>
-          <input type="text" id="currencyName" value="ج" />
+          <input type="text" id="currencyName" value="جنيه" />
         </div>
 
         <div class="form-group">
-          <label for="settingsDefaultTaxPercent">النسبة الافتراضية %</label>
+          <label for="settingsDefaultTaxPercent">الضريبة الافتراضية %</label>
           <input type="text" id="settingsDefaultTaxPercent" value="0" inputmode="decimal" />
         </div>
+      </div>
+
+      <div class="helper-box section-gap-sm">
+        <strong>ملاحظة:</strong>
+        <span>الحساب السريع في الديسكتوب مضبوط ليطابق تطبيق الموبايل.</span>
+        <span>الضريبة والكهرباء والشحن لا تدخل في الحساب الأساسي حاليًا حتى لا تختلف النتيجة بين التطبيقين.</span>
       </div>
 
       <div class="inline-actions section-gap-md">
