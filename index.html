@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Print Farm App</title>
+  <title>3D Print Farm App</title>
   <meta
     name="description"
     content="برنامج لإدارة أعمال الطباعة ثلاثية الأبعاد والتسعير والأوردرات والمخزون والطابعات"
@@ -96,7 +96,7 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="manualMins">دقائق شغلك اليدوي في الطلب</label>
+                  <label for="manualMins">دقائق خدمة / شغل يدوي</label>
                   <input type="text" id="manualMins" value="15" inputmode="decimal" />
                 </div>
               </div>
@@ -142,7 +142,7 @@
 
               <div class="grid-3">
                 <div class="form-group">
-                  <label for="laborRate">سعر ساعة شغلك اليدوي</label>
+                  <label for="laborRate">سعر ساعة الشغل اليدوي</label>
                   <input type="text" id="laborRate" value="50" inputmode="decimal" />
                 </div>
 
@@ -176,8 +176,8 @@
 
               <div class="helper-box section-gap-sm">
                 <strong>ملاحظة مهمة:</strong>
-                <span>لو الكهرباء والشحن والضريبة والخصم = 0، الحساب المفروض يطابق حساب الموبايل.</span>
-                <span>لو أضفت كهرباء أو شحن أو ضريبة، الديسكتوب هيطلع سعر أدق وأعلى حسب البيانات.</span>
+                <span>القيم الافتراضية يتم ضبطها من الإعدادات، وتظهر هنا في كل أوردر جديد.</span>
+                <span>أي قيمة يمكن تعديلها أو تصفيرها داخل الأوردر نفسه قبل التسجيل.</span>
               </div>
             </section>
           </section>
@@ -248,7 +248,7 @@
                 </div>
 
                 <div class="summary-stat">
-                  <span class="summary-label">فرق التقريب لأقرب 5</span>
+                  <span class="summary-label">فرق التقريب</span>
                   <strong id="resRoundedAdjustment" class="summary-value">0 جنيه</strong>
                 </div>
 
@@ -750,7 +750,7 @@
       <div class="grid-3">
         <div class="form-group">
           <label for="farmName">اسم المشروع</label>
-          <input type="text" id="farmName" />
+          <input type="text" id="farmName" value="3D Print Farm App" />
         </div>
 
         <div class="form-group">
@@ -759,15 +759,72 @@
         </div>
 
         <div class="form-group">
+          <label for="settingsDefaultProfitMargin">نسبة المكسب الافتراضية %</label>
+          <input type="text" id="settingsDefaultProfitMargin" value="100" inputmode="decimal" />
+        </div>
+      </div>
+
+      <div class="grid-3 section-gap-sm">
+        <div class="form-group">
+          <label for="settingsDefaultManualMinutes">دقائق خدمة / شغل يدوي افتراضية</label>
+          <input type="text" id="settingsDefaultManualMinutes" value="15" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="settingsLaborRate">سعر ساعة الشغل اليدوي</label>
+          <input type="text" id="settingsLaborRate" value="50" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="settingsPackagingCost">التغليف الافتراضي</label>
+          <input type="text" id="settingsPackagingCost" value="10" inputmode="decimal" />
+        </div>
+      </div>
+
+      <div class="grid-3 section-gap-sm">
+        <div class="form-group">
+          <label for="settingsElectricityCostPerHour">كهرباء / ساعة</label>
+          <input type="text" id="settingsElectricityCostPerHour" value="3" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="settingsFailurePercent">الهالك الافتراضي %</label>
+          <input type="text" id="settingsFailurePercent" value="10" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="settingsShippingCost">الشحن / المصاريف الافتراضية</label>
+          <input type="text" id="settingsShippingCost" value="0" inputmode="decimal" />
+        </div>
+      </div>
+
+      <div class="grid-3 section-gap-sm">
+        <div class="form-group">
           <label for="settingsDefaultTaxPercent">الضريبة الافتراضية %</label>
           <input type="text" id="settingsDefaultTaxPercent" value="0" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="settingsDefaultDiscountValue">الخصم الافتراضي</label>
+          <input type="text" id="settingsDefaultDiscountValue" value="0" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="settingsRoundingStep">التقريب لأعلى أقرب</label>
+          <input type="text" id="settingsRoundingStep" value="5" inputmode="decimal" />
         </div>
       </div>
 
       <div class="helper-box section-gap-sm">
+        <strong>فكرة الإعدادات الافتراضية:</strong>
+        <span>كل أوردر جديد سيبدأ بهذه القيم تلقائيًا، لكن يمكنك تعديلها أو تصفيرها داخل الأوردر نفسه.</span>
+        <span>دقائق الخدمة الافتراضية تمثل وقت التجهيز، مراجعة الملف، فك القطعة، التنظيف البسيط، والتواصل مع العميل.</span>
+      </div>
+
+      <div class="helper-box section-gap-sm">
         <strong>توافق الحساب:</strong>
-        <span>الديسكتوب هو البرنامج الكامل، لكن مع صفر كهرباء/شحن/ضريبة/خصم يجب أن يطابق حساب الموبايل.</span>
-        <span>أي قيمة إضافية تملأها هنا ستدخل في السعر النهائي بشكل طبيعي.</span>
+        <span>نفس القيم الافتراضية يجب نقلها لاحقًا للموبايل حتى يطلع نفس السعر.</span>
+        <span>أي قيمة تدخل في السعر ستكون ظاهرة هنا وليست مخفية.</span>
       </div>
 
       <div class="inline-actions section-gap-md">
