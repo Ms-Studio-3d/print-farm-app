@@ -46,7 +46,7 @@
               <div class="section-head">
                 <div>
                   <h3>أوردر جديد</h3>
-                  <p class="section-subtext">اكتب بيانات القطعة واحسب السعر فورًا بنفس معادلة تطبيق الموبايل</p>
+                  <p class="section-subtext">اكتب بيانات القطعة واحسب السعر فورًا</p>
                 </div>
 
                 <button class="btn btn-secondary btn-small" type="button" onclick="resetOrderForm()">تفريغ</button>
@@ -135,7 +135,7 @@
               <div class="section-head">
                 <div>
                   <h3>تفاصيل التسعير</h3>
-                  <p class="section-subtext">القيم المطابقة لحساب تطبيق الموبايل</p>
+                  <p class="section-subtext">القيم التي تدخل في الحساب، والإضافات اختيارية</p>
                 </div>
               </div>
 
@@ -146,21 +146,37 @@
                 </div>
 
                 <div class="form-group">
+                  <label for="electricityCostPerHour">كهرباء / ساعة</label>
+                  <input type="text" id="electricityCostPerHour" value="3" inputmode="decimal" />
+                </div>
+
+                <div class="form-group">
                   <label for="packagingCost">التغليف</label>
                   <input type="text" id="packagingCost" value="10" inputmode="decimal" />
                 </div>
+              </div>
 
+              <div class="grid-3 section-gap-sm">
                 <div class="form-group">
                   <label for="failurePercent">الهالك %</label>
                   <input type="text" id="failurePercent" value="10" inputmode="decimal" />
                 </div>
+
+                <div class="form-group">
+                  <label for="shippingCost">شحن / مصاريف</label>
+                  <input type="text" id="shippingCost" value="0" inputmode="decimal" />
+                </div>
+
+                <div class="form-group">
+                  <label for="defaultTaxPercent">ضريبة / نسبة إضافية %</label>
+                  <input type="text" id="defaultTaxPercent" value="0" inputmode="decimal" />
+                </div>
               </div>
 
               <div class="helper-box section-gap-sm">
-                <strong>توضيح الشغل اليدوي:</strong>
-                <span>دقائق شغلك اليدوي = الوقت الذي قضيته في الطلب الحالي.</span>
-                <span>سعر ساعة شغلك اليدوي = قيمة ساعة شغلك.</span>
-                <span>مثال: 30 دقيقة × 120 جنيه/ساعة = 60 جنيه.</span>
+                <strong>ملاحظة مهمة:</strong>
+                <span>لو الكهرباء والشحن والضريبة والخصم = 0، الحساب المفروض يطابق حساب الموبايل.</span>
+                <span>لو أضفت كهرباء أو شحن أو ضريبة، الديسكتوب هيطلع سعر أدق وأعلى حسب البيانات.</span>
               </div>
             </section>
           </section>
@@ -170,7 +186,7 @@
               <div class="section-head section-head-light">
                 <div>
                   <h3>ملخص السعر</h3>
-                  <p class="section-subtext light-text">نفس طريقة حساب تطبيق الموبايل</p>
+                  <p class="section-subtext light-text">الحساب النهائي للأوردر الحالي</p>
                 </div>
               </div>
 
@@ -186,6 +202,11 @@
                 </div>
 
                 <div class="summary-stat">
+                  <span class="summary-label">الكهرباء</span>
+                  <strong id="resElectricity" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat">
                   <span class="summary-label">الشغل اليدوي</span>
                   <strong id="resLabor" class="summary-value">0 جنيه</strong>
                 </div>
@@ -196,12 +217,27 @@
                 </div>
 
                 <div class="summary-stat">
+                  <span class="summary-label">الشحن / المصاريف</span>
+                  <strong id="resShipping" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat">
                   <span class="summary-label">الهالك</span>
                   <strong id="resRisk" class="summary-value">0 جنيه</strong>
                 </div>
 
                 <div class="summary-stat">
-                  <span class="summary-label">قبل الخصم</span>
+                  <span class="summary-label">الضريبة</span>
+                  <strong id="resTax" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat total-stat">
+                  <span class="summary-label">إجمالي التكلفة</span>
+                  <strong id="resTotal" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">السعر قبل الخصم</span>
                   <strong id="resBeforeDiscount" class="summary-value">0 جنيه</strong>
                 </div>
 
@@ -210,13 +246,13 @@
                   <strong id="resDiscount" class="summary-value">0 جنيه</strong>
                 </div>
 
-                <div class="summary-stat total-stat">
-                  <span class="summary-label">إجمالي التكلفة</span>
-                  <strong id="resTotal" class="summary-value">0 جنيه</strong>
+                <div class="summary-stat">
+                  <span class="summary-label">فرق التقريب لأقرب 5</span>
+                  <strong id="resRoundedAdjustment" class="summary-value">0 جنيه</strong>
                 </div>
 
                 <div class="summary-stat final-stat">
-                  <span class="summary-label">سعر البيع بعد التقريب</span>
+                  <span class="summary-label">سعر البيع النهائي</span>
                   <strong id="resFinal" class="summary-value">0 جنيه</strong>
                 </div>
 
@@ -724,9 +760,9 @@
       </div>
 
       <div class="helper-box section-gap-sm">
-        <strong>ملاحظة:</strong>
-        <span>الحساب السريع في الديسكتوب مضبوط ليطابق تطبيق الموبايل.</span>
-        <span>الضريبة والكهرباء والشحن لا تدخل في الحساب الأساسي حاليًا حتى لا تختلف النتيجة بين التطبيقين.</span>
+        <strong>توافق الحساب:</strong>
+        <span>الديسكتوب هو البرنامج الكامل، لكن مع صفر كهرباء/شحن/ضريبة/خصم يجب أن يطابق حساب الموبايل.</span>
+        <span>أي قيمة إضافية تملأها هنا ستدخل في السعر النهائي بشكل طبيعي.</span>
       </div>
 
       <div class="inline-actions section-gap-md">
