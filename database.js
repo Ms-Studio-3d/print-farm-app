@@ -74,6 +74,7 @@ function createTables() {
       packaging_cost REAL NOT NULL DEFAULT 0,
       shipping_cost REAL NOT NULL DEFAULT 0,
       risk_cost REAL NOT NULL DEFAULT 0,
+      tax_cost REAL NOT NULL DEFAULT 0,
       total_cost REAL NOT NULL DEFAULT 0,
       final_price REAL NOT NULL DEFAULT 0,
       profit REAL NOT NULL DEFAULT 0,
@@ -128,6 +129,7 @@ function runMigrations() {
   ensureColumnExists('orders', 'packaging_cost', `ALTER TABLE orders ADD COLUMN packaging_cost REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'shipping_cost', `ALTER TABLE orders ADD COLUMN shipping_cost REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'risk_cost', `ALTER TABLE orders ADD COLUMN risk_cost REAL NOT NULL DEFAULT 0`);
+  ensureColumnExists('orders', 'tax_cost', `ALTER TABLE orders ADD COLUMN tax_cost REAL NOT NULL DEFAULT 0`);
 }
 
 function ensureColumnExists(tableName, columnName, alterSql) {
@@ -145,7 +147,7 @@ function seedDefaults() {
 
   const defaults = {
     farmName: 'Print Farm App',
-    currencyName: 'ج',
+    currencyName: 'جنيه',
     laborRate: '50',
     electricityCostPerHour: '3',
     packagingCost: '10',
@@ -171,6 +173,20 @@ function seedDefaults() {
       VALUES ('farmName', ?)
       ON CONFLICT(key) DO UPDATE SET value = excluded.value
     `).run(defaults.farmName);
+  }
+
+  const currentCurrencyName = db.prepare(`SELECT value FROM app_config WHERE key = 'currencyName'`).get();
+
+  if (
+    !currentCurrencyName ||
+    !String(currentCurrencyName.value || '').trim() ||
+    String(currentCurrencyName.value || '').trim() === 'ج'
+  ) {
+    db.prepare(`
+      INSERT INTO app_config (key, value)
+      VALUES ('currencyName', ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value
+    `).run(defaults.currencyName);
   }
 
   if (printersCount === 0) {
@@ -273,6 +289,7 @@ function getDashboardData() {
       o.packaging_cost AS packagingCost,
       o.shipping_cost AS shippingCost,
       o.risk_cost AS riskCost,
+      o.tax_cost AS taxCost,
       o.total_cost AS totalCost,
       o.final_price AS finalPrice,
       o.profit
@@ -512,7 +529,7 @@ function getNextOrderCode() {
     return 'ORD-1001';
   }
 
-  const match = String(lastOrder.code).match(/ORD-(\\d+)/);
+  const match = String(lastOrder.code).match(/ORD-(\d+)/);
 
   if (!match) {
     return 'ORD-1001';
@@ -540,11 +557,12 @@ function createOrder(payload) {
       packaging_cost,
       shipping_cost,
       risk_cost,
+      tax_cost,
       total_cost,
       final_price,
       profit
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertMaterialUsage = db.prepare(`
@@ -641,6 +659,7 @@ function createOrder(payload) {
       Number(data.packagingCost || 0),
       Number(data.shippingCost || 0),
       Number(data.riskCost || 0),
+      Number(data.taxCost || 0),
       Number(data.totalCost || 0),
       Number(data.finalPrice || 0),
       Number(data.profit || 0)
@@ -691,37 +710,190 @@ function updateOrder(payload) {
     throw new Error('كود الأوردر غير صالح');
   }
 
-  const existingOrder = db.prepare('SELECT id FROM orders WHERE code = ?').get(code);
+  const transaction = db.transaction((data) => {
+    const existingOrder = db.prepare('SELECT id, code FROM orders WHERE code = ?').get(code);
 
-  if (!existingOrder) {
-    throw new Error('الأوردر غير موجود');
-  }
+    if (!existingOrder) {
+      throw new Error('الأوردر غير موجود');
+    }
 
-  db.prepare(`
-    UPDATE orders
-    SET
-      item_name = ?,
-      customer_name = ?,
-      printer_id = ?,
-      order_status = ?,
-      notes = ?,
-      order_date = ?,
-      total_cost = ?,
-      final_price = ?,
-      profit = ?
-    WHERE code = ?
-  `).run(
-    String(payload.itemName || '').trim(),
-    String(payload.customerName || '').trim(),
-    payload.printerId ? Number(payload.printerId) : null,
-    String(payload.status || 'new').trim(),
-    String(payload.notes || '').trim(),
-    String(payload.date || '').trim(),
-    Number(payload.totalCost || 0),
-    Number(payload.finalPrice || 0),
-    Number(payload.profit || 0),
-    code
-  );
+    if (!String(data.itemName || '').trim()) {
+      throw new Error('اسم المجسم مطلوب');
+    }
+
+    if (data.printerId) {
+      const printer = db.prepare('SELECT id, is_archived FROM printers WHERE id = ?').get(Number(data.printerId));
+
+      if (!printer) {
+        throw new Error('الطابعة المحددة غير موجودة');
+      }
+
+      if (Number(printer.is_archived || 0) === 1) {
+        throw new Error('الطابعة المحددة مؤرشفة ولا يمكن استخدامها');
+      }
+    }
+
+    const shouldReplaceMaterialUsage = Array.isArray(data.materialUsage);
+
+    if (shouldReplaceMaterialUsage) {
+      if (data.materialUsage.length === 0) {
+        throw new Error('لا يوجد استهلاك خامات في الأوردر');
+      }
+
+      const oldMaterials = db.prepare(`
+        SELECT material_id AS materialId, material_name AS materialName, grams
+        FROM order_materials
+        WHERE order_id = ?
+      `).all(existingOrder.id);
+
+      for (const item of oldMaterials) {
+        if (item.materialId) {
+          db.prepare(`
+            UPDATE materials
+            SET remaining = remaining + ?
+            WHERE id = ?
+          `).run(Number(item.grams || 0), Number(item.materialId));
+        }
+
+        db.prepare(`
+          INSERT INTO stock_movements (
+            material_id,
+            material_name,
+            movement_type,
+            quantity,
+            reason,
+            reference_code
+          )
+          VALUES (?, ?, ?, ?, ?, ?)
+        `).run(
+          item.materialId ? Number(item.materialId) : null,
+          String(item.materialName || '').trim(),
+          'return',
+          Number(item.grams || 0),
+          'استرجاع قبل تعديل أوردر',
+          String(existingOrder.code || '').trim()
+        );
+      }
+
+      db.prepare('DELETE FROM order_materials WHERE order_id = ?').run(existingOrder.id);
+
+      for (const item of data.materialUsage) {
+        const material = db.prepare('SELECT * FROM materials WHERE id = ?').get(Number(item.materialId));
+
+        if (!material) {
+          throw new Error(`الخامة غير موجودة: ${item.materialName}`);
+        }
+
+        if (Number(material.is_archived || 0) === 1) {
+          throw new Error(`الخامة مؤرشفة ولا يمكن استخدامها: ${item.materialName}`);
+        }
+
+        if (Number(material.remaining || 0) < Number(item.grams || 0)) {
+          throw new Error(`المخزون غير كافٍ في: ${item.materialName}`);
+        }
+
+        const result = db.prepare(`
+          UPDATE materials
+          SET remaining = remaining - ?
+          WHERE id = ? AND remaining >= ? AND is_archived = 0
+        `).run(
+          Number(item.grams || 0),
+          Number(item.materialId),
+          Number(item.grams || 0)
+        );
+
+        if (result.changes === 0) {
+          throw new Error(`تعذر خصم المخزون من: ${item.materialName}`);
+        }
+
+        db.prepare(`
+          INSERT INTO order_materials (
+            order_id,
+            material_id,
+            material_name,
+            grams,
+            price_per_gram,
+            total_cost
+          )
+          VALUES (?, ?, ?, ?, ?, ?)
+        `).run(
+          existingOrder.id,
+          Number(item.materialId),
+          String(item.materialName || '').trim(),
+          Number(item.grams || 0),
+          Number(item.pricePerGram || 0),
+          Number(item.totalCost || 0)
+        );
+
+        db.prepare(`
+          INSERT INTO stock_movements (
+            material_id,
+            material_name,
+            movement_type,
+            quantity,
+            reason,
+            reference_code
+          )
+          VALUES (?, ?, ?, ?, ?, ?)
+        `).run(
+          Number(item.materialId),
+          String(item.materialName || '').trim(),
+          'out',
+          Number(item.grams || 0),
+          'استهلاك بعد تعديل أوردر',
+          String(existingOrder.code || '').trim()
+        );
+      }
+    }
+
+    db.prepare(`
+      UPDATE orders
+      SET
+        item_name = ?,
+        customer_name = ?,
+        printer_id = ?,
+        order_status = ?,
+        print_hours = ?,
+        manual_minutes = ?,
+        notes = ?,
+        order_date = ?,
+        material_cost = ?,
+        depreciation_cost = ?,
+        electricity_cost = ?,
+        labor_cost = ?,
+        packaging_cost = ?,
+        shipping_cost = ?,
+        risk_cost = ?,
+        tax_cost = ?,
+        total_cost = ?,
+        final_price = ?,
+        profit = ?
+      WHERE code = ?
+    `).run(
+      String(data.itemName || '').trim(),
+      String(data.customerName || '').trim(),
+      data.printerId ? Number(data.printerId) : null,
+      String(data.status || 'new').trim(),
+      Number(data.printHours || 0),
+      Number(data.manualMinutes || 0),
+      String(data.notes || '').trim(),
+      String(data.date || '').trim(),
+      Number(data.materialCost || 0),
+      Number(data.depreciationCost || 0),
+      Number(data.electricityCost || 0),
+      Number(data.laborCost || 0),
+      Number(data.packagingCost || 0),
+      Number(data.shippingCost || 0),
+      Number(data.riskCost || 0),
+      Number(data.taxCost || 0),
+      Number(data.totalCost || 0),
+      Number(data.finalPrice || 0),
+      Number(data.profit || 0),
+      code
+    );
+  });
+
+  transaction(payload);
 }
 
 function deleteOrder(code) {
@@ -819,11 +991,12 @@ function replaceAllData(data) {
         packaging_cost,
         shipping_cost,
         risk_cost,
+        tax_cost,
         total_cost,
         final_price,
         profit
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const insertMovement = db.prepare(`
@@ -851,7 +1024,14 @@ function replaceAllData(data) {
     `);
 
     Object.entries(payload.config || {}).forEach(([key, value]) => {
-      insertConfig.run(String(key), String(value));
+      const safeKey = String(key);
+      let safeValue = String(value);
+
+      if (safeKey === 'currencyName' && safeValue.trim() === 'ج') {
+        safeValue = 'جنيه';
+      }
+
+      insertConfig.run(safeKey, safeValue);
     });
 
     const printerIdMap = new Map();
@@ -913,6 +1093,7 @@ function replaceAllData(data) {
         Number(order.packagingCost || 0),
         Number(order.shippingCost || 0),
         Number(order.riskCost || 0),
+        Number(order.taxCost || 0),
         Number(order.totalCost || 0),
         Number(order.finalPrice || 0),
         Number(order.profit || 0)
@@ -1010,13 +1191,28 @@ function exportBackupData() {
     ORDER BY id DESC
   `).all();
 
+  const stockMovements = db.prepare(`
+    SELECT
+      id,
+      material_id AS materialId,
+      material_name AS materialName,
+      movement_type AS movementType,
+      quantity,
+      reason,
+      reference_code AS referenceCode,
+      created_at AS createdAt
+    FROM stock_movements
+    ORDER BY id ASC
+  `).all();
+
   return {
     exportedAt: new Date().toISOString(),
     appName: 'Print Farm App',
-    schemaVersion: 2,
+    schemaVersion: 3,
     ...data,
     printers: [...data.printers, ...archivedPrinters],
     materials: [...data.materials, ...archivedMaterials],
+    stockMovements,
     orderMaterials
   };
 }
