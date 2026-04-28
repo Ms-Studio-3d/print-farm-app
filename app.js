@@ -827,6 +827,10 @@ async function saveSale() {
     riskCost: currentCalc.riskCost,
     taxCost: currentCalc.taxCost,
     totalCost: currentCalc.totalCost,
+    priceBeforeDiscount: currentCalc.priceBeforeDiscount,
+    discountValue: currentCalc.discountValue,
+    priceAfterDiscount: currentCalc.priceAfterDiscount,
+    roundedAdjustment: currentCalc.roundedAdjustment,
     finalPrice: currentCalc.finalPrice,
     profit: currentCalc.profit,
     materialUsage: validation.materialUsage
@@ -1128,6 +1132,10 @@ async function updateOrderStatusQuick(code, status) {
     riskCost: Number(order.riskCost || 0),
     taxCost: Number(order.taxCost || 0),
     totalCost: Number(order.totalCost || 0),
+    priceBeforeDiscount: Number(order.priceBeforeDiscount || order.finalPrice || 0),
+    discountValue: Number(order.discountValue || 0),
+    priceAfterDiscount: Number(order.priceAfterDiscount || order.finalPrice || 0),
+    roundedAdjustment: Number(order.roundedAdjustment || 0),
     finalPrice: Number(order.finalPrice || 0),
     profit: Number(order.profit || 0)
   };
@@ -1205,6 +1213,10 @@ async function saveEditedSale() {
     riskCost: Number(oldOrder.riskCost || 0),
     taxCost: Number(oldOrder.taxCost || 0),
     totalCost: toPositiveNumber(getValue('editCost'), 0),
+    priceBeforeDiscount: Number(oldOrder.priceBeforeDiscount || oldOrder.finalPrice || 0),
+    discountValue: Number(oldOrder.discountValue || 0),
+    priceAfterDiscount: Number(oldOrder.priceAfterDiscount || oldOrder.finalPrice || 0),
+    roundedAdjustment: Number(oldOrder.roundedAdjustment || 0),
     finalPrice: toPositiveNumber(getValue('editPrice'), 0)
   };
 
@@ -1405,6 +1417,26 @@ function renderInvoice(order) {
         <div class="invoice-box">
           <span>الضريبة</span>
           <strong>${formatMoney(order.taxCost || 0)}</strong>
+        </div>
+
+        <div class="invoice-box">
+          <span>السعر قبل الخصم</span>
+          <strong>${formatMoney(order.priceBeforeDiscount || order.finalPrice || 0)}</strong>
+        </div>
+
+        <div class="invoice-box">
+          <span>الخصم</span>
+          <strong>${formatMoney(order.discountValue || 0)}</strong>
+        </div>
+
+        <div class="invoice-box">
+          <span>السعر بعد الخصم</span>
+          <strong>${formatMoney(order.priceAfterDiscount || order.finalPrice || 0)}</strong>
+        </div>
+
+        <div class="invoice-box">
+          <span>فرق التقريب</span>
+          <strong>${formatMoney(order.roundedAdjustment || 0)}</strong>
         </div>
       </div>
     </div>
@@ -1805,6 +1837,10 @@ function exportSalesCSV() {
     formatNumber(order.riskCost),
     formatNumber(order.taxCost),
     formatNumber(order.totalCost),
+    formatNumber(order.priceBeforeDiscount),
+    formatNumber(order.discountValue),
+    formatNumber(order.priceAfterDiscount),
+    formatNumber(order.roundedAdjustment),
     formatNumber(order.finalPrice),
     formatNumber(order.profit),
     order.notes
@@ -1827,7 +1863,11 @@ function exportSalesCSV() {
       'الهالك',
       'الضريبة',
       'إجمالي التكلفة',
-      'البيع',
+      'السعر قبل الخصم',
+      'الخصم',
+      'السعر بعد الخصم',
+      'فرق التقريب',
+      'البيع النهائي',
       'الربح',
       'ملاحظات'
     ],
