@@ -11,7 +11,7 @@ let editingOrderCode = null;
 let currentInvoiceOrderCode = null;
 
 const DEFAULT_CONFIG = {
-  farmName: 'Print Farm App',
+  farmName: '3D Print Farm App',
   currencyName: 'جنيه',
   laborRate: 50,
   electricityCostPerHour: 3,
