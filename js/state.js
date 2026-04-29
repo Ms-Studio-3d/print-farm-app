@@ -1,77 +1,878 @@
-let dashboardData = {
-  config: {},
-  printers: [],
-  materials: [],
-  orders: [],
-  stockMovements: []
-};
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Print Farm App</title>
+  <meta
+    name="description"
+    content="برنامج لإدارة أعمال الطباعة ثلاثية الأبعاد والتسعير والأوردرات والمخزون والطابعات"
+  />
 
-let currentCalc = createEmptyCalc();
-let editingOrderCode = null;
-let currentInvoiceOrderCode = null;
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap"
+    rel="stylesheet"
+  />
 
-const DEFAULT_CONFIG = {
-  farmName: '3D Print Farm App',
-  currencyName: 'جنيه',
-  defaultProfitMargin: 100,
-  defaultManualMinutes: 15,
-  laborRate: 50,
-  electricityCostPerHour: 3,
-  packagingCost: 10,
-  failurePercent: 10,
-  defaultWasteWeight: 0,
-  minimumOrderPrice: 0,
-  shippingCost: 0,
-  defaultTaxPercent: 0,
-  defaultDiscountValue: 0,
-  roundingStep: 5
-};
+  <link rel="stylesheet" href="style.css" />
+</head>
 
-const ORDER_STATUS_FLOW = ['new', 'printing', 'finished', 'delivered', 'cancelled'];
+<body>
+  <div class="app-shell">
+    <div class="app-frame">
+      <header class="app-topbar">
+        <div>
+          <h1 class="app-title">3D Print Farm App</h1>
+          <p class="app-subtitle">تسعير وإدارة أوردرات الطباعة ثلاثية الأبعاد</p>
+        </div>
 
-const MAIN_PANEL_IDS = [
-  'reportsModal',
-  'materialsManagerModal',
-  'printersManagerModal',
-  'customersModal',
-  'pipelineModal',
-  'settingsModal'
-];
+        <div class="topbar-actions">
+          <button class="btn btn-secondary btn-small" type="button" onclick="openReports()">التقارير</button>
+          <button class="btn btn-secondary btn-small" type="button" onclick="openPipelineModal()">الأوردرات</button>
+          <button class="btn btn-secondary btn-small" type="button" onclick="openMaterialsManagerModal()">الخامات</button>
+          <button class="btn btn-secondary btn-small" type="button" onclick="openPrintersManagerModal()">الطابعات</button>
 
-const MODAL_IDS = [
-  'reportsModal',
-  'editModal',
-  'invoiceModal',
-  'materialsManagerModal',
-  'printersManagerModal',
-  'printerModal',
-  'materialModal',
-  'stockMovementsModal',
-  'customersModal',
-  'pipelineModal',
-  'settingsModal'
-];
+          <div class="order-code-chip">
+            <span>ORD-<span id="nextOrderCode">...</span></span>
+          </div>
+        </div>
+      </header>
 
-function createEmptyCalc() {
-  return {
-    materialCost: 0,
-    wasteWeight: 0,
-    wasteCost: 0,
-    depreciationCost: 0,
-    electricityCost: 0,
-    laborCost: 0,
-    packagingCost: 0,
-    shippingCost: 0,
-    riskCost: 0,
-    taxCost: 0,
-    totalCost: 0,
-    priceBeforeDiscount: 0,
-    discountValue: 0,
-    priceAfterDiscount: 0,
-    minimumOrderPrice: 0,
-    roundedAdjustment: 0,
-    finalPrice: 0,
-    profit: 0,
-    materialUsage: []
-  };
-}
+      <main class="app-content">
+        <section class="main-layout">
+          <section class="left-column">
+            <section class="card">
+              <div class="section-head">
+                <div>
+                  <h3>أوردر جديد</h3>
+                  <p class="section-subtext">اكتب بيانات القطعة واحسب السعر فورًا</p>
+                </div>
+
+                <button class="btn btn-secondary btn-small" type="button" onclick="resetOrderForm()">تفريغ</button>
+              </div>
+
+              <div class="grid-2">
+                <div class="form-group">
+                  <label for="itemName">اسم المجسم *</label>
+                  <input type="text" id="itemName" placeholder="مثال: حامل موبايل" />
+                </div>
+
+                <div class="form-group">
+                  <label for="customerName">اسم العميل</label>
+                  <input type="text" id="customerName" placeholder="اختياري" list="customersDatalist" />
+                  <datalist id="customersDatalist"></datalist>
+                </div>
+              </div>
+
+              <div class="grid-2 section-gap-sm">
+                <div class="form-group">
+                  <label for="selectedPrinter">الطابعة *</label>
+                  <select id="selectedPrinter"></select>
+                </div>
+
+                <div class="form-group">
+                  <label for="orderStatus">حالة الأوردر</label>
+                  <select id="orderStatus">
+                    <option value="new">جديد</option>
+                    <option value="printing">قيد الطباعة</option>
+                    <option value="finished">جاهز</option>
+                    <option value="delivered">تم التسليم</option>
+                    <option value="cancelled">ملغي</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="grid-3 section-gap-sm">
+                <div class="form-group">
+                  <label for="opDate">التاريخ</label>
+                  <input type="date" id="opDate" />
+                </div>
+
+                <div class="form-group">
+                  <label for="printHours">وقت الطباعة / ساعة *</label>
+                  <input type="text" id="printHours" value="0" inputmode="decimal" />
+                </div>
+
+                <div class="form-group">
+                  <label for="manualMins">دقائق خدمة / شغل يدوي</label>
+                  <input type="text" id="manualMins" value="15" inputmode="decimal" />
+                </div>
+              </div>
+
+              <div class="grid-3 section-gap-sm">
+                <div class="form-group">
+                  <label for="profitMargin">نسبة المكسب %</label>
+                  <input type="text" id="profitMargin" value="100" inputmode="decimal" />
+                </div>
+
+                <div class="form-group">
+                  <label for="discountValue">الخصم</label>
+                  <input type="text" id="discountValue" value="0" inputmode="decimal" />
+                </div>
+
+                <div class="form-group">
+                  <label for="orderNotes">ملاحظات</label>
+                  <input type="text" id="orderNotes" placeholder="اختياري" />
+                </div>
+              </div>
+            </section>
+
+            <section class="card section-gap-md">
+              <div class="section-head">
+                <div>
+                  <h3>استهلاك الخامات</h3>
+                  <p class="section-subtext">اكتب الجرامات المستخدمة لكل خامة</p>
+                </div>
+
+                <button class="btn btn-secondary btn-small" type="button" onclick="openMaterialsManagerModal()">إدارة الخامات</button>
+              </div>
+
+              <div id="amsInputs" class="material-usage-list"></div>
+            </section>
+
+            <section class="card section-gap-md">
+              <div class="section-head">
+                <div>
+                  <h3>تفاصيل التسعير</h3>
+                  <p class="section-subtext">القيم التي تدخل في الحساب، والإضافات اختيارية</p>
+                </div>
+              </div>
+
+              <div class="grid-3">
+                <div class="form-group">
+                  <label for="laborRate">سعر ساعة الشغل اليدوي</label>
+                  <input type="text" id="laborRate" value="50" inputmode="decimal" />
+                </div>
+
+                <div class="form-group">
+                  <label for="electricityCostPerHour">كهرباء / ساعة</label>
+                  <input type="text" id="electricityCostPerHour" value="3" inputmode="decimal" />
+                </div>
+
+                <div class="form-group">
+                  <label for="packagingCost">التغليف</label>
+                  <input type="text" id="packagingCost" value="10" inputmode="decimal" />
+                </div>
+              </div>
+
+              <div class="grid-3 section-gap-sm">
+                <div class="form-group">
+                  <label for="failurePercent">نسبة فشل / مخاطرة %</label>
+                  <input type="text" id="failurePercent" value="10" inputmode="decimal" />
+                </div>
+
+                <div class="form-group">
+                  <label for="wasteWeight">وزن هالك إضافي / جرام</label>
+                  <input type="text" id="wasteWeight" value="0" inputmode="decimal" />
+                </div>
+
+                <div class="form-group">
+                  <label for="minimumOrderPrice">الحد الأدنى لسعر الأوردر</label>
+                  <input type="text" id="minimumOrderPrice" value="0" inputmode="decimal" />
+                </div>
+              </div>
+
+              <div class="grid-3 section-gap-sm">
+                <div class="form-group">
+                  <label for="shippingCost">شحن / مصاريف</label>
+                  <input type="text" id="shippingCost" value="0" inputmode="decimal" />
+                </div>
+
+                <div class="form-group">
+                  <label for="defaultTaxPercent">ضريبة / نسبة إضافية %</label>
+                  <input type="text" id="defaultTaxPercent" value="0" inputmode="decimal" />
+                </div>
+
+                <div class="form-group">
+                  <label>ملاحظة</label>
+                  <input type="text" value="الهالك الوزني للتسعير فقط" readonly />
+                </div>
+              </div>
+
+              <div class="helper-box section-gap-sm">
+                <strong>ملاحظة مهمة:</strong>
+                <span>القيم الافتراضية يتم ضبطها من الإعدادات، وتظهر هنا في كل أوردر جديد.</span>
+                <span>أي قيمة يمكن تعديلها أو تصفيرها داخل الأوردر نفسه قبل التسجيل.</span>
+              </div>
+            </section>
+          </section>
+
+          <aside class="right-column">
+            <section class="card result-card">
+              <div class="section-head section-head-light">
+                <div>
+                  <h3>ملخص السعر</h3>
+                  <p class="section-subtext light-text">الحساب النهائي للأوردر الحالي</p>
+                </div>
+              </div>
+
+              <div class="summary-main">
+                <div class="summary-stat">
+                  <span class="summary-label">تكلفة الخامة</span>
+                  <strong id="resMat" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">هالك وزن إضافي</span>
+                  <strong id="resWaste" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">تكلفة الماكينة</span>
+                  <strong id="resDep" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">الكهرباء</span>
+                  <strong id="resElectricity" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">الشغل اليدوي</span>
+                  <strong id="resLabor" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">التغليف</span>
+                  <strong id="resPackaging" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">الشحن / المصاريف</span>
+                  <strong id="resShipping" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">نسبة الفشل / المخاطرة</span>
+                  <strong id="resRisk" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">الضريبة</span>
+                  <strong id="resTax" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat total-stat">
+                  <span class="summary-label">إجمالي التكلفة</span>
+                  <strong id="resTotal" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">السعر قبل الخصم</span>
+                  <strong id="resBeforeDiscount" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">الخصم</span>
+                  <strong id="resDiscount" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">الحد الأدنى</span>
+                  <strong id="resMinimum" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">فرق التقريب</span>
+                  <strong id="resRoundedAdjustment" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat final-stat">
+                  <span class="summary-label">سعر البيع النهائي</span>
+                  <strong id="resFinal" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat profit-stat">
+                  <span class="summary-label">صافي الربح</span>
+                  <strong id="resProfit" class="summary-value">0 جنيه</strong>
+                </div>
+              </div>
+
+              <button class="btn btn-save section-gap-md" type="button" onclick="saveSale()">تسجيل الأوردر</button>
+            </section>
+          </aside>
+        </section>
+      </main>
+
+      <nav class="bottom-nav">
+        <button class="nav-btn nav-btn-active" data-view="order" type="button" onclick="closeAllPanels()">
+          <span>الأوردر</span>
+        </button>
+
+        <button class="nav-btn" data-view="pipeline" type="button" onclick="openPipelineModal()">
+          <span>الأوردرات</span>
+        </button>
+
+        <button class="nav-btn" data-view="materials" type="button" onclick="openMaterialsManagerModal()">
+          <span>الخامات</span>
+        </button>
+
+        <button class="nav-btn" data-view="printers" type="button" onclick="openPrintersManagerModal()">
+          <span>الطابعات</span>
+        </button>
+
+        <button class="nav-btn" data-view="reports" type="button" onclick="openReports()">
+          <span>التقارير</span>
+        </button>
+
+        <button class="nav-btn" data-view="customers" type="button" onclick="openCustomersModal()">
+          <span>العملاء</span>
+        </button>
+
+        <button class="nav-btn" data-view="settings" type="button" onclick="openSettingsModal()">
+          <span>الإعدادات</span>
+        </button>
+      </nav>
+    </div>
+  </div>
+
+  <div class="modal app-panel" id="pipelineModal" aria-hidden="true">
+    <div class="modal-content modal-xl panel-content">
+      <div class="panel-head">
+        <button type="button" onclick="closePipelineModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2>الأوردرات</h2>
+        <button type="button" class="btn btn-secondary btn-auto" onclick="exportSalesCSV()">تصدير CSV</button>
+      </div>
+
+      <div class="toolbar toolbar-wrap">
+        <div class="form-group">
+          <label for="pipelineSearch">بحث</label>
+          <input type="text" id="pipelineSearch" placeholder="الكود / المجسم / العميل" oninput="renderPipeline()" />
+        </div>
+
+        <div class="form-group">
+          <label for="pipelinePrinterFilter">الطابعة</label>
+          <select id="pipelinePrinterFilter" oninput="renderPipeline()">
+            <option value="">كل الطابعات</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="pipelineFrom">من</label>
+          <input type="date" id="pipelineFrom" oninput="renderPipeline()" />
+        </div>
+
+        <div class="form-group">
+          <label for="pipelineTo">إلى</label>
+          <input type="date" id="pipelineTo" oninput="renderPipeline()" />
+        </div>
+      </div>
+
+      <div class="pipeline-board" id="pipelineBoard">
+        <section class="pipeline-column">
+          <div class="pipeline-column-head"><h3>جديد</h3><span id="pipelineCountNew">0</span></div>
+          <div class="pipeline-list" id="pipelineNew"></div>
+        </section>
+
+        <section class="pipeline-column">
+          <div class="pipeline-column-head"><h3>قيد الطباعة</h3><span id="pipelineCountPrinting">0</span></div>
+          <div class="pipeline-list" id="pipelinePrinting"></div>
+        </section>
+
+        <section class="pipeline-column">
+          <div class="pipeline-column-head"><h3>جاهز</h3><span id="pipelineCountFinished">0</span></div>
+          <div class="pipeline-list" id="pipelineFinished"></div>
+        </section>
+
+        <section class="pipeline-column">
+          <div class="pipeline-column-head"><h3>تم التسليم</h3><span id="pipelineCountDelivered">0</span></div>
+          <div class="pipeline-list" id="pipelineDelivered"></div>
+        </section>
+
+        <section class="pipeline-column">
+          <div class="pipeline-column-head"><h3>ملغي</h3><span id="pipelineCountCancelled">0</span></div>
+          <div class="pipeline-list" id="pipelineCancelled"></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal app-panel" id="reportsModal" aria-hidden="true">
+    <div class="modal-content modal-xl panel-content">
+      <div class="panel-head">
+        <button type="button" onclick="closeReports()" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2>التقارير والمبيعات</h2>
+        <div class="inline-actions">
+          <button type="button" class="btn btn-secondary btn-auto" onclick="exportSalesCSV()">مبيعات CSV</button>
+          <button type="button" class="btn btn-secondary btn-auto" onclick="exportStockCSV()">مخزون CSV</button>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-box"><h4>إجمالي الإيراد</h4><div id="statRev">0</div></div>
+        <div class="stat-box"><h4>صافي الربح</h4><div id="statProfit">0</div></div>
+        <div class="stat-box"><h4>عدد المبيعات</h4><div id="statCount">0</div></div>
+        <div class="stat-box"><h4>أعلى بيعة</h4><div id="statTop">0</div></div>
+        <div class="stat-box"><h4>متوسط الربح</h4><div id="statAvgProfit">0</div></div>
+        <div class="stat-box"><h4>طلبات ملغية</h4><div id="statCancelled">0</div></div>
+        <div class="stat-box"><h4>أكثر عميل</h4><div id="statTopCustomer">-</div></div>
+        <div class="stat-box"><h4>أقل خامة</h4><div id="statLowestStock">-</div></div>
+      </div>
+
+      <div class="toolbar toolbar-wrap">
+        <div class="form-group">
+          <label for="salesSearch">بحث</label>
+          <input type="text" id="salesSearch" placeholder="الكود / المجسم / العميل" oninput="renderReportsTable()" />
+        </div>
+
+        <div class="form-group">
+          <label for="filterStatus">الحالة</label>
+          <select id="filterStatus" oninput="renderReportsTable()">
+            <option value="">الكل</option>
+            <option value="new">جديد</option>
+            <option value="printing">قيد الطباعة</option>
+            <option value="finished">جاهز</option>
+            <option value="delivered">تم التسليم</option>
+            <option value="cancelled">ملغي</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="filterPrinter">الطابعة</label>
+          <select id="filterPrinter" oninput="renderReportsTable()">
+            <option value="">كل الطابعات</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="filterCustomer">العميل</label>
+          <input type="text" id="filterCustomer" placeholder="اسم العميل" oninput="renderReportsTable()" list="customersDatalist" />
+        </div>
+
+        <div class="form-group">
+          <label for="filterFrom">من</label>
+          <input type="date" id="filterFrom" oninput="renderReportsTable()" />
+        </div>
+
+        <div class="form-group">
+          <label for="filterTo">إلى</label>
+          <input type="date" id="filterTo" oninput="renderReportsTable()" />
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table id="salesTable">
+          <thead>
+            <tr>
+              <th>الكود</th>
+              <th>التاريخ</th>
+              <th>المجسم</th>
+              <th>العميل</th>
+              <th>الطابعة</th>
+              <th>الحالة</th>
+              <th>التكلفة</th>
+              <th>البيع</th>
+              <th>الربح</th>
+              <th>إجراء</th>
+            </tr>
+          </thead>
+          <tbody id="salesTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal app-panel" id="customersModal" aria-hidden="true">
+    <div class="modal-content modal-lg panel-content">
+      <div class="panel-head">
+        <button type="button" onclick="closeCustomersModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2>العملاء</h2>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="mini-kpi"><span>عدد العملاء</span><strong id="customersCount">0</strong></div>
+      </div>
+
+      <div id="customersList" class="stack-list section-gap-md"></div>
+    </div>
+  </div>
+
+  <div class="modal app-panel" id="editModal" aria-hidden="true">
+    <div class="modal-content modal-lg panel-content">
+      <div class="panel-head">
+        <button type="button" onclick="closeModal('editModal')" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2>تعديل الأوردر</h2>
+        <button type="button" class="btn btn-secondary btn-auto" onclick="editingOrderCode && openInvoice(editingOrderCode)">فاتورة</button>
+      </div>
+
+      <input type="hidden" id="editCode" />
+
+      <div class="grid-3">
+        <div class="form-group">
+          <label for="editDate">التاريخ</label>
+          <input type="date" id="editDate" />
+        </div>
+
+        <div class="form-group">
+          <label for="editItemName">اسم المجسم</label>
+          <input type="text" id="editItemName" />
+        </div>
+
+        <div class="form-group">
+          <label for="editCustomerName">اسم العميل</label>
+          <input type="text" id="editCustomerName" list="customersDatalist" />
+        </div>
+      </div>
+
+      <div class="grid-3 section-gap-sm">
+        <div class="form-group">
+          <label for="editPrinter">الطابعة</label>
+          <select id="editPrinter"></select>
+        </div>
+
+        <div class="form-group">
+          <label for="editStatus">الحالة</label>
+          <select id="editStatus">
+            <option value="new">جديد</option>
+            <option value="printing">قيد الطباعة</option>
+            <option value="finished">جاهز</option>
+            <option value="delivered">تم التسليم</option>
+            <option value="cancelled">ملغي</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="editFinalPrice">سعر البيع النهائي</label>
+          <input type="text" id="editFinalPrice" inputmode="decimal" />
+        </div>
+      </div>
+
+      <div class="grid-3 section-gap-sm">
+        <div class="form-group">
+          <label for="editPrintHours">وقت الطباعة / ساعة</label>
+          <input type="text" id="editPrintHours" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="editManualMinutes">دقائق يدوي</label>
+          <input type="text" id="editManualMinutes" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="editNotes">ملاحظات</label>
+          <input type="text" id="editNotes" />
+        </div>
+      </div>
+
+      <div class="helper-box section-gap-sm">
+        <strong>تنبيه:</strong>
+        <span>التعديل السريع هنا لا يغير استهلاك الخامات. لو عايز تعديل خامات الأوردر، احذف الأوردر وسجله من جديد.</span>
+      </div>
+
+      <button type="button" class="btn btn-primary section-gap-sm" onclick="saveEditSale()">حفظ التعديل</button>
+    </div>
+  </div>
+
+  <div class="modal app-panel" id="invoiceModal" aria-hidden="true">
+    <div class="modal-content modal-xl panel-content">
+      <div class="panel-head no-print">
+        <button type="button" onclick="closeInvoice()" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2>الفاتورة</h2>
+        <button type="button" class="btn btn-primary btn-auto" onclick="printInvoice()">طباعة</button>
+      </div>
+
+      <div id="invoiceContent"></div>
+    </div>
+  </div>
+
+  <div class="modal app-panel" id="materialsManagerModal" aria-hidden="true">
+    <div class="modal-content modal-xl panel-content">
+      <div class="panel-head">
+        <button type="button" onclick="closeMaterialsManagerModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2>إدارة الخامات</h2>
+        <div class="inline-actions">
+          <button type="button" class="btn btn-secondary btn-auto" onclick="openStockMovementsModal()">حركة المخزون</button>
+          <button type="button" class="btn btn-primary btn-auto" onclick="openMaterialModal()">إضافة خامة</button>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="mini-kpi"><span>عدد الخامات</span><strong id="materialsCount">0</strong></div>
+        <div class="mini-kpi"><span>خامات منخفضة</span><strong id="lowStockCount">0</strong></div>
+      </div>
+
+      <div id="inventoryUI" class="stack-list section-gap-md"></div>
+    </div>
+  </div>
+
+  <div class="modal app-panel" id="materialModal" aria-hidden="true">
+    <div class="modal-content modal-md panel-content">
+      <div class="panel-head">
+        <button type="button" onclick="closeMaterialModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2>إضافة / تعديل خامة</h2>
+      </div>
+
+      <input type="hidden" id="materialId" />
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label for="materialName">اسم الخامة</label>
+          <input type="text" id="materialName" />
+        </div>
+
+        <div class="form-group">
+          <label for="materialType">النوع</label>
+          <input type="text" id="materialType" placeholder="PLA / PETG" />
+        </div>
+      </div>
+
+      <div class="grid-3 section-gap-sm">
+        <div class="form-group">
+          <label for="materialColor">اللون</label>
+          <input type="text" id="materialColor" />
+        </div>
+
+        <div class="form-group">
+          <label for="materialWeight">الوزن الكلي / جرام</label>
+          <input type="text" id="materialWeight" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="materialRemaining">المتبقي / جرام</label>
+          <input type="text" id="materialRemaining" inputmode="decimal" />
+        </div>
+      </div>
+
+      <div class="grid-3 section-gap-sm">
+        <div class="form-group">
+          <label for="materialPrice">سعر الشراء</label>
+          <input type="text" id="materialPrice" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="materialLowStockThreshold">حد التنبيه</label>
+          <input type="text" id="materialLowStockThreshold" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="materialSupplier">المورد</label>
+          <input type="text" id="materialSupplier" />
+        </div>
+      </div>
+
+      <button type="button" class="btn btn-primary section-gap-sm" onclick="saveMaterialAction()">حفظ الخامة</button>
+    </div>
+  </div>
+
+  <div class="modal app-panel" id="stockMovementsModal" aria-hidden="true">
+    <div class="modal-content modal-xl panel-content">
+      <div class="panel-head">
+        <button type="button" onclick="closeStockMovementsModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2>حركة المخزون</h2>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>التاريخ</th>
+              <th>الخامة</th>
+              <th>النوع</th>
+              <th>الكمية</th>
+              <th>السبب</th>
+              <th>المرجع</th>
+            </tr>
+          </thead>
+          <tbody id="stockMovementsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal app-panel" id="printersManagerModal" aria-hidden="true">
+    <div class="modal-content modal-xl panel-content">
+      <div class="panel-head">
+        <button type="button" onclick="closePrintersManagerModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2>إدارة الطابعات</h2>
+        <button type="button" class="btn btn-primary btn-auto" onclick="openPrinterModal()">إضافة طابعة</button>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="mini-kpi"><span>عدد الطابعات</span><strong id="printersCount">0</strong></div>
+        <div class="mini-kpi"><span>الشغالة الآن</span><strong id="activePrintersCount">0</strong></div>
+      </div>
+
+      <div id="printersList" class="stack-list section-gap-md"></div>
+    </div>
+  </div>
+
+  <div class="modal app-panel" id="printerModal" aria-hidden="true">
+    <div class="modal-content modal-md panel-content">
+      <div class="panel-head">
+        <button type="button" onclick="closePrinterModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2>إضافة / تعديل طابعة</h2>
+      </div>
+
+      <input type="hidden" id="printerId" />
+
+      <div class="grid-2">
+        <div class="form-group">
+          <label for="printerName">اسم الطابعة</label>
+          <input type="text" id="printerName" />
+        </div>
+
+        <div class="form-group">
+          <label for="printerStatus">الحالة</label>
+          <select id="printerStatus">
+            <option value="idle">متاحة</option>
+            <option value="printing">تطبع الآن</option>
+            <option value="maintenance">صيانة</option>
+            <option value="offline">متوقفة</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid-2 section-gap-sm">
+        <div class="form-group">
+          <label for="printerModel">الموديل</label>
+          <input type="text" id="printerModel" />
+        </div>
+
+        <div class="form-group">
+          <label for="printerHourlyDepreciation">تكلفة الماكينة / ساعة</label>
+          <input type="text" id="printerHourlyDepreciation" inputmode="decimal" />
+        </div>
+      </div>
+
+      <div class="form-group section-gap-sm">
+        <label for="printerNotes">ملاحظات</label>
+        <textarea id="printerNotes"></textarea>
+      </div>
+
+      <button type="button" class="btn btn-primary section-gap-sm" onclick="savePrinterAction()">حفظ الطابعة</button>
+    </div>
+  </div>
+
+  <div class="modal app-panel" id="settingsModal" aria-hidden="true">
+    <div class="modal-content modal-lg panel-content">
+      <div class="panel-head">
+        <button type="button" onclick="closeSettingsModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2>الإعدادات</h2>
+      </div>
+
+      <div class="grid-3">
+        <div class="form-group">
+          <label for="farmName">اسم المشروع</label>
+          <input type="text" id="farmName" value="3D Print Farm App" />
+        </div>
+
+        <div class="form-group">
+          <label for="currencyName">العملة</label>
+          <input type="text" id="currencyName" value="جنيه" />
+        </div>
+
+        <div class="form-group">
+          <label for="settingsDefaultProfitMargin">نسبة المكسب الافتراضية %</label>
+          <input type="text" id="settingsDefaultProfitMargin" value="100" inputmode="decimal" />
+        </div>
+      </div>
+
+      <div class="grid-3 section-gap-sm">
+        <div class="form-group">
+          <label for="settingsDefaultManualMinutes">دقائق خدمة / شغل يدوي افتراضية</label>
+          <input type="text" id="settingsDefaultManualMinutes" value="15" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="settingsLaborRate">سعر ساعة الشغل اليدوي</label>
+          <input type="text" id="settingsLaborRate" value="50" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="settingsPackagingCost">التغليف الافتراضي</label>
+          <input type="text" id="settingsPackagingCost" value="10" inputmode="decimal" />
+        </div>
+      </div>
+
+      <div class="grid-3 section-gap-sm">
+        <div class="form-group">
+          <label for="settingsElectricityCostPerHour">كهرباء / ساعة</label>
+          <input type="text" id="settingsElectricityCostPerHour" value="3" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="settingsFailurePercent">نسبة فشل / مخاطرة افتراضية %</label>
+          <input type="text" id="settingsFailurePercent" value="10" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="settingsDefaultWasteWeight">وزن الهالك الافتراضي / جرام</label>
+          <input type="text" id="settingsDefaultWasteWeight" value="0" inputmode="decimal" />
+        </div>
+      </div>
+
+      <div class="grid-3 section-gap-sm">
+        <div class="form-group">
+          <label for="settingsMinimumOrderPrice">الحد الأدنى الافتراضي للأوردر</label>
+          <input type="text" id="settingsMinimumOrderPrice" value="0" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="settingsShippingCost">الشحن / المصاريف الافتراضية</label>
+          <input type="text" id="settingsShippingCost" value="0" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="settingsDefaultTaxPercent">الضريبة الافتراضية %</label>
+          <input type="text" id="settingsDefaultTaxPercent" value="0" inputmode="decimal" />
+        </div>
+      </div>
+
+      <div class="grid-3 section-gap-sm">
+        <div class="form-group">
+          <label for="settingsDefaultDiscountValue">الخصم الافتراضي</label>
+          <input type="text" id="settingsDefaultDiscountValue" value="0" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="settingsRoundingStep">التقريب لأعلى أقرب</label>
+          <input type="text" id="settingsRoundingStep" value="5" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label>ملاحظة</label>
+          <input type="text" value="القيم الافتراضية تظهر في كل أوردر جديد" readonly />
+        </div>
+      </div>
+
+      <div class="helper-box section-gap-sm">
+        <strong>فكرة الإعدادات الافتراضية:</strong>
+        <span>كل أوردر جديد سيبدأ بهذه القيم تلقائيًا، لكن يمكنك تعديلها أو تصفيرها داخل الأوردر نفسه.</span>
+        <span>دقائق الخدمة الافتراضية تمثل وقت التجهيز، مراجعة الملف، فك القطعة، التنظيف البسيط، والتواصل مع العميل.</span>
+      </div>
+
+      <div class="helper-box section-gap-sm">
+        <strong>توافق الحساب:</strong>
+        <span>نفس القيم الافتراضية يجب نقلها لاحقًا للموبايل حتى يطلع نفس السعر.</span>
+        <span>أي قيمة تدخل في السعر ستكون ظاهرة هنا وليست مخفية.</span>
+      </div>
+
+      <div class="inline-actions section-gap-md">
+        <button type="button" class="btn btn-primary" onclick="saveSettings()">حفظ الإعدادات</button>
+        <button type="button" class="btn btn-secondary" onclick="exportBackup()">تصدير Backup</button>
+
+        <button type="button" class="btn btn-secondary" onclick="triggerImportBackup()">استيراد Backup</button>
+        <input type="file" id="importBackupInput" hidden accept="application/json" />
+      </div>
+    </div>
+  </div>
+
+  <script src="js/state.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/printers-view.js"></script>
+  <script src="js/inventory-view.js"></script>
+  <script src="js/pricing-orders.js"></script>
+  <script src="js/reports.js"></script>
+  <script src="js/pipeline.js"></script>
+  <script src="js/edit-orders.js"></script>
+  <script src="js/customers.js"></script>
+  <script src="js/invoice.js"></script>
+  <script src="js/materials-manager.js"></script>
+  <script src="js/printers-manager.js"></script>
+  <script src="js/settings-export.js"></script>
+  <script src="js/bootstrap.js"></script>
+</body>
+</html>
