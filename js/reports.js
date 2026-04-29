@@ -60,10 +60,11 @@ function renderReportsTable() {
     }
 
     const statusClass = getOrderStatusClass(order.status);
+    const safeCode = escapeHtml(order.code || '');
 
     return `
       <tr>
-        <td>${escapeHtml(order.code)}</td>
+        <td>${safeCode}</td>
         <td>${escapeHtml(order.date || '')}</td>
         <td>${escapeHtml(order.itemName || '')}</td>
         <td>${escapeHtml(order.customerName || '')}</td>
@@ -73,9 +74,9 @@ function renderReportsTable() {
         <td>${formatMoney(order.finalPrice || 0)}</td>
         <td>${formatMoney(order.profit || 0)}</td>
         <td>
-          <button class="action-btn edit" type="button" onclick="openEditSale('${escapeHtml(order.code)}')">تعديل</button>
-          <button class="action-btn" type="button" onclick="openInvoice('${escapeHtml(order.code)}')">فاتورة</button>
-          <button class="action-btn delete" type="button" onclick="deleteSale('${escapeHtml(order.code)}')">حذف</button>
+          <button class="action-btn edit" type="button" onclick="openEditSale('${safeCode}')">تعديل</button>
+          <button class="action-btn" type="button" onclick="openInvoice('${safeCode}')">فاتورة</button>
+          <button class="action-btn delete" type="button" onclick="deleteSale('${safeCode}')">حذف</button>
         </td>
       </tr>
     `;
