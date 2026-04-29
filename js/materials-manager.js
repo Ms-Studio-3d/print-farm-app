@@ -1,143 +1,157 @@
-function openInvoice(code) {
-  const order = getOrderByCode(code);
+function openMaterialsManagerModal() {
+  setActiveNav('materials');
+  closeMainPanels();
+  renderInventory();
+  renderStockMovementsTableSafe();
+  openModal('materialsManagerModal');
+}
 
-  if (!order) {
-    showToast('الأوردر غير موجود', 'error');
+function closeMaterialsManagerModal() {
+  closeModal('materialsManagerModal');
+  returnToOrderNav();
+}
+
+function openMaterialModal() {
+  setValue('materialId', '');
+  setValue('materialName', '');
+  setValue('materialType', '');
+  setValue('materialColor', '');
+  setValue('materialWeight', '1000');
+  setValue('materialRemaining', '1000');
+  setValue('materialPrice', '0');
+  setValue('materialLowStockThreshold', '150');
+  setValue('materialSupplier', '');
+  openModal('materialModal');
+}
+
+function closeMaterialModal() {
+  closeModal('materialModal');
+}
+
+function editMaterial(id) {
+  const material = getMaterialById(id);
+
+  if (!material) {
+    showToast('الخامة غير موجودة', 'error');
     return;
   }
 
-  currentInvoiceOrderCode = code;
-  renderInvoice(order);
-  openModal('invoiceModal');
+  setValue('materialId', material.id || '');
+  setValue('materialName', material.name || '');
+  setValue('materialType', material.type || '');
+  setValue('materialColor', material.color || '');
+  setValue('materialWeight', material.weight || 0);
+  setValue('materialRemaining', material.remaining || 0);
+  setValue('materialPrice', material.price || 0);
+  setValue('materialLowStockThreshold', material.lowStockThreshold || 0);
+  setValue('materialSupplier', material.supplier || '');
+
+  openModal('materialModal');
 }
 
-function closeInvoice() {
-  currentInvoiceOrderCode = null;
-  closeModal('invoiceModal');
+async function saveMaterialAction() {
+  const name = getTrimmedValue('materialName');
+
+  if (!name) {
+    showToast('اسم الخامة مطلوب', 'error');
+    $('materialName')?.focus();
+    return;
+  }
+
+  const weight = toPositiveNumber(getValue('materialWeight'), 0);
+  const remaining = toPositiveNumber(getValue('materialRemaining'), 0);
+
+  if (weight <= 0) {
+    showToast('وزن البكرة لازم يكون أكبر من صفر', 'error');
+    $('materialWeight')?.focus();
+    return;
+  }
+
+  if (remaining > weight) {
+    showToast('المتبقي لا يمكن أن يكون أكبر من وزن البكرة', 'error');
+    $('materialRemaining')?.focus();
+    return;
+  }
+
+  const payload = {
+    id: getValue('materialId') ? Number(getValue('materialId')) : null,
+    name,
+    type: getTrimmedValue('materialType'),
+    color: getTrimmedValue('materialColor'),
+    weight,
+    remaining,
+    price: toPositiveNumber(getValue('materialPrice'), 0),
+    lowStockThreshold: toPositiveNumber(getValue('materialLowStockThreshold'), 0),
+    supplier: getTrimmedValue('materialSupplier')
+  };
+
+  const response = await window.farmAPI.saveMaterial(payload);
+
+  if (!response?.success) {
+    showToast(response?.message || 'فشل في حفظ الخامة', 'error');
+    return;
+  }
+
+  showToast('تم حفظ الخامة بنجاح');
+  closeMaterialModal();
+  await loadDashboardData();
+
+  if (isModalOpen('materialsManagerModal')) renderInventory();
 }
 
-function renderInvoice(order) {
-  const invoiceContent = $('invoiceContent');
-  if (!invoiceContent) return;
+async function deleteMaterialAction(id) {
+  const confirmed = await askConfirm('هل تريد حذف هذه الخامة؟ لو مستخدمة في أوردرات سيتم أرشفتها فقط.');
 
-  const farmName = dashboardData.config.farmName || DEFAULT_CONFIG.farmName;
+  if (!confirmed) return;
 
-  invoiceContent.innerHTML = `
-    <div class="invoice-sheet">
-      <div class="invoice-header">
-        <div class="invoice-brand">
-          <h1>${escapeHtml(farmName)}</h1>
-          <p>فاتورة طباعة ثلاثية الأبعاد</p>
-          <span class="invoice-badge">${escapeHtml(getOrderStatusText(order.status))}</span>
-        </div>
+  const response = await window.farmAPI.deleteMaterial(id);
 
-        <div class="invoice-meta">
-          <p><strong>رقم الأوردر:</strong> ${escapeHtml(order.code || '-')}</p>
-          <p><strong>التاريخ:</strong> ${escapeHtml(order.date || '-')}</p>
-          <p><strong>العميل:</strong> ${escapeHtml(order.customerName || '-')}</p>
-        </div>
-      </div>
+  if (!response?.success) {
+    showToast(response?.message || 'فشل في حذف الخامة', 'error');
+    return;
+  }
 
-      <div class="invoice-section">
-        <h3>بيانات الأوردر</h3>
-        <div class="invoice-grid">
-          <div class="invoice-box">
-            <span>اسم المجسم</span>
-            <strong>${escapeHtml(order.itemName || '-')}</strong>
-          </div>
+  if (response.data?.archived) {
+    showToast('تم أرشفة الخامة لأنها مستخدمة في أوردرات قديمة');
+  } else {
+    showToast('تم حذف الخامة');
+  }
 
-          <div class="invoice-box">
-            <span>الطابعة</span>
-            <strong>${escapeHtml(order.printerName || '-')}</strong>
-          </div>
-
-          <div class="invoice-box">
-            <span>وقت الطباعة</span>
-            <strong>${formatNumber(order.printHours || 0)} ساعة</strong>
-          </div>
-
-          <div class="invoice-box">
-            <span>الشغل اليدوي</span>
-            <strong>${formatNumber(order.manualMinutes || 0)} دقيقة</strong>
-          </div>
-        </div>
-      </div>
-
-      <div class="invoice-section">
-        <h3>تفاصيل التكلفة</h3>
-        <div class="invoice-grid">
-          <div class="invoice-box">
-            <span>الخامة</span>
-            <strong>${formatMoney(order.materialCost || 0)}</strong>
-          </div>
-
-          <div class="invoice-box">
-            <span>هالك وزن (${formatNumber(order.wasteWeight || 0)}g)</span>
-            <strong>${formatMoney(order.wasteCost || 0)}</strong>
-          </div>
-
-          <div class="invoice-box">
-            <span>تكلفة الماكينة</span>
-            <strong>${formatMoney(order.depreciationCost || 0)}</strong>
-          </div>
-
-          <div class="invoice-box">
-            <span>الكهرباء</span>
-            <strong>${formatMoney(order.electricityCost || 0)}</strong>
-          </div>
-
-          <div class="invoice-box">
-            <span>الشغل اليدوي</span>
-            <strong>${formatMoney(order.laborCost || 0)}</strong>
-          </div>
-
-          <div class="invoice-box">
-            <span>التغليف</span>
-            <strong>${formatMoney(order.packagingCost || 0)}</strong>
-          </div>
-
-          <div class="invoice-box">
-            <span>الشحن / المصاريف</span>
-            <strong>${formatMoney(order.shippingCost || 0)}</strong>
-          </div>
-
-          <div class="invoice-box">
-            <span>نسبة الفشل / المخاطرة</span>
-            <strong>${formatMoney(order.riskCost || 0)}</strong>
-          </div>
-
-          <div class="invoice-box">
-            <span>الضريبة</span>
-            <strong>${formatMoney(order.taxCost || 0)}</strong>
-          </div>
-
-          <div class="invoice-box">
-            <span>إجمالي التكلفة</span>
-            <strong>${formatMoney(order.totalCost || 0)}</strong>
-          </div>
-        </div>
-      </div>
-
-      <div class="invoice-total">
-        <div>
-          <span>سعر البيع النهائي</span>
-          <strong>${formatMoney(order.finalPrice || 0)}</strong>
-        </div>
-        <div>
-          <span>صافي الربح الداخلي</span>
-          <strong>${formatMoney(order.profit || 0)}</strong>
-        </div>
-      </div>
-
-      ${
-        order.notes
-          ? `<div class="invoice-notes"><strong>ملاحظات:</strong><br>${escapeHtml(order.notes)}</div>`
-          : ''
-      }
-    </div>
-  `;
+  await loadDashboardData();
 }
 
-function printInvoice() {
-  window.print();
+function openStockMovementsModal() {
+  renderStockMovementsTable();
+  openModal('stockMovementsModal');
+}
+
+function closeStockMovementsModal() {
+  closeModal('stockMovementsModal');
+}
+
+function renderStockMovementsTable() {
+  const body = $('stockMovementsTableBody');
+  if (!body) return;
+
+  if (!dashboardData.stockMovements.length) {
+    body.innerHTML = `<tr><td colspan="6"><div class="empty-state">لا توجد حركات مخزون.</div></td></tr>`;
+    return;
+  }
+
+  body.innerHTML = dashboardData.stockMovements.map((movement) => {
+    return `
+      <tr>
+        <td>${escapeHtml(formatDateTime(movement.createdAt))}</td>
+        <td>${escapeHtml(movement.materialName || '-')}</td>
+        <td>${escapeHtml(getMovementTypeText(movement.movementType))}</td>
+        <td>${formatNumber(movement.quantity || 0)}g</td>
+        <td>${escapeHtml(movement.reason || '-')}</td>
+        <td>${escapeHtml(movement.referenceCode || '-')}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function renderStockMovementsTableSafe() {
+  if (isModalOpen('stockMovementsModal')) renderStockMovementsTable();
 }
