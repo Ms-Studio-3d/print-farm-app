@@ -65,7 +65,7 @@ function downloadTextFile(filename, content, mimeType = 'text/plain;charset=utf-
 }
 
 function exportSalesCSV() {
-  const orders = getFilteredOrders ? getFilteredOrders() : getSortedOrders();
+  const orders = typeof getFilteredOrders === 'function' ? getFilteredOrders() : getSortedOrders();
 
   const headers = [
     'الكود',
