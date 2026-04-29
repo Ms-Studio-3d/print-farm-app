@@ -68,6 +68,8 @@ function createTables() {
       notes TEXT DEFAULT '',
       order_date TEXT NOT NULL,
       material_cost REAL NOT NULL DEFAULT 0,
+      waste_weight REAL NOT NULL DEFAULT 0,
+      waste_cost REAL NOT NULL DEFAULT 0,
       depreciation_cost REAL NOT NULL DEFAULT 0,
       electricity_cost REAL NOT NULL DEFAULT 0,
       labor_cost REAL NOT NULL DEFAULT 0,
@@ -79,6 +81,7 @@ function createTables() {
       price_before_discount REAL NOT NULL DEFAULT 0,
       discount_value REAL NOT NULL DEFAULT 0,
       price_after_discount REAL NOT NULL DEFAULT 0,
+      minimum_order_price REAL NOT NULL DEFAULT 0,
       rounded_adjustment REAL NOT NULL DEFAULT 0,
       final_price REAL NOT NULL DEFAULT 0,
       profit REAL NOT NULL DEFAULT 0,
@@ -127,6 +130,8 @@ function runMigrations() {
   ensureColumnExists('orders', 'print_hours', `ALTER TABLE orders ADD COLUMN print_hours REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'manual_minutes', `ALTER TABLE orders ADD COLUMN manual_minutes REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'material_cost', `ALTER TABLE orders ADD COLUMN material_cost REAL NOT NULL DEFAULT 0`);
+  ensureColumnExists('orders', 'waste_weight', `ALTER TABLE orders ADD COLUMN waste_weight REAL NOT NULL DEFAULT 0`);
+  ensureColumnExists('orders', 'waste_cost', `ALTER TABLE orders ADD COLUMN waste_cost REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'depreciation_cost', `ALTER TABLE orders ADD COLUMN depreciation_cost REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'electricity_cost', `ALTER TABLE orders ADD COLUMN electricity_cost REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'labor_cost', `ALTER TABLE orders ADD COLUMN labor_cost REAL NOT NULL DEFAULT 0`);
@@ -137,6 +142,7 @@ function runMigrations() {
   ensureColumnExists('orders', 'price_before_discount', `ALTER TABLE orders ADD COLUMN price_before_discount REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'discount_value', `ALTER TABLE orders ADD COLUMN discount_value REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'price_after_discount', `ALTER TABLE orders ADD COLUMN price_after_discount REAL NOT NULL DEFAULT 0`);
+  ensureColumnExists('orders', 'minimum_order_price', `ALTER TABLE orders ADD COLUMN minimum_order_price REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'rounded_adjustment', `ALTER TABLE orders ADD COLUMN rounded_adjustment REAL NOT NULL DEFAULT 0`);
 
   backfillPricingBreakdown();
@@ -177,6 +183,8 @@ function seedDefaults() {
     electricityCostPerHour: '3',
     packagingCost: '10',
     failurePercent: '10',
+    defaultWasteWeight: '0',
+    minimumOrderPrice: '0',
     shippingCost: '0',
     defaultTaxPercent: '0'
   };
@@ -308,6 +316,8 @@ function getDashboardData() {
       o.notes,
       o.order_date AS date,
       o.material_cost AS materialCost,
+      o.waste_weight AS wasteWeight,
+      o.waste_cost AS wasteCost,
       o.depreciation_cost AS depreciationCost,
       o.electricity_cost AS electricityCost,
       o.labor_cost AS laborCost,
@@ -319,6 +329,7 @@ function getDashboardData() {
       o.price_before_discount AS priceBeforeDiscount,
       o.discount_value AS discountValue,
       o.price_after_discount AS priceAfterDiscount,
+      o.minimum_order_price AS minimumOrderPrice,
       o.rounded_adjustment AS roundedAdjustment,
       o.final_price AS finalPrice,
       o.profit
@@ -580,6 +591,8 @@ function createOrder(payload) {
       notes,
       order_date,
       material_cost,
+      waste_weight,
+      waste_cost,
       depreciation_cost,
       electricity_cost,
       labor_cost,
@@ -591,11 +604,12 @@ function createOrder(payload) {
       price_before_discount,
       discount_value,
       price_after_discount,
+      minimum_order_price,
       rounded_adjustment,
       final_price,
       profit
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertMaterialUsage = db.prepare(`
@@ -688,6 +702,8 @@ function createOrder(payload) {
       String(data.notes || '').trim(),
       String(data.date || '').trim(),
       Number(data.materialCost || 0),
+      Number(data.wasteWeight || 0),
+      Number(data.wasteCost || 0),
       Number(data.depreciationCost || 0),
       Number(data.electricityCost || 0),
       Number(data.laborCost || 0),
@@ -699,6 +715,7 @@ function createOrder(payload) {
       Number(data.priceBeforeDiscount || finalPrice),
       Number(data.discountValue || 0),
       Number(data.priceAfterDiscount || finalPrice),
+      Number(data.minimumOrderPrice || 0),
       Number(data.roundedAdjustment || 0),
       finalPrice,
       Number(data.profit || 0)
@@ -899,6 +916,8 @@ function updateOrder(payload) {
         notes = ?,
         order_date = ?,
         material_cost = ?,
+        waste_weight = ?,
+        waste_cost = ?,
         depreciation_cost = ?,
         electricity_cost = ?,
         labor_cost = ?,
@@ -910,6 +929,7 @@ function updateOrder(payload) {
         price_before_discount = ?,
         discount_value = ?,
         price_after_discount = ?,
+        minimum_order_price = ?,
         rounded_adjustment = ?,
         final_price = ?,
         profit = ?
@@ -924,6 +944,8 @@ function updateOrder(payload) {
       String(data.notes || '').trim(),
       String(data.date || '').trim(),
       Number(data.materialCost || 0),
+      Number(data.wasteWeight || 0),
+      Number(data.wasteCost || 0),
       Number(data.depreciationCost || 0),
       Number(data.electricityCost || 0),
       Number(data.laborCost || 0),
@@ -935,6 +957,7 @@ function updateOrder(payload) {
       Number(data.priceBeforeDiscount || finalPrice),
       Number(data.discountValue || 0),
       Number(data.priceAfterDiscount || finalPrice),
+      Number(data.minimumOrderPrice || 0),
       Number(data.roundedAdjustment || 0),
       finalPrice,
       Number(data.profit || 0),
@@ -1034,6 +1057,8 @@ function replaceAllData(data) {
         notes,
         order_date,
         material_cost,
+        waste_weight,
+        waste_cost,
         depreciation_cost,
         electricity_cost,
         labor_cost,
@@ -1045,11 +1070,12 @@ function replaceAllData(data) {
         price_before_discount,
         discount_value,
         price_after_discount,
+        minimum_order_price,
         rounded_adjustment,
         final_price,
         profit
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const insertMovement = db.prepare(`
@@ -1142,6 +1168,8 @@ function replaceAllData(data) {
         String(order.notes || '').trim(),
         String(order.date || '').trim(),
         Number(order.materialCost || 0),
+        Number(order.wasteWeight || 0),
+        Number(order.wasteCost || 0),
         Number(order.depreciationCost || 0),
         Number(order.electricityCost || 0),
         Number(order.laborCost || 0),
@@ -1153,6 +1181,7 @@ function replaceAllData(data) {
         Number(order.priceBeforeDiscount || finalPrice),
         Number(order.discountValue || 0),
         Number(order.priceAfterDiscount || finalPrice),
+        Number(order.minimumOrderPrice || 0),
         Number(order.roundedAdjustment || 0),
         finalPrice,
         Number(order.profit || 0)
@@ -1267,7 +1296,7 @@ function exportBackupData() {
   return {
     exportedAt: new Date().toISOString(),
     appName: 'Print Farm App',
-    schemaVersion: 4,
+    schemaVersion: 5,
     ...data,
     printers: [...data.printers, ...archivedPrinters],
     materials: [...data.materials, ...archivedMaterials],
