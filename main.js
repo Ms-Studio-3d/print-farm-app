@@ -112,7 +112,7 @@ function createMainWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      devTools: !app.isPackaged
+      devTools: true
     }
   });
 
@@ -123,6 +123,8 @@ function createMainWindow() {
 
     mainWindow.maximize();
     mainWindow.show();
+
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -251,94 +253,46 @@ function normalizeOrderPayload(payload) {
 }
 
 function validatePrinterPayload(data) {
-  if (!data.name) {
-    throw new Error('اسم الطابعة مطلوب');
-  }
+  if (!data.name) throw new Error('اسم الطابعة مطلوب');
 }
 
 function validateMaterialPayload(data) {
-  if (!data.name) {
-    throw new Error('اسم الخامة مطلوب');
-  }
-
-  if (data.weight <= 0) {
-    throw new Error('وزن الخامة لازم يكون أكبر من صفر');
-  }
-
-  if (data.remaining > data.weight) {
-    throw new Error('المتبقي لا يمكن أن يكون أكبر من وزن البكرة');
-  }
+  if (!data.name) throw new Error('اسم الخامة مطلوب');
+  if (data.weight <= 0) throw new Error('وزن الخامة لازم يكون أكبر من صفر');
+  if (data.remaining > data.weight) throw new Error('المتبقي لا يمكن أن يكون أكبر من وزن البكرة');
 }
 
 function validateCreateOrderPayload(data) {
-  if (!data.code) {
-    throw new Error('كود الأوردر غير صالح');
-  }
-
-  if (!data.itemName) {
-    throw new Error('اسم المجسم مطلوب');
-  }
-
-  if (!data.printerId) {
-    throw new Error('اختار الطابعة المستخدمة');
-  }
-
-  if (!data.date) {
-    throw new Error('تاريخ الأوردر مطلوب');
-  }
-
-  if (data.printHours <= 0) {
-    throw new Error('وقت الطباعة لازم يكون أكبر من صفر');
-  }
+  if (!data.code) throw new Error('كود الأوردر غير صالح');
+  if (!data.itemName) throw new Error('اسم المجسم مطلوب');
+  if (!data.printerId) throw new Error('اختار الطابعة المستخدمة');
+  if (!data.date) throw new Error('تاريخ الأوردر مطلوب');
+  if (data.printHours <= 0) throw new Error('وقت الطباعة لازم يكون أكبر من صفر');
 
   if (!Array.isArray(data.materialUsage) || data.materialUsage.length === 0) {
     throw new Error('أدخل استهلاك خامة واحدة على الأقل');
   }
 
   for (const item of data.materialUsage) {
-    if (!item || !item.materialId) {
-      throw new Error('بيانات الخامة غير صالحة');
-    }
-
-    if (asPositiveNumber(item.grams, 0) <= 0) {
-      throw new Error('كمية الخامة لازم تكون أكبر من صفر');
-    }
+    if (!item || !item.materialId) throw new Error('بيانات الخامة غير صالحة');
+    if (asPositiveNumber(item.grams, 0) <= 0) throw new Error('كمية الخامة لازم تكون أكبر من صفر');
   }
 
-  if (data.finalPrice < data.totalCost) {
-    throw new Error('سعر البيع أقل من التكلفة');
-  }
+  if (data.finalPrice < data.totalCost) throw new Error('سعر البيع أقل من التكلفة');
 }
 
 function validateUpdateOrderPayload(data) {
-  if (!data.code) {
-    throw new Error('كود الأوردر غير صالح');
-  }
-
-  if (!data.itemName) {
-    throw new Error('اسم المجسم مطلوب');
-  }
-
-  if (!data.date) {
-    throw new Error('تاريخ الأوردر مطلوب');
-  }
+  if (!data.code) throw new Error('كود الأوردر غير صالح');
+  if (!data.itemName) throw new Error('اسم المجسم مطلوب');
+  if (!data.date) throw new Error('تاريخ الأوردر مطلوب');
 }
 
 function registerIpcHandlers() {
   if (ipcHandlersRegistered) return;
   ipcHandlersRegistered = true;
 
-  handleIpc(
-    CHANNELS.getDashboardData,
-    async () => ok(getDashboardData()),
-    'فشل في تحميل البيانات'
-  );
-
-  handleIpc(
-    CHANNELS.getNextOrderCode,
-    async () => ok(getNextOrderCode()),
-    'فشل في إنشاء كود الأوردر'
-  );
+  handleIpc(CHANNELS.getDashboardData, async () => ok(getDashboardData()), 'فشل في تحميل البيانات');
+  handleIpc(CHANNELS.getNextOrderCode, async () => ok(getNextOrderCode()), 'فشل في إنشاء كود الأوردر');
 
   handleIpc(
     CHANNELS.saveConfig,
@@ -358,11 +312,8 @@ function registerIpcHandlers() {
       const data = normalizePrinterPayload(payload);
       validatePrinterPayload(data);
 
-      if (data.id) {
-        updatePrinter(data);
-      } else {
-        createPrinter(data);
-      }
+      if (data.id) updatePrinter(data);
+      else createPrinter(data);
 
       return ok();
     },
@@ -373,13 +324,9 @@ function registerIpcHandlers() {
     CHANNELS.deletePrinter,
     async (payload) => {
       const id = asNullableId(asObject(payload).id);
+      if (!id) throw new Error('رقم الطابعة غير صالح');
 
-      if (!id) {
-        throw new Error('رقم الطابعة غير صالح');
-      }
-
-      const result = deletePrinter(id);
-      return ok(result);
+      return ok(deletePrinter(id));
     },
     'فشل في حذف الطابعة'
   );
@@ -390,11 +337,8 @@ function registerIpcHandlers() {
       const data = normalizeMaterialPayload(payload);
       validateMaterialPayload(data);
 
-      if (data.id) {
-        updateMaterial(data);
-      } else {
-        createMaterial(data);
-      }
+      if (data.id) updateMaterial(data);
+      else createMaterial(data);
 
       return ok();
     },
@@ -405,13 +349,9 @@ function registerIpcHandlers() {
     CHANNELS.deleteMaterial,
     async (payload) => {
       const id = asNullableId(asObject(payload).id);
+      if (!id) throw new Error('رقم الخامة غير صالح');
 
-      if (!id) {
-        throw new Error('رقم الخامة غير صالح');
-      }
-
-      const result = deleteMaterial(id);
-      return ok(result);
+      return ok(deleteMaterial(id));
     },
     'فشل في حذف الخامة'
   );
@@ -442,10 +382,7 @@ function registerIpcHandlers() {
     CHANNELS.deleteOrder,
     async (payload) => {
       const code = asTrimmedString(asObject(payload).code);
-
-      if (!code) {
-        throw new Error('كود الأوردر غير صالح');
-      }
+      if (!code) throw new Error('كود الأوردر غير صالح');
 
       deleteOrder(code);
       return ok();
@@ -453,17 +390,12 @@ function registerIpcHandlers() {
     'فشل في حذف الأوردر'
   );
 
-  handleIpc(
-    CHANNELS.exportBackup,
-    async () => ok(exportBackupData()),
-    'فشل في تصدير النسخة الاحتياطية'
-  );
+  handleIpc(CHANNELS.exportBackup, async () => ok(exportBackupData()), 'فشل في تصدير النسخة الاحتياطية');
 
   handleIpc(
     CHANNELS.importBackup,
     async (payload) => {
-      const confirmedPayload = asObject(payload);
-      replaceAllData(confirmedPayload);
+      replaceAllData(asObject(payload));
       return ok();
     },
     'فشل في استيراد النسخة الاحتياطية'
