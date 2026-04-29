@@ -21,6 +21,35 @@ function renderPrinterSelects() {
   });
 }
 
+function getPrinterUsageStats(printerId) {
+  const orders = dashboardData.orders.filter((order) => {
+    return String(order.printerId || '') === String(printerId) && !isCancelled(order);
+  });
+
+  const totalHours = orders.reduce((sum, order) => {
+    return sum + Number(order.printHours || 0);
+  }, 0);
+
+  const deliveredOrders = orders.filter((order) => String(order.status || '') === 'delivered').length;
+  const activeOrders = orders.filter((order) => {
+    return ['new', 'printing', 'finished'].includes(String(order.status || ''));
+  }).length;
+
+  const lastOrder = [...orders].sort((a, b) => {
+    return String(b.date || '').localeCompare(String(a.date || '')) || Number(b.id || 0) - Number(a.id || 0);
+  })[0];
+
+  return {
+    totalHours,
+    ordersCount: orders.length,
+    deliveredOrders,
+    activeOrders,
+    lastUsedDate: lastOrder?.date || '-',
+    lastOrderCode: lastOrder?.code || '-',
+    lastOrderItem: lastOrder?.itemName || '-'
+  };
+}
+
 function renderPrinters() {
   const printersList = $('printersList');
   if (!printersList) return;
@@ -37,6 +66,7 @@ function renderPrinters() {
     const printerId = Number(printer.id);
     const statusText = getPrinterStatusText(printer.status);
     const statusClass = getPrinterStatusClass(printer.status);
+    const usage = getPrinterUsageStats(printerId);
 
     return `
       <div class="list-card">
@@ -48,6 +78,11 @@ function renderPrinters() {
         <div class="list-card-body">
           <div>الموديل: ${escapeHtml(printer.model || '-')}</div>
           <div>تكلفة الماكينة / ساعة: ${formatMoney(printer.hourlyDepreciation || 0)}</div>
+          <div>إجمالي ساعات التشغيل: ${formatNumber(usage.totalHours)} ساعة</div>
+          <div>عدد الأوردرات على الطابعة: ${usage.ordersCount}</div>
+          <div>أوردرات تم تسليمها: ${usage.deliveredOrders}</div>
+          <div>أوردرات مفتوحة: ${usage.activeOrders}</div>
+          <div>آخر استخدام: ${escapeHtml(usage.lastUsedDate)} - ${escapeHtml(usage.lastOrderCode)} - ${escapeHtml(usage.lastOrderItem)}</div>
           <div>ملاحظات: ${escapeHtml(printer.notes || '-')}</div>
         </div>
 
