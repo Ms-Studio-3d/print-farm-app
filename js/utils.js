@@ -36,11 +36,11 @@ function roundUpToNearest5(value) {
 
 function escapeHtml(value) {
   return String(value ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replaceAll('&', '\u0026amp;')
+    .replaceAll('<', '\u0026lt;')
+    .replaceAll('>', '\u0026gt;')
+    .replaceAll('"', '\u0026quot;')
+    .replaceAll("'", '\u0026#39;');
 }
 
 function getCurrency() {
