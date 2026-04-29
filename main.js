@@ -112,7 +112,7 @@ function createMainWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      devTools: true
+      devTools: !app.isPackaged
     }
   });
 
@@ -123,8 +123,6 @@ function createMainWindow() {
 
     mainWindow.maximize();
     mainWindow.show();
-
-    mainWindow.webContents.openDevTools({ mode: 'detach' });
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
