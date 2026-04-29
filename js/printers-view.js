@@ -10,9 +10,9 @@ function renderPrinterSelects() {
 
     select.innerHTML = [
       firstOption,
-      ...dashboardData.printers.map(
-        (printer) => `<option value="${Number(printer.id)}">${escapeHtml(printer.name)}</option>`
-      )
+      ...dashboardData.printers.map((printer) => {
+        return `<option value="${Number(printer.id)}">${escapeHtml(printer.name)}</option>`;
+      })
     ].join('');
 
     if ([...select.options].some((opt) => opt.value === oldValue)) {
