@@ -224,6 +224,8 @@ function normalizeOrderPayload(payload) {
     date: asTrimmedString(data.date),
 
     materialCost: asPositiveNumber(data.materialCost, 0),
+    wasteWeight: asPositiveNumber(data.wasteWeight, 0),
+    wasteCost: asPositiveNumber(data.wasteCost, 0),
     depreciationCost: asPositiveNumber(data.depreciationCost, 0),
     electricityCost: asPositiveNumber(data.electricityCost, 0),
     laborCost: asPositiveNumber(data.laborCost, 0),
@@ -236,6 +238,7 @@ function normalizeOrderPayload(payload) {
     priceBeforeDiscount: asPositiveNumber(data.priceBeforeDiscount, finalPrice),
     discountValue: asPositiveNumber(data.discountValue, 0),
     priceAfterDiscount: asPositiveNumber(data.priceAfterDiscount, finalPrice),
+    minimumOrderPrice: asPositiveNumber(data.minimumOrderPrice, 0),
     roundedAdjustment: asPositiveNumber(data.roundedAdjustment, 0),
 
     finalPrice,
