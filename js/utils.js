@@ -35,12 +35,9 @@ function roundUpToNearest5(value) {
 }
 
 function escapeHtml(value) {
-  return String(value ?? '')
-    .replaceAll('&', '\u0026amp;')
-    .replaceAll('<', '\u0026lt;')
-    .replaceAll('>', '\u0026gt;')
-    .replaceAll('"', '\u0026quot;')
-    .replaceAll("'", '\u0026#39;');
+  const div = document.createElement('div');
+  div.textContent = String(value ?? '');
+  return div.innerHTML;
 }
 
 function getCurrency() {
