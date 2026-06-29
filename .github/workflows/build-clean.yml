@@ -1,4 +1,4 @@
-name: Build Windows Installer Clean
+name: Build Windows Installer
 
 on:
   workflow_dispatch:
@@ -14,56 +14,45 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
 
-    defaults:
-      run:
-        shell: bash
-
     env:
-      ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
-      ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
+      ELECTRON_CACHE: ${{ github.workspace }}\.cache\electron
+      ELECTRON_BUILDER_CACHE: ${{ github.workspace }}\.cache\electron-builder
 
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Show versions
-        run: |
-          node -v
-          npm -v
-
       - name: Enable pnpm
+        shell: powershell
         run: |
           corepack enable
           corepack prepare pnpm@9.15.9 --activate
-          pnpm -v
+          pnpm --version
 
-      - name: Clean install state
-        run: |
-          rm -rf node_modules
-          rm -f package-lock.json
+      - name: Install dependencies
+        shell: powershell
+        run: pnpm install --no-frozen-lockfile
 
-      - name: Install dependencies with pnpm
-        run: |
-          pnpm install --no-frozen-lockfile
+      - name: Rebuild native dependencies for Electron
+        shell: powershell
+        run: pnpm exec electron-builder install-app-deps
 
-      - name: Run pricing tests
-        run: |
-          pnpm test
+      - name: Run tests
+        shell: powershell
+        run: pnpm test
 
       - name: Build Windows installer
-        run: |
-          pnpm exec electron-builder --win --publish never -c.npmRebuild=false
+        shell: powershell
+        run: pnpm exec electron-builder --win nsis --publish never
 
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
           name: MOO3D-Windows-Installer
-          path: |
-            dist/*.exe
-            dist/*.blockmap
+          path: dist/*Setup*.exe
           if-no-files-found: error
