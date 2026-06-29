@@ -1,62 +1,41 @@
 name: Build Windows Installer
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
-
-permissions:
-  contents: read
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  npm_config_audit: false
-  npm_config_fund: false
-  npm_config_prefer_offline: true
-  ELECTRON_CACHE: ${{ github.workspace }}\.cache\electron
-  ELECTRON_BUILDER_CACHE: ${{ github.workspace }}\.cache\electron-builder
+  push:
+    branches: [ main ]
 
 jobs:
-  build-installer:
+  build-windows:
     runs-on: windows-latest
-    timeout-minutes: 35
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 24
+          node-version: 22
+          cache: npm
 
-      - name: Cache npm and Electron
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~\AppData\Local\npm-cache
-            .cache\electron
-            .cache\electron-builder
-          key: ${{ runner.os }}-npm-electron-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-electron-
+      - name: Clean npm cache
+        run: npm cache clean --force
 
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund --prefer-offline
-
-      - name: Rebuild native dependencies
-        run: npm run rebuild
+        run: npm ci --no-audit --no-fund
 
       - name: Run pricing tests
         run: npm test
 
-      - name: Build NSIS installer only
-        run: npm run dist:installer
+      - name: Build Windows installer
+        run: npm run dist:win -- --publish never
 
-      - name: Upload installer artifact
+      - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: windows-installer
-          path: dist/*Setup*.exe
+          name: MOO3D-Windows-Installer
+          path: |
+            dist/*.exe
+            dist/*.blockmap
           if-no-files-found: error
