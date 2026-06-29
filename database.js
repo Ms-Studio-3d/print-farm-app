@@ -74,6 +74,7 @@ function createTables() {
       electricity_cost REAL NOT NULL DEFAULT 0,
       labor_cost REAL NOT NULL DEFAULT 0,
       packaging_cost REAL NOT NULL DEFAULT 0,
+      accessories_cost REAL NOT NULL DEFAULT 0,
       shipping_cost REAL NOT NULL DEFAULT 0,
       risk_cost REAL NOT NULL DEFAULT 0,
       tax_cost REAL NOT NULL DEFAULT 0,
@@ -139,6 +140,7 @@ function runMigrations() {
   ensureColumnExists('orders', 'electricity_cost', `ALTER TABLE orders ADD COLUMN electricity_cost REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'labor_cost', `ALTER TABLE orders ADD COLUMN labor_cost REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'packaging_cost', `ALTER TABLE orders ADD COLUMN packaging_cost REAL NOT NULL DEFAULT 0`);
+  ensureColumnExists('orders', 'accessories_cost', `ALTER TABLE orders ADD COLUMN accessories_cost REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'shipping_cost', `ALTER TABLE orders ADD COLUMN shipping_cost REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'risk_cost', `ALTER TABLE orders ADD COLUMN risk_cost REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'tax_cost', `ALTER TABLE orders ADD COLUMN tax_cost REAL NOT NULL DEFAULT 0`);
@@ -204,6 +206,7 @@ function seedDefaults() {
     failurePercent: '10',
     defaultWasteWeight: '0',
     minimumOrderPrice: '0',
+    accessoriesCost: '0',
     shippingCost: '0',
     defaultTaxPercent: '0',
     defaultPaymentMethod: 'cash',
@@ -347,6 +350,7 @@ function getDashboardData() {
       o.electricity_cost AS electricityCost,
       o.labor_cost AS laborCost,
       o.packaging_cost AS packagingCost,
+      o.accessories_cost AS accessoriesCost,
       o.shipping_cost AS shippingCost,
       o.risk_cost AS riskCost,
       o.tax_cost AS taxCost,
@@ -625,6 +629,7 @@ function createOrder(payload) {
       electricity_cost,
       labor_cost,
       packaging_cost,
+      accessories_cost,
       shipping_cost,
       risk_cost,
       tax_cost,
@@ -640,7 +645,7 @@ function createOrder(payload) {
       payment_method,
       paid_amount
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertMaterialUsage = db.prepare(`
@@ -739,6 +744,7 @@ function createOrder(payload) {
       Number(data.electricityCost || 0),
       Number(data.laborCost || 0),
       Number(data.packagingCost || 0),
+      Number(data.accessoriesCost || 0),
       Number(data.shippingCost || 0),
       Number(data.riskCost || 0),
       Number(data.taxCost || 0),
@@ -956,6 +962,7 @@ function updateOrder(payload) {
         electricity_cost = ?,
         labor_cost = ?,
         packaging_cost = ?,
+        accessories_cost = ?,
         shipping_cost = ?,
         risk_cost = ?,
         tax_cost = ?,
@@ -987,6 +994,7 @@ function updateOrder(payload) {
       Number(data.electricityCost || 0),
       Number(data.laborCost || 0),
       Number(data.packagingCost || 0),
+      Number(data.accessoriesCost || 0),
       Number(data.shippingCost || 0),
       Number(data.riskCost || 0),
       Number(data.taxCost || 0),
@@ -1103,6 +1111,7 @@ function replaceAllData(data) {
         electricity_cost,
         labor_cost,
         packaging_cost,
+        accessories_cost,
         shipping_cost,
         risk_cost,
         tax_cost,
@@ -1118,7 +1127,7 @@ function replaceAllData(data) {
         payment_method,
         paid_amount
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const insertMovement = db.prepare(`
@@ -1217,6 +1226,7 @@ function replaceAllData(data) {
         Number(order.electricityCost || 0),
         Number(order.laborCost || 0),
         Number(order.packagingCost || 0),
+        Number(order.accessoriesCost || 0),
         Number(order.shippingCost || 0),
         Number(order.riskCost || 0),
         Number(order.taxCost || 0),

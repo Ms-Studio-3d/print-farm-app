@@ -1,7 +1,7 @@
 {
   "name": "printing-business-manager",
-  "version": "1.1.0",
-  "description": "Desktop app for 3D printing business management",
+  "version": "1.2.0",
+  "description": "MOO3D desktop app for 3D printing pricing, orders, inventory, and local data management",
   "main": "main.js",
   "author": "Ms-Studio-3d",
   "license": "MIT",
@@ -32,7 +32,7 @@
   },
   "build": {
     "appId": "com.msstudio3d.businessmanager",
-    "productName": "Print Farm App",
+    "productName": "MOO3D Business Manager",
     "asar": true,
     "artifactName": "${productName}-${version}-${target}.${ext}",
     "directories": {

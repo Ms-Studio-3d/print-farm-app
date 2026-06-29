@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>3D Print Farm App</title>
+  <title>MOO3D Business Manager</title>
   <meta
     name="description"
     content="برنامج لإدارة أعمال الطباعة ثلاثية الأبعاد والتسعير والأوردرات والمخزون والطابعات"
@@ -24,7 +24,7 @@
     <div class="app-frame">
       <header class="app-topbar">
         <div>
-          <h1 class="app-title">3D Print Farm App</h1>
+          <h1 class="app-title">MOO3D Business Manager</h1>
           <p class="app-subtitle">تسعير وإدارة أوردرات الطباعة ثلاثية الأبعاد</p>
         </div>
 
@@ -73,22 +73,12 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="orderStatus">حالة الأوردر</label>
-                  <select id="orderStatus">
-                    <option value="new">جديد</option>
-                    <option value="printing">قيد الطباعة</option>
-                    <option value="finished">جاهز</option>
-                    <option value="delivered">تم التسليم</option>
-                    <option value="cancelled">ملغي</option>
-                  </select>
+                  <label for="opDate">التاريخ</label>
+                  <input type="date" id="opDate" />
                 </div>
               </div>
 
               <div class="grid-3 section-gap-sm">
-                <div class="form-group">
-                  <label for="opDate">التاريخ</label>
-                  <input type="date" id="opDate" />
-                </div>
 
                 <div class="form-group">
                   <label for="printHours">وقت الطباعة / ساعة *</label>
@@ -115,35 +105,6 @@
                 <div class="form-group">
                   <label for="orderNotes">ملاحظات</label>
                   <input type="text" id="orderNotes" placeholder="اختياري" />
-                </div>
-              </div>
-
-              <div class="grid-3 section-gap-sm">
-                <div class="form-group">
-                  <label for="paidAmount">المبلغ المحصل</label>
-                  <input type="text" id="paidAmount" value="0" inputmode="decimal" />
-                </div>
-
-                <div class="form-group">
-                  <label for="paymentMethod">طريقة الدفع</label>
-                  <select id="paymentMethod">
-                    <option value="cash">كاش</option>
-                    <option value="instapay">Instapay</option>
-                    <option value="vodafone_cash">Vodafone Cash</option>
-                    <option value="bank_transfer">تحويل بنكي</option>
-                    <option value="mixed">جزئي / مختلط</option>
-                    <option value="other">أخرى</option>
-                  </select>
-                </div>
-
-                <div class="form-group">
-                  <label for="paymentStatus">حالة التحصيل</label>
-                  <select id="paymentStatus">
-                    <option value="collected">محصل</option>
-                    <option value="partial">جزئي</option>
-                    <option value="unpaid">غير محصل</option>
-                    <option value="refunded">مرتجع</option>
-                  </select>
                 </div>
               </div>
             </section>
@@ -205,7 +166,12 @@
 
               <div class="grid-3 section-gap-sm">
                 <div class="form-group">
-                  <label for="shippingCost">إكسسوارات / شحن / مصاريف مباشرة</label>
+                  <label for="accessoriesCost">إكسسوارات</label>
+                  <input type="text" id="accessoriesCost" value="0" inputmode="decimal" />
+                </div>
+
+                <div class="form-group">
+                  <label for="shippingCost">شحن</label>
                   <input type="text" id="shippingCost" value="0" inputmode="decimal" />
                 </div>
 
@@ -213,17 +179,12 @@
                   <label for="defaultTaxPercent">ضريبة / نسبة إضافية %</label>
                   <input type="text" id="defaultTaxPercent" value="0" inputmode="decimal" />
                 </div>
-
-                <div class="form-group">
-                  <label>ملاحظة</label>
-                  <input type="text" value="الهالك الوزني للتسعير فقط" readonly />
-                </div>
               </div>
 
               <div class="helper-box section-gap-sm">
                 <strong>ملاحظة مهمة:</strong>
-                <span>القيم الافتراضية يتم ضبطها من الإعدادات، وتظهر هنا في كل أوردر جديد.</span>
-                <span>أي قيمة يمكن تعديلها أو تصفيرها داخل الأوردر نفسه قبل التسجيل.</span>
+                <span>الكهرباء، التغليف، الفشل، وسعر الشغل اليدوي قيم ثابتة من الإعدادات. اتركها كما هي إلا لو الأوردر حالة خاصة.</span>
+                <span>الإكسسوارات والشحن يتضافوا على السعر النهائي فقط بدون فشل وبدون مكسب.</span>
               </div>
             </section>
           </section>
@@ -313,16 +274,6 @@
                   <strong id="resFinal" class="summary-value">0 جنيه</strong>
                 </div>
 
-                <div class="summary-stat">
-                  <span class="summary-label">المحصل</span>
-                  <strong id="resPaid" class="summary-value">0 جنيه</strong>
-                </div>
-
-                <div class="summary-stat">
-                  <span class="summary-label">المتبقي</span>
-                  <strong id="resDue" class="summary-value">0 جنيه</strong>
-                </div>
-
                 <div class="summary-stat profit-stat">
                   <span class="summary-label">صافي الربح</span>
                   <strong id="resProfit" class="summary-value">0 جنيه</strong>
@@ -401,28 +352,8 @@
 
       <div class="pipeline-board" id="pipelineBoard">
         <section class="pipeline-column">
-          <div class="pipeline-column-head"><h3>جديد</h3><span id="pipelineCountNew">0</span></div>
-          <div class="pipeline-list" id="pipelineNew"></div>
-        </section>
-
-        <section class="pipeline-column">
-          <div class="pipeline-column-head"><h3>قيد الطباعة</h3><span id="pipelineCountPrinting">0</span></div>
-          <div class="pipeline-list" id="pipelinePrinting"></div>
-        </section>
-
-        <section class="pipeline-column">
-          <div class="pipeline-column-head"><h3>جاهز</h3><span id="pipelineCountFinished">0</span></div>
-          <div class="pipeline-list" id="pipelineFinished"></div>
-        </section>
-
-        <section class="pipeline-column">
-          <div class="pipeline-column-head"><h3>تم التسليم</h3><span id="pipelineCountDelivered">0</span></div>
-          <div class="pipeline-list" id="pipelineDelivered"></div>
-        </section>
-
-        <section class="pipeline-column">
-          <div class="pipeline-column-head"><h3>ملغي</h3><span id="pipelineCountCancelled">0</span></div>
-          <div class="pipeline-list" id="pipelineCancelled"></div>
+          <div class="pipeline-column-head"><h3>كل الأوردرات</h3><span id="pipelineCountAll">0</span></div>
+          <div class="pipeline-list" id="pipelineAll"></div>
         </section>
       </div>
     </div>
@@ -441,13 +372,10 @@
 
       <div class="stats-grid">
         <div class="stat-box"><h4>إجمالي المبيعات</h4><div id="statRev">0</div></div>
-        <div class="stat-box"><h4>المبلغ المحصل</h4><div id="statCollected">0</div></div>
-        <div class="stat-box"><h4>المتبقي للعملاء</h4><div id="statPending">0</div></div>
         <div class="stat-box"><h4>صافي الربح</h4><div id="statProfit">0</div></div>
         <div class="stat-box"><h4>عدد المبيعات</h4><div id="statCount">0</div></div>
         <div class="stat-box"><h4>أعلى بيعة</h4><div id="statTop">0</div></div>
         <div class="stat-box"><h4>متوسط الربح</h4><div id="statAvgProfit">0</div></div>
-        <div class="stat-box"><h4>طلبات ملغية</h4><div id="statCancelled">0</div></div>
         <div class="stat-box"><h4>أكثر عميل</h4><div id="statTopCustomer">-</div></div>
         <div class="stat-box"><h4>أقل خامة</h4><div id="statLowestStock">-</div></div>
       </div>
@@ -456,29 +384,6 @@
         <div class="form-group">
           <label for="salesSearch">بحث</label>
           <input type="text" id="salesSearch" placeholder="الكود / المجسم / العميل" oninput="renderReportsTable()" />
-        </div>
-
-        <div class="form-group">
-          <label for="filterStatus">الحالة</label>
-          <select id="filterStatus" oninput="renderReportsTable()">
-            <option value="">الكل</option>
-            <option value="new">جديد</option>
-            <option value="printing">قيد الطباعة</option>
-            <option value="finished">جاهز</option>
-            <option value="delivered">تم التسليم</option>
-            <option value="cancelled">ملغي</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="filterPaymentStatus">التحصيل</label>
-          <select id="filterPaymentStatus" oninput="renderReportsTable()">
-            <option value="">الكل</option>
-            <option value="collected">محصل</option>
-            <option value="partial">جزئي</option>
-            <option value="unpaid">غير محصل</option>
-            <option value="refunded">مرتجع</option>
-          </select>
         </div>
 
         <div class="form-group">
@@ -513,13 +418,8 @@
               <th>المجسم</th>
               <th>العميل</th>
               <th>الطابعة</th>
-              <th>الحالة</th>
               <th>التكلفة</th>
               <th>البيع</th>
-              <th>محصل</th>
-              <th>متبقي</th>
-              <th>التحصيل</th>
-              <th>الدفع</th>
               <th>الربح</th>
               <th>إجراء</th>
             </tr>
@@ -579,48 +479,8 @@
         </div>
 
         <div class="form-group">
-          <label for="editStatus">الحالة</label>
-          <select id="editStatus">
-            <option value="new">جديد</option>
-            <option value="printing">قيد الطباعة</option>
-            <option value="finished">جاهز</option>
-            <option value="delivered">تم التسليم</option>
-            <option value="cancelled">ملغي</option>
-          </select>
-        </div>
-
-        <div class="form-group">
           <label for="editFinalPrice">سعر البيع النهائي</label>
           <input type="text" id="editFinalPrice" inputmode="decimal" />
-        </div>
-      </div>
-
-      <div class="grid-3 section-gap-sm">
-        <div class="form-group">
-          <label for="editPaidAmount">المبلغ المحصل</label>
-          <input type="text" id="editPaidAmount" inputmode="decimal" />
-        </div>
-
-        <div class="form-group">
-          <label for="editPaymentMethod">طريقة الدفع</label>
-          <select id="editPaymentMethod">
-            <option value="cash">كاش</option>
-            <option value="instapay">Instapay</option>
-            <option value="vodafone_cash">Vodafone Cash</option>
-            <option value="bank_transfer">تحويل بنكي</option>
-            <option value="mixed">جزئي / مختلط</option>
-            <option value="other">أخرى</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="editPaymentStatus">حالة التحصيل</label>
-          <select id="editPaymentStatus">
-            <option value="collected">محصل</option>
-            <option value="partial">جزئي</option>
-            <option value="unpaid">غير محصل</option>
-            <option value="refunded">مرتجع</option>
-          </select>
         </div>
       </div>
 
@@ -895,13 +755,13 @@
         </div>
 
         <div class="form-group">
-          <label for="settingsShippingCost">الإضافات المباشرة الافتراضية</label>
-          <input type="text" id="settingsShippingCost" value="0" inputmode="decimal" />
+          <label for="settingsAccessoriesCost">إكسسوارات افتراضية</label>
+          <input type="text" id="settingsAccessoriesCost" value="0" inputmode="decimal" />
         </div>
 
         <div class="form-group">
-          <label for="settingsDefaultTaxPercent">الضريبة الافتراضية %</label>
-          <input type="text" id="settingsDefaultTaxPercent" value="0" inputmode="decimal" />
+          <label for="settingsShippingCost">شحن افتراضي</label>
+          <input type="text" id="settingsShippingCost" value="0" inputmode="decimal" />
         </div>
       </div>
 
@@ -917,8 +777,8 @@
         </div>
 
         <div class="form-group">
-          <label>ملاحظة</label>
-          <input type="text" value="القيم الافتراضية تظهر في كل أوردر جديد" readonly />
+          <label for="settingsDefaultTaxPercent">الضريبة الافتراضية %</label>
+          <input type="text" id="settingsDefaultTaxPercent" value="0" inputmode="decimal" />
         </div>
       </div>
 
