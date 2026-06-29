@@ -35,6 +35,8 @@ function renderInvoice(order) {
           <p><strong>رقم الأوردر:</strong> ${escapeHtml(order.code || '-')}</p>
           <p><strong>التاريخ:</strong> ${escapeHtml(order.date || '-')}</p>
           <p><strong>العميل:</strong> ${escapeHtml(order.customerName || '-')}</p>
+          <p><strong>التحصيل:</strong> ${escapeHtml(getPaymentStatusText(order.paymentStatus))}</p>
+          <p><strong>طريقة الدفع:</strong> ${escapeHtml(getPaymentMethodText(order.paymentMethod))}</p>
         </div>
       </div>
 
@@ -97,7 +99,7 @@ function renderInvoice(order) {
           </div>
 
           <div class="invoice-box">
-            <span>الشحن / المصاريف</span>
+            <span>إضافات مباشرة</span>
             <strong>${formatMoney(order.shippingCost || 0)}</strong>
           </div>
 
@@ -122,6 +124,14 @@ function renderInvoice(order) {
         <div>
           <span>سعر البيع النهائي</span>
           <strong>${formatMoney(order.finalPrice || 0)}</strong>
+        </div>
+        <div>
+          <span>المبلغ المحصل</span>
+          <strong>${formatMoney(getOrderPaidAmount(order))}</strong>
+        </div>
+        <div>
+          <span>المتبقي</span>
+          <strong>${formatMoney(getOrderDueAmount(order))}</strong>
         </div>
         <div>
           <span>صافي الربح الداخلي</span>

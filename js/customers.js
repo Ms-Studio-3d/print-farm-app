@@ -20,7 +20,9 @@ function renderCustomers() {
         </div>
 
         <div class="list-card-body">
-          <div>إجمالي الإيراد: ${formatMoney(customer.revenue)}</div>
+          <div>إجمالي المبيعات: ${formatMoney(customer.revenue)}</div>
+          <div>المحصل: ${formatMoney(customer.collected)}</div>
+          <div>المتبقي: ${formatMoney(customer.pending)}</div>
           <div>صافي الربح: ${formatMoney(customer.profit)}</div>
           <div>آخر أوردر: ${escapeHtml(customer.lastOrderCode || '-')} - ${escapeHtml(customer.lastOrderItem || '-')}</div>
           <div>آخر تاريخ: ${escapeHtml(customer.lastOrderDate || '-')}</div>

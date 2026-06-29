@@ -10,7 +10,9 @@ function getPipelineFilteredOrders() {
       order.itemName,
       order.customerName,
       order.printerName,
-      order.notes
+      order.notes,
+      getPaymentStatusText(order.paymentStatus),
+      getPaymentMethodText(order.paymentMethod)
     ].join(' ').toLowerCase();
 
     const matchesSearch = !search || haystack.includes(search);
@@ -101,7 +103,10 @@ function renderPipelineCard(order) {
       <div class="pipeline-price">
         <span>التكلفة: ${formatMoney(order.totalCost || 0)}</span>
         <strong>البيع: ${formatMoney(order.finalPrice || 0)}</strong>
+        <span>محصل: ${formatMoney(getOrderPaidAmount(order))}</span>
+        <span>متبقي: ${formatMoney(getOrderDueAmount(order))}</span>
         <span>الربح: ${formatMoney(order.profit || 0)}</span>
+        <span class="status-chip ${getPaymentStatusClass(order.paymentStatus)}">${escapeHtml(getPaymentStatusText(order.paymentStatus))}</span>
       </div>
 
       <div class="status-step-row">${steps}</div>
@@ -162,7 +167,10 @@ async function updateOrderStatusQuick(code, status) {
     minimumOrderPrice: Number(order.minimumOrderPrice || 0),
     roundedAdjustment: Number(order.roundedAdjustment || 0),
     finalPrice: Number(order.finalPrice || 0),
-    profit: Number(order.profit || 0)
+    profit: Number(order.profit || 0),
+    paymentStatus: normalizePaymentStatus(order.paymentStatus),
+    paymentMethod: normalizePaymentMethod(order.paymentMethod),
+    paidAmount: getOrderPaidAmount(order)
   };
 
   const response = await window.farmAPI.updateOrder(payload);

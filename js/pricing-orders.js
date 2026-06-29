@@ -5,6 +5,40 @@ function roundUpByStep(value, step) {
   return Math.ceil(safeValue / safeStep) * safeStep;
 }
 
+function syncOrderPaymentFields(finalPrice, force = false) {
+  const paymentStatusEl = $('paymentStatus');
+  const paidAmountEl = $('paidAmount');
+  if (!paymentStatusEl || !paidAmountEl) return;
+
+  const status = normalizePaymentStatus(paymentStatusEl.value);
+  const safeFinalPrice = Math.max(0, Number(finalPrice || 0));
+
+  if (status === 'collected') {
+    if (force || !orderPaidAmountTouched) paidAmountEl.value = roundMoney(safeFinalPrice);
+    return;
+  }
+
+  if (status === 'unpaid' || status === 'refunded') {
+    paidAmountEl.value = 0;
+    orderPaidAmountTouched = false;
+    return;
+  }
+
+  if (status === 'partial') {
+    const paid = Math.min(toPositiveNumber(paidAmountEl.value, 0), safeFinalPrice);
+    paidAmountEl.value = roundMoney(paid);
+  }
+}
+
+function getOrderPaymentSnapshot(finalPrice) {
+  const status = normalizePaymentStatus(getValue('paymentStatus', 'collected'));
+  const method = normalizePaymentMethod(getValue('paymentMethod', 'cash'));
+  const paidAmount = getPaidAmountFromStatus(status, finalPrice, getValue('paidAmount'));
+  const amountDue = Math.max(Number(finalPrice || 0) - paidAmount, 0);
+
+  return { paymentStatus: status, paymentMethod: method, paidAmount, amountDue };
+}
+
 function calc() {
   const materialUsage = getMaterialUsageFromInputs();
   const printHours = toPositiveNumber(getValue('printHours'), 0);
@@ -58,6 +92,8 @@ function calc() {
   const priceAfterDiscount = Math.max(priceAfterDiscountBeforeMinimum, minimumOrderPrice);
   const finalPrice = roundUpByStep(priceAfterDiscount, roundingStep);
   const roundedAdjustment = finalPrice - priceAfterDiscount;
+  syncOrderPaymentFields(finalPrice);
+  const paymentSnapshot = getOrderPaymentSnapshot(finalPrice);
 
   // مهم: المصاريف المباشرة مش ربح.
   const profit = finalPrice - totalCost - directAddOnsCost;
@@ -77,6 +113,8 @@ function calc() {
   setText('resMinimum', formatMoney(minimumOrderPrice));
   setText('resRoundedAdjustment', formatMoney(roundedAdjustment));
   setText('resFinal', formatMoney(finalPrice));
+  setText('resPaid', formatMoney(paymentSnapshot.paidAmount));
+  setText('resDue', formatMoney(paymentSnapshot.amountDue));
   setText('resProfit', formatMoney(profit));
 
   currentCalc = {
@@ -98,6 +136,10 @@ function calc() {
     roundedAdjustment: roundMoney(roundedAdjustment),
     finalPrice: roundMoney(finalPrice),
     profit: roundMoney(profit),
+    paymentStatus: paymentSnapshot.paymentStatus,
+    paymentMethod: paymentSnapshot.paymentMethod,
+    paidAmount: roundMoney(paymentSnapshot.paidAmount),
+    amountDue: roundMoney(paymentSnapshot.amountDue),
     materialUsage
   };
 }
@@ -118,6 +160,8 @@ function resetResultsPanel() {
   setText('resMinimum', formatMoney(0));
   setText('resRoundedAdjustment', formatMoney(0));
   setText('resFinal', formatMoney(0));
+  setText('resPaid', formatMoney(0));
+  setText('resDue', formatMoney(0));
   setText('resProfit', formatMoney(0));
 }
 
@@ -128,6 +172,10 @@ function resetOrderForm() {
   setValue('printHours', '0');
   setValue('opDate', new Date().toISOString().slice(0, 10));
   setValue('orderStatus', 'new');
+  setValue('paymentStatus', dashboardData.config.defaultPaymentStatus || 'collected');
+  setValue('paymentMethod', dashboardData.config.defaultPaymentMethod || 'cash');
+  setValue('paidAmount', '0');
+  orderPaidAmountTouched = false;
   setValue('orderNotes', '');
   document.querySelectorAll('.ams-weight').forEach((input) => {
     input.value = '';
@@ -186,6 +234,12 @@ function validateOrderBeforeSave() {
     return { valid: false };
   }
 
+  if (currentCalc.paymentStatus === 'partial' && Number(currentCalc.paidAmount || 0) <= 0) {
+    showToast('في حالة التحصيل الجزئي لازم تدخل مبلغ محصل', 'error');
+    $('paidAmount')?.focus();
+    return { valid: false };
+  }
+
   return { valid: true, itemName, printerId, materialUsage };
 }
 
@@ -229,6 +283,9 @@ async function saveSale() {
     roundedAdjustment: currentCalc.roundedAdjustment,
     finalPrice: currentCalc.finalPrice,
     profit: currentCalc.profit,
+    paymentStatus: currentCalc.paymentStatus,
+    paymentMethod: currentCalc.paymentMethod,
+    paidAmount: currentCalc.paidAmount,
     materialUsage: validation.materialUsage
   };
 

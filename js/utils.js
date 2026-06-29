@@ -162,6 +162,84 @@ function getOrderStatusClass(status) {
   }
 }
 
+function getPaymentStatusText(status) {
+  switch (status) {
+    case 'collected':
+      return 'محصل';
+    case 'partial':
+      return 'جزئي';
+    case 'unpaid':
+      return 'غير محصل';
+    case 'refunded':
+      return 'مرتجع';
+    default:
+      return 'محصل';
+  }
+}
+
+function getPaymentStatusClass(status) {
+  switch (status) {
+    case 'collected':
+      return 'status-success';
+    case 'partial':
+      return 'status-warning';
+    case 'unpaid':
+    case 'refunded':
+      return 'status-danger';
+    default:
+      return '';
+  }
+}
+
+function getPaymentMethodText(method) {
+  switch (method) {
+    case 'cash':
+      return 'كاش';
+    case 'instapay':
+      return 'Instapay';
+    case 'vodafone_cash':
+      return 'Vodafone Cash';
+    case 'bank_transfer':
+      return 'تحويل بنكي';
+    case 'mixed':
+      return 'جزئي / مختلط';
+    case 'other':
+      return 'أخرى';
+    default:
+      return method || 'كاش';
+  }
+}
+
+function normalizePaymentStatus(status) {
+  const value = String(status || 'collected').trim();
+  return ['collected', 'partial', 'unpaid', 'refunded'].includes(value) ? value : 'collected';
+}
+
+function normalizePaymentMethod(method) {
+  const value = String(method || 'cash').trim();
+  return ['cash', 'instapay', 'vodafone_cash', 'bank_transfer', 'mixed', 'other'].includes(value) ? value : 'cash';
+}
+
+function getPaidAmountFromStatus(status, finalPrice, rawPaidAmount) {
+  const safeStatus = normalizePaymentStatus(status);
+  const safeFinalPrice = Math.max(0, Number(finalPrice || 0));
+
+  if (safeStatus === 'collected') return safeFinalPrice;
+  if (safeStatus === 'unpaid' || safeStatus === 'refunded') return 0;
+
+  return Math.min(toPositiveNumber(rawPaidAmount, 0), safeFinalPrice);
+}
+
+function getOrderPaidAmount(order) {
+  if (isCancelled(order)) return 0;
+  return getPaidAmountFromStatus(order?.paymentStatus, order?.finalPrice, order?.paidAmount);
+}
+
+function getOrderDueAmount(order) {
+  if (isCancelled(order)) return 0;
+  return Math.max(Number(order?.finalPrice || 0) - getOrderPaidAmount(order), 0);
+}
+
 function getMovementTypeText(type) {
   switch (type) {
     case 'in':

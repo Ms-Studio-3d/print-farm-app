@@ -17,6 +17,8 @@ function getCustomersSummary() {
         count: 0,
         revenue: 0,
         profit: 0,
+        collected: 0,
+        pending: 0,
         lastOrderCode: '',
         lastOrderDate: '',
         lastOrderItem: ''
@@ -29,6 +31,8 @@ function getCustomersSummary() {
     if (!isCancelled(order)) {
       entry.revenue += Number(order.finalPrice || 0);
       entry.profit += Number(order.profit || 0);
+      entry.collected += getOrderPaidAmount(order);
+      entry.pending += getOrderDueAmount(order);
     }
 
     const orderDate = String(order.date || '');
@@ -72,6 +76,8 @@ function applyConfigToInputs() {
   const defaultTax = String(toPositiveNumber(dashboardData.config.defaultTaxPercent, DEFAULT_CONFIG.defaultTaxPercent));
   const defaultDiscount = String(toPositiveNumber(dashboardData.config.defaultDiscountValue, DEFAULT_CONFIG.defaultDiscountValue));
   const roundingStep = String(toPositiveNumber(dashboardData.config.roundingStep, DEFAULT_CONFIG.roundingStep));
+  const defaultPaymentMethod = normalizePaymentMethod(dashboardData.config.defaultPaymentMethod || DEFAULT_CONFIG.defaultPaymentMethod);
+  const defaultPaymentStatus = normalizePaymentStatus(dashboardData.config.defaultPaymentStatus || DEFAULT_CONFIG.defaultPaymentStatus);
   const currencyName = getCurrency();
 
   setValue('farmName', dashboardData.config.farmName || DEFAULT_CONFIG.farmName);
@@ -80,6 +86,8 @@ function applyConfigToInputs() {
   setValue('profitMargin', defaultProfitMargin);
   setValue('manualMins', defaultManualMinutes);
   setValue('discountValue', defaultDiscount);
+  setValue('paymentMethod', defaultPaymentMethod);
+  setValue('paymentStatus', defaultPaymentStatus);
 
   setValue('laborRate', laborRate);
   setValue('electricityCostPerHour', electricityCostPerHour);

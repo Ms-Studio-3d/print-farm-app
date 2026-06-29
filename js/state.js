@@ -9,6 +9,8 @@ let dashboardData = {
 let currentCalc = createEmptyCalc();
 let editingOrderCode = null;
 let currentInvoiceOrderCode = null;
+let orderPaidAmountTouched = false;
+let editPaidAmountTouched = false;
 
 const DEFAULT_CONFIG = {
   farmName: '3D Print Farm App',
@@ -24,7 +26,9 @@ const DEFAULT_CONFIG = {
   shippingCost: 0,
   defaultTaxPercent: 0,
   defaultDiscountValue: 0,
-  roundingStep: 5
+  roundingStep: 5,
+  defaultPaymentMethod: 'cash',
+  defaultPaymentStatus: 'collected'
 };
 
 const ORDER_STATUS_FLOW = ['new', 'printing', 'finished', 'delivered', 'cancelled'];
@@ -72,6 +76,10 @@ function createEmptyCalc() {
     roundedAdjustment: 0,
     finalPrice: 0,
     profit: 0,
+    paymentStatus: 'collected',
+    paymentMethod: 'cash',
+    paidAmount: 0,
+    amountDue: 0,
     materialUsage: []
   };
 }

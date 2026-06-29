@@ -1,3 +1,32 @@
+function syncEditPaymentFields(force = false) {
+  const finalPrice = toPositiveNumber(getValue('editFinalPrice'), 0);
+  const status = normalizePaymentStatus(getValue('editPaymentStatus', 'collected'));
+  const paidAmountEl = $('editPaidAmount');
+  if (!paidAmountEl) return;
+
+  if (status === 'collected') {
+    if (force || !editPaidAmountTouched) paidAmountEl.value = roundMoney(finalPrice);
+    return;
+  }
+
+  if (status === 'unpaid' || status === 'refunded') {
+    paidAmountEl.value = 0;
+    editPaidAmountTouched = false;
+    return;
+  }
+
+  if (status === 'partial') {
+    paidAmountEl.value = roundMoney(Math.min(toPositiveNumber(paidAmountEl.value, 0), finalPrice));
+  }
+}
+
+function getEditPaymentSnapshot(finalPrice) {
+  const status = normalizePaymentStatus(getValue('editPaymentStatus', 'collected'));
+  const method = normalizePaymentMethod(getValue('editPaymentMethod', 'cash'));
+  const paidAmount = getPaidAmountFromStatus(status, finalPrice, getValue('editPaidAmount'));
+  return { paymentStatus: status, paymentMethod: method, paidAmount };
+}
+
 function openEditSale(code) {
   const order = getOrderByCode(code);
 
@@ -17,6 +46,10 @@ function openEditSale(code) {
   setValue('editPrintHours', order.printHours || 0);
   setValue('editManualMinutes', order.manualMinutes || 0);
   setValue('editFinalPrice', order.finalPrice || 0);
+  setValue('editPaymentStatus', normalizePaymentStatus(order.paymentStatus));
+  setValue('editPaymentMethod', normalizePaymentMethod(order.paymentMethod));
+  setValue('editPaidAmount', getOrderPaidAmount(order));
+  editPaidAmountTouched = false;
   setValue('editNotes', order.notes || '');
 
   openModal('editModal');
@@ -50,9 +83,18 @@ async function saveEditSale() {
 
   const finalPrice = toPositiveNumber(getValue('editFinalPrice'), Number(oldOrder.finalPrice || 0));
   const totalCost = Number(oldOrder.totalCost || 0);
+  const shippingCost = Number(oldOrder.shippingCost || 0);
+  const minimumNoLossPrice = totalCost + shippingCost;
 
-  if (finalPrice < totalCost) {
-    showToast('سعر البيع أقل من التكلفة', 'error');
+  if (finalPrice < minimumNoLossPrice) {
+    showToast('سعر البيع أقل من التكلفة والمصاريف المباشرة', 'error');
+    return;
+  }
+
+  const paymentSnapshot = getEditPaymentSnapshot(finalPrice);
+  if (paymentSnapshot.paymentStatus === 'partial' && Number(paymentSnapshot.paidAmount || 0) <= 0) {
+    showToast('في حالة التحصيل الجزئي لازم تدخل مبلغ محصل', 'error');
+    $('editPaidAmount')?.focus();
     return;
   }
 
@@ -84,7 +126,10 @@ async function saveEditSale() {
     minimumOrderPrice: Number(oldOrder.minimumOrderPrice || 0),
     roundedAdjustment: Number(oldOrder.roundedAdjustment || 0),
     finalPrice,
-    profit: finalPrice - totalCost
+    profit: finalPrice - totalCost - shippingCost,
+    paymentStatus: paymentSnapshot.paymentStatus,
+    paymentMethod: paymentSnapshot.paymentMethod,
+    paidAmount: paymentSnapshot.paidAmount
   };
 
   const response = await window.farmAPI.updateOrder(payload);

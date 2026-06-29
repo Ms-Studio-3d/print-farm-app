@@ -13,7 +13,9 @@ async function saveSettings() {
     shippingCost: String(toPositiveNumber(getValue('settingsShippingCost'), DEFAULT_CONFIG.shippingCost)),
     defaultTaxPercent: String(toPositiveNumber(getValue('settingsDefaultTaxPercent'), DEFAULT_CONFIG.defaultTaxPercent)),
     defaultDiscountValue: String(toPositiveNumber(getValue('settingsDefaultDiscountValue'), DEFAULT_CONFIG.defaultDiscountValue)),
-    roundingStep: String(toPositiveNumber(getValue('settingsRoundingStep'), DEFAULT_CONFIG.roundingStep))
+    roundingStep: String(toPositiveNumber(getValue('settingsRoundingStep'), DEFAULT_CONFIG.roundingStep)),
+    defaultPaymentMethod: normalizePaymentMethod(dashboardData.config.defaultPaymentMethod || DEFAULT_CONFIG.defaultPaymentMethod),
+    defaultPaymentStatus: normalizePaymentStatus(dashboardData.config.defaultPaymentStatus || DEFAULT_CONFIG.defaultPaymentStatus)
   };
 
   const response = await window.farmAPI.saveConfig(config);
@@ -93,6 +95,10 @@ function exportSalesCSV() {
     'الحد الأدنى',
     'فرق التقريب',
     'سعر البيع',
+    'المحصل',
+    'المتبقي',
+    'حالة التحصيل',
+    'طريقة الدفع',
     'الربح',
     'ملاحظات'
   ];
@@ -123,6 +129,10 @@ function exportSalesCSV() {
     formatNumber(order.minimumOrderPrice),
     formatNumber(order.roundedAdjustment),
     formatNumber(order.finalPrice),
+    formatNumber(getOrderPaidAmount(order)),
+    formatNumber(getOrderDueAmount(order)),
+    getPaymentStatusText(order.paymentStatus),
+    getPaymentMethodText(order.paymentMethod),
     formatNumber(order.profit),
     order.notes || ''
   ]);
