@@ -29,7 +29,9 @@ jobs:
       - name: Clean npm cache
         run: |
           npm cache clean --force
-          if exist node_modules rmdir /s /q node_modules
+          if (Test-Path node_modules) {
+            Remove-Item node_modules -Recurse -Force
+          }
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
