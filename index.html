@@ -78,12 +78,12 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="printHours">وقت الطباعة / ساعة للقطعة *</label>
+                  <label for="printHours">إجمالي وقت الطباعة للأوردر *</label>
                   <input type="text" id="printHours" value="0" inputmode="decimal" />
                 </div>
 
                 <div class="form-group">
-                  <label for="manualMins">دقائق خدمة / شغل يدوي للقطعة</label>
+                  <label for="manualMins">إجمالي دقائق خدمة / شغل يدوي للأوردر</label>
                   <input type="text" id="manualMins" value="15" inputmode="decimal" />
                 </div>
               </div>
@@ -110,7 +110,7 @@
               <div class="section-head">
                 <div>
                   <h3>استهلاك الخامات</h3>
-                  <p class="section-subtext">اكتب الجرامات المستخدمة لكل خامة</p>
+                  <p class="section-subtext">اكتب إجمالي الجرامات المستخدمة لكل خامة في الأوردر كله</p>
                 </div>
 
                 <button class="btn btn-secondary btn-small" type="button" onclick="openMaterialsManagerModal()">إدارة الخامات</button>
@@ -139,7 +139,7 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="packagingCost">التغليف</label>
+                  <label for="packagingCost">تغليف الأوردر كله</label>
                   <input type="text" id="packagingCost" value="10" inputmode="decimal" />
                 </div>
               </div>
@@ -151,7 +151,7 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="wasteWeight">وزن هالك إضافي / جرام</label>
+                  <label for="wasteWeight">إجمالي وزن هالك إضافي / جرام</label>
                   <input type="text" id="wasteWeight" value="0" inputmode="decimal" />
                 </div>
 
@@ -180,8 +180,8 @@
 
               <div class="helper-box section-gap-sm">
                 <strong>ملاحظة مهمة:</strong>
-                <span>الكهرباء، التغليف، الفشل، وسعر الشغل اليدوي قيم ثابتة من الإعدادات. اتركها كما هي إلا لو الأوردر حالة خاصة.</span>
-                <span>الإكسسوارات تتضرب في عدد القطع، والشحن يضاف مرة واحدة للأوردر كله. الاتنين بدون فشل وبدون مكسب.</span>
+                <span>الكهرباء، الفشل، وسعر الشغل اليدوي قيم ثابتة من الإعدادات. اتركها كما هي إلا لو الأوردر حالة خاصة.</span>
+                <span>وقت الطباعة والخامات والتغليف والشغل اليدوي يتم إدخالهم كإجمالي للأوردر كله. الإكسسوارات فقط تتضرب في عدد القطع، والشحن يضاف مرة واحدة للأوردر كله. الإكسسوارات والشحن بدون فشل وبدون مكسب.</span>
               </div>
             </section>
           </section>
