@@ -117,6 +117,35 @@
                   <input type="text" id="orderNotes" placeholder="اختياري" />
                 </div>
               </div>
+
+              <div class="grid-3 section-gap-sm">
+                <div class="form-group">
+                  <label for="paidAmount">المبلغ المحصل</label>
+                  <input type="text" id="paidAmount" value="0" inputmode="decimal" />
+                </div>
+
+                <div class="form-group">
+                  <label for="paymentMethod">طريقة الدفع</label>
+                  <select id="paymentMethod">
+                    <option value="cash">كاش</option>
+                    <option value="instapay">Instapay</option>
+                    <option value="vodafone_cash">Vodafone Cash</option>
+                    <option value="bank_transfer">تحويل بنكي</option>
+                    <option value="mixed">جزئي / مختلط</option>
+                    <option value="other">أخرى</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="paymentStatus">حالة التحصيل</label>
+                  <select id="paymentStatus">
+                    <option value="collected">محصل</option>
+                    <option value="partial">جزئي</option>
+                    <option value="unpaid">غير محصل</option>
+                    <option value="refunded">مرتجع</option>
+                  </select>
+                </div>
+              </div>
             </section>
 
             <section class="card section-gap-md">
@@ -176,7 +205,7 @@
 
               <div class="grid-3 section-gap-sm">
                 <div class="form-group">
-                  <label for="shippingCost">شحن / مصاريف</label>
+                  <label for="shippingCost">إكسسوارات / شحن / مصاريف مباشرة</label>
                   <input type="text" id="shippingCost" value="0" inputmode="decimal" />
                 </div>
 
@@ -240,7 +269,7 @@
                 </div>
 
                 <div class="summary-stat">
-                  <span class="summary-label">الشحن / المصاريف</span>
+                  <span class="summary-label">إضافات مباشرة</span>
                   <strong id="resShipping" class="summary-value">0 جنيه</strong>
                 </div>
 
@@ -282,6 +311,16 @@
                 <div class="summary-stat final-stat">
                   <span class="summary-label">سعر البيع النهائي</span>
                   <strong id="resFinal" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">المحصل</span>
+                  <strong id="resPaid" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">المتبقي</span>
+                  <strong id="resDue" class="summary-value">0 جنيه</strong>
                 </div>
 
                 <div class="summary-stat profit-stat">
@@ -401,7 +440,9 @@
       </div>
 
       <div class="stats-grid">
-        <div class="stat-box"><h4>إجمالي الإيراد</h4><div id="statRev">0</div></div>
+        <div class="stat-box"><h4>إجمالي المبيعات</h4><div id="statRev">0</div></div>
+        <div class="stat-box"><h4>المبلغ المحصل</h4><div id="statCollected">0</div></div>
+        <div class="stat-box"><h4>المتبقي للعملاء</h4><div id="statPending">0</div></div>
         <div class="stat-box"><h4>صافي الربح</h4><div id="statProfit">0</div></div>
         <div class="stat-box"><h4>عدد المبيعات</h4><div id="statCount">0</div></div>
         <div class="stat-box"><h4>أعلى بيعة</h4><div id="statTop">0</div></div>
@@ -426,6 +467,17 @@
             <option value="finished">جاهز</option>
             <option value="delivered">تم التسليم</option>
             <option value="cancelled">ملغي</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="filterPaymentStatus">التحصيل</label>
+          <select id="filterPaymentStatus" oninput="renderReportsTable()">
+            <option value="">الكل</option>
+            <option value="collected">محصل</option>
+            <option value="partial">جزئي</option>
+            <option value="unpaid">غير محصل</option>
+            <option value="refunded">مرتجع</option>
           </select>
         </div>
 
@@ -464,6 +516,10 @@
               <th>الحالة</th>
               <th>التكلفة</th>
               <th>البيع</th>
+              <th>محصل</th>
+              <th>متبقي</th>
+              <th>التحصيل</th>
+              <th>الدفع</th>
               <th>الربح</th>
               <th>إجراء</th>
             </tr>
@@ -536,6 +592,35 @@
         <div class="form-group">
           <label for="editFinalPrice">سعر البيع النهائي</label>
           <input type="text" id="editFinalPrice" inputmode="decimal" />
+        </div>
+      </div>
+
+      <div class="grid-3 section-gap-sm">
+        <div class="form-group">
+          <label for="editPaidAmount">المبلغ المحصل</label>
+          <input type="text" id="editPaidAmount" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="editPaymentMethod">طريقة الدفع</label>
+          <select id="editPaymentMethod">
+            <option value="cash">كاش</option>
+            <option value="instapay">Instapay</option>
+            <option value="vodafone_cash">Vodafone Cash</option>
+            <option value="bank_transfer">تحويل بنكي</option>
+            <option value="mixed">جزئي / مختلط</option>
+            <option value="other">أخرى</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="editPaymentStatus">حالة التحصيل</label>
+          <select id="editPaymentStatus">
+            <option value="collected">محصل</option>
+            <option value="partial">جزئي</option>
+            <option value="unpaid">غير محصل</option>
+            <option value="refunded">مرتجع</option>
+          </select>
         </div>
       </div>
 
@@ -810,7 +895,7 @@
         </div>
 
         <div class="form-group">
-          <label for="settingsShippingCost">الشحن / المصاريف الافتراضية</label>
+          <label for="settingsShippingCost">الإضافات المباشرة الافتراضية</label>
           <input type="text" id="settingsShippingCost" value="0" inputmode="decimal" />
         </div>
 
@@ -845,7 +930,7 @@
 
       <div class="helper-box section-gap-sm">
         <strong>توافق الحساب:</strong>
-        <span>نفس القيم الافتراضية يجب نقلها لاحقًا للموبايل حتى يطلع نفس السعر.</span>
+        <span>طريقة الحساب هنا أصبحت متوافقة مع MOO3D: الإضافات المباشرة لا يدخل عليها فشل أو مكسب.</span>
         <span>أي قيمة تدخل في السعر ستكون ظاهرة هنا وليست مخفية.</span>
       </div>
 

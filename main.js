@@ -82,6 +82,36 @@ function normalizeStatus(value, fallback = 'new') {
   return fallback;
 }
 
+function normalizePaymentStatus(value, fallback = 'collected') {
+  const status = asTrimmedString(value, fallback);
+
+  if (['collected', 'partial', 'unpaid', 'refunded'].includes(status)) {
+    return status;
+  }
+
+  return fallback;
+}
+
+function normalizePaymentMethod(value, fallback = 'cash') {
+  const method = asTrimmedString(value, fallback);
+
+  if (['cash', 'instapay', 'vodafone_cash', 'bank_transfer', 'mixed', 'other'].includes(method)) {
+    return method;
+  }
+
+  return fallback;
+}
+
+function normalizePaidAmount(paymentStatus, finalPrice, paidAmount) {
+  const safeFinalPrice = asPositiveNumber(finalPrice, 0);
+  const safeStatus = normalizePaymentStatus(paymentStatus);
+
+  if (safeStatus === 'collected') return safeFinalPrice;
+  if (safeStatus === 'unpaid' || safeStatus === 'refunded') return 0;
+
+  return Math.min(asPositiveNumber(paidAmount, 0), safeFinalPrice);
+}
+
 function normalizePrinterStatus(value, fallback = 'idle') {
   const status = asTrimmedString(value, fallback);
 
@@ -211,6 +241,9 @@ function normalizeMaterialUsageItem(item) {
 function normalizeOrderPayload(payload) {
   const data = asObject(payload);
   const finalPrice = asPositiveNumber(data.finalPrice, 0);
+  const paymentStatus = normalizePaymentStatus(data.paymentStatus, 'collected');
+  const paymentMethod = normalizePaymentMethod(data.paymentMethod, 'cash');
+  const paidAmount = normalizePaidAmount(paymentStatus, finalPrice, data.paidAmount);
 
   return {
     code: asTrimmedString(data.code),
@@ -243,6 +276,9 @@ function normalizeOrderPayload(payload) {
 
     finalPrice,
     profit: asNumber(data.profit, 0),
+    paymentStatus,
+    paymentMethod,
+    paidAmount,
 
     materialUsage: Array.isArray(data.materialUsage)
       ? data.materialUsage.map(normalizeMaterialUsageItem)
@@ -276,13 +312,14 @@ function validateCreateOrderPayload(data) {
     if (asPositiveNumber(item.grams, 0) <= 0) throw new Error('كمية الخامة لازم تكون أكبر من صفر');
   }
 
-  if (data.finalPrice < data.totalCost) throw new Error('سعر البيع أقل من التكلفة');
+  if (data.finalPrice < data.totalCost + data.shippingCost) throw new Error('سعر البيع أقل من التكلفة والمصاريف المباشرة');
 }
 
 function validateUpdateOrderPayload(data) {
   if (!data.code) throw new Error('كود الأوردر غير صالح');
   if (!data.itemName) throw new Error('اسم المجسم مطلوب');
   if (!data.date) throw new Error('تاريخ الأوردر مطلوب');
+  if (data.finalPrice < data.totalCost + data.shippingCost) throw new Error('سعر البيع أقل من التكلفة والمصاريف المباشرة');
 }
 
 function registerIpcHandlers() {

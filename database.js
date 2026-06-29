@@ -85,6 +85,9 @@ function createTables() {
       rounded_adjustment REAL NOT NULL DEFAULT 0,
       final_price REAL NOT NULL DEFAULT 0,
       profit REAL NOT NULL DEFAULT 0,
+      payment_status TEXT DEFAULT 'collected',
+      payment_method TEXT DEFAULT 'cash',
+      paid_amount REAL NOT NULL DEFAULT 0,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (printer_id) REFERENCES printers(id) ON DELETE SET NULL
     );
@@ -144,6 +147,9 @@ function runMigrations() {
   ensureColumnExists('orders', 'price_after_discount', `ALTER TABLE orders ADD COLUMN price_after_discount REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'minimum_order_price', `ALTER TABLE orders ADD COLUMN minimum_order_price REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'rounded_adjustment', `ALTER TABLE orders ADD COLUMN rounded_adjustment REAL NOT NULL DEFAULT 0`);
+  ensureColumnExists('orders', 'payment_status', `ALTER TABLE orders ADD COLUMN payment_status TEXT DEFAULT 'collected'`);
+  ensureColumnExists('orders', 'payment_method', `ALTER TABLE orders ADD COLUMN payment_method TEXT DEFAULT 'cash'`);
+  ensureColumnExists('orders', 'paid_amount', `ALTER TABLE orders ADD COLUMN paid_amount REAL NOT NULL DEFAULT 0`);
 
   backfillPricingBreakdown();
 }
@@ -168,6 +174,19 @@ function backfillPricingBreakdown() {
       price_after_discount = CASE
         WHEN price_after_discount IS NULL OR price_after_discount = 0 THEN final_price
         ELSE price_after_discount
+      END,
+      payment_status = CASE
+        WHEN payment_status IS NULL OR payment_status = '' THEN 'collected'
+        ELSE payment_status
+      END,
+      payment_method = CASE
+        WHEN payment_method IS NULL OR payment_method = '' THEN 'cash'
+        ELSE payment_method
+      END,
+      paid_amount = CASE
+        WHEN (paid_amount IS NULL OR paid_amount = 0) AND final_price > 0 AND (payment_status IS NULL OR payment_status = '' OR payment_status = 'collected') THEN final_price
+        WHEN payment_status IN ('unpaid', 'refunded') THEN 0
+        ELSE paid_amount
       END
   `).run();
 }
@@ -186,7 +205,13 @@ function seedDefaults() {
     defaultWasteWeight: '0',
     minimumOrderPrice: '0',
     shippingCost: '0',
-    defaultTaxPercent: '0'
+    defaultTaxPercent: '0',
+    defaultPaymentMethod: 'cash',
+    defaultPaymentStatus: 'collected',
+    roundingStep: '5',
+    defaultProfitMargin: '100',
+    defaultManualMinutes: '15',
+    defaultDiscountValue: '0'
   };
 
   const insertConfig = db.prepare(`
@@ -332,7 +357,10 @@ function getDashboardData() {
       o.minimum_order_price AS minimumOrderPrice,
       o.rounded_adjustment AS roundedAdjustment,
       o.final_price AS finalPrice,
-      o.profit
+      o.profit,
+      o.payment_status AS paymentStatus,
+      o.payment_method AS paymentMethod,
+      o.paid_amount AS paidAmount
     FROM orders o
     LEFT JOIN printers p ON p.id = o.printer_id
     ORDER BY o.order_date DESC, o.id DESC
@@ -607,9 +635,12 @@ function createOrder(payload) {
       minimum_order_price,
       rounded_adjustment,
       final_price,
-      profit
+      profit,
+      payment_status,
+      payment_method,
+      paid_amount
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertMaterialUsage = db.prepare(`
@@ -718,7 +749,10 @@ function createOrder(payload) {
       Number(data.minimumOrderPrice || 0),
       Number(data.roundedAdjustment || 0),
       finalPrice,
-      Number(data.profit || 0)
+      Number(data.profit || 0),
+      String(data.paymentStatus || 'collected').trim(),
+      String(data.paymentMethod || 'cash').trim(),
+      Number(data.paidAmount || 0)
     );
 
     const orderId = Number(orderResult.lastInsertRowid);
@@ -932,7 +966,10 @@ function updateOrder(payload) {
         minimum_order_price = ?,
         rounded_adjustment = ?,
         final_price = ?,
-        profit = ?
+        profit = ?,
+        payment_status = ?,
+        payment_method = ?,
+        paid_amount = ?
       WHERE code = ?
     `).run(
       String(data.itemName || '').trim(),
@@ -961,6 +998,9 @@ function updateOrder(payload) {
       Number(data.roundedAdjustment || 0),
       finalPrice,
       Number(data.profit || 0),
+      String(data.paymentStatus || 'collected').trim(),
+      String(data.paymentMethod || 'cash').trim(),
+      Number(data.paidAmount || 0),
       code
     );
   });
@@ -1073,9 +1113,12 @@ function replaceAllData(data) {
         minimum_order_price,
         rounded_adjustment,
         final_price,
-        profit
+        profit,
+        payment_status,
+        payment_method,
+        paid_amount
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const insertMovement = db.prepare(`
@@ -1184,7 +1227,10 @@ function replaceAllData(data) {
         Number(order.minimumOrderPrice || 0),
         Number(order.roundedAdjustment || 0),
         finalPrice,
-        Number(order.profit || 0)
+        Number(order.profit || 0),
+        String(order.paymentStatus || 'collected').trim(),
+        String(order.paymentMethod || 'cash').trim(),
+        Number(order.paidAmount || (String(order.paymentStatus || 'collected') === 'collected' ? finalPrice : 0))
       );
 
       if (order.id != null) {
@@ -1296,7 +1342,7 @@ function exportBackupData() {
   return {
     exportedAt: new Date().toISOString(),
     appName: 'Print Farm App',
-    schemaVersion: 5,
+    schemaVersion: 6,
     ...data,
     printers: [...data.printers, ...archivedPrinters],
     materials: [...data.materials, ...archivedMaterials],
