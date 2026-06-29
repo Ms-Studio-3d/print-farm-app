@@ -1,19 +1,30 @@
+function roundUpByStep(value, step) {
+  const safeValue = Number(value || 0);
+  const safeStep = Number(step || 5);
+  if (!Number.isFinite(safeStep) || safeStep <= 0) return safeValue;
+  return Math.ceil(safeValue / safeStep) * safeStep;
+}
+
 function calc() {
   const materialUsage = getMaterialUsageFromInputs();
-
   const printHours = toPositiveNumber(getValue('printHours'), 0);
   const manualMinutes = toPositiveNumber(getValue('manualMins'), 0);
+
   const profitMargin = toPositiveNumber(getValue('profitMargin'), getConfigNumber('defaultProfitMargin'));
   const discountValue = toPositiveNumber(getValue('discountValue'), getConfigNumber('defaultDiscountValue'));
-
   const packagingCost = toPositiveNumber(getValue('packagingCost'), getConfigNumber('packagingCost'));
-  const shippingCost = toPositiveNumber(getValue('shippingCost'), getConfigNumber('shippingCost'));
+
+  // في طريقة MOO3D الجديدة: الإكسسوارات / الشحن / المصاريف المباشرة
+  // بتتضاف على سعر البيع فقط، ومش بيتحسب عليها فشل ولا مكسب.
+  const directAddOnsCost = toPositiveNumber(getValue('shippingCost'), getConfigNumber('shippingCost'));
+
   const laborRate = toPositiveNumber(getValue('laborRate'), getConfigNumber('laborRate'));
   const electricityCostPerHour = toPositiveNumber(getValue('electricityCostPerHour'), getConfigNumber('electricityCostPerHour'));
   const failurePercent = toPositiveNumber(getValue('failurePercent'), getConfigNumber('failurePercent'));
   const wasteWeight = toPositiveNumber(getValue('wasteWeight'), getConfigNumber('defaultWasteWeight'));
   const minimumOrderPrice = toPositiveNumber(getValue('minimumOrderPrice'), getConfigNumber('minimumOrderPrice'));
   const defaultTaxPercent = toPositiveNumber(getValue('defaultTaxPercent'), getConfigNumber('defaultTaxPercent'));
+  const roundingStep = toPositiveNumber(getConfigNumber('roundingStep'), 5);
 
   const materialCost = materialUsage.reduce((sum, entry) => sum + Number(entry.totalCost || 0), 0);
   const totalMaterialGrams = materialUsage.reduce((sum, entry) => sum + Number(entry.grams || 0), 0);
@@ -22,33 +33,34 @@ function calc() {
 
   const selectedPrinterId = getValue('selectedPrinter');
   const printer = selectedPrinterId ? getPrinterById(selectedPrinterId) : null;
-  const hourlyDepreciation = toPositiveNumber(printer?.hourlyDepreciation, 0);
-
-  const depreciationCost = printHours * hourlyDepreciation;
+  const machineHourCost = toPositiveNumber(printer?.hourlyDepreciation, 0);
+  const depreciationCost = printHours * machineHourCost;
   const electricityCost = printHours * electricityCostPerHour;
   const laborCost = (manualMinutes / 60) * laborRate;
 
-  const baseCost =
-    materialCost +
-    wasteCost +
-    depreciationCost +
-    electricityCost +
-    laborCost +
-    packagingCost +
-    shippingCost;
+  // نفس منطق MOO3D الجديد:
+  // تكلفة إنتاج فقط = خامة + هالك + ماكينة + كهرباء + شغل يدوي + تغليف.
+  // بعدها نضيف فشل / مخاطرة على تكلفة الإنتاج فقط.
+  // بعدها نحسب المكسب على تكلفة الإنتاج النهائية.
+  // وبعد كده نضيف المصاريف المباشرة بدون مكسب وبدون فشل.
+  const productionSubtotal = materialCost + wasteCost + depreciationCost + electricityCost + laborCost + packagingCost;
+  const riskCost = productionSubtotal * (failurePercent / 100);
+  const productionCostAfterRisk = productionSubtotal + riskCost;
 
-  const riskCost = baseCost * (failurePercent / 100);
-  const costBeforeTax = baseCost + riskCost;
-  const taxCost = costBeforeTax * (defaultTaxPercent / 100);
-  const totalCost = costBeforeTax + taxCost;
+  // الضريبة اختيارية وموجودة في البرنامج القديم. لو صفر يبقى الحساب مطابق لطريقة MOO3D الجديدة.
+  const taxCost = productionCostAfterRisk * (defaultTaxPercent / 100);
+  const totalCost = productionCostAfterRisk + taxCost;
 
-  const priceBeforeDiscount = totalCost * (1 + (profitMargin / 100));
+  const sellBeforeAddOns = totalCost * (1 + (profitMargin / 100));
+  const priceBeforeDiscount = sellBeforeAddOns + directAddOnsCost;
   const safeDiscountValue = Math.min(discountValue, priceBeforeDiscount);
   const priceAfterDiscountBeforeMinimum = Math.max(0, priceBeforeDiscount - safeDiscountValue);
   const priceAfterDiscount = Math.max(priceAfterDiscountBeforeMinimum, minimumOrderPrice);
-  const finalPrice = roundUpToNearest5(priceAfterDiscount);
+  const finalPrice = roundUpByStep(priceAfterDiscount, roundingStep);
   const roundedAdjustment = finalPrice - priceAfterDiscount;
-  const profit = finalPrice - totalCost;
+
+  // مهم: المصاريف المباشرة مش ربح.
+  const profit = finalPrice - totalCost - directAddOnsCost;
 
   setText('resMat', formatMoney(materialCost));
   setText('resWaste', formatMoney(wasteCost));
@@ -56,7 +68,7 @@ function calc() {
   setText('resElectricity', formatMoney(electricityCost));
   setText('resLabor', formatMoney(laborCost));
   setText('resPackaging', formatMoney(packagingCost));
-  setText('resShipping', formatMoney(shippingCost));
+  setText('resShipping', formatMoney(directAddOnsCost));
   setText('resRisk', formatMoney(riskCost));
   setText('resTax', formatMoney(taxCost));
   setText('resTotal', formatMoney(totalCost));
@@ -75,7 +87,7 @@ function calc() {
     electricityCost: roundMoney(electricityCost),
     laborCost: roundMoney(laborCost),
     packagingCost: roundMoney(packagingCost),
-    shippingCost: roundMoney(shippingCost),
+    shippingCost: roundMoney(directAddOnsCost),
     riskCost: roundMoney(riskCost),
     taxCost: roundMoney(taxCost),
     totalCost: roundMoney(totalCost),
@@ -117,14 +129,11 @@ function resetOrderForm() {
   setValue('opDate', new Date().toISOString().slice(0, 10));
   setValue('orderStatus', 'new');
   setValue('orderNotes', '');
-
   document.querySelectorAll('.ams-weight').forEach((input) => {
     input.value = '';
   });
-
   applyConfigToInputs();
   currentCalc = createEmptyCalc();
-
   resetResultsPanel();
   setNextOrderCode();
   calc();
@@ -171,22 +180,17 @@ function validateOrderBeforeSave() {
     return { valid: false };
   }
 
-  if (Number(currentCalc.finalPrice || 0) < Number(currentCalc.totalCost || 0)) {
-    showToast('سعر البيع أقل من التكلفة', 'error');
+  const minimumNoLossPrice = Number(currentCalc.totalCost || 0) + Number(currentCalc.shippingCost || 0);
+  if (Number(currentCalc.finalPrice || 0) < minimumNoLossPrice) {
+    showToast('سعر البيع أقل من التكلفة والمصاريف المباشرة', 'error');
     return { valid: false };
   }
 
-  return {
-    valid: true,
-    itemName,
-    printerId,
-    materialUsage
-  };
+  return { valid: true, itemName, printerId, materialUsage };
 }
 
 async function saveSale() {
   calc();
-
   const validation = validateOrderBeforeSave();
   if (!validation.valid) return;
 
@@ -197,7 +201,6 @@ async function saveSale() {
   }
 
   const responseOrderCode = String(responseCode.data || 'ORD-1001');
-
   const payload = {
     code: responseOrderCode,
     itemName: validation.itemName,
@@ -230,7 +233,6 @@ async function saveSale() {
   };
 
   const response = await window.farmAPI.createOrder(payload);
-
   if (!response?.success) {
     showToast(response?.message || 'فشل في حفظ الأوردر', 'error');
     return;
