@@ -48,9 +48,10 @@ function calc() {
   const discountValue = toPositiveNumber(getValue('discountValue'), getConfigNumber('defaultDiscountValue'));
   const packagingCost = toPositiveNumber(getValue('packagingCost'), getConfigNumber('packagingCost'));
 
-  // في طريقة MOO3D الجديدة: الإكسسوارات / الشحن / المصاريف المباشرة
-  // بتتضاف على سعر البيع فقط، ومش بيتحسب عليها فشل ولا مكسب.
-  const directAddOnsCost = toPositiveNumber(getValue('shippingCost'), getConfigNumber('shippingCost'));
+  // الإكسسوارات والشحن مصاريف مباشرة: تتضاف على سعر البيع فقط بدون فشل وبدون مكسب.
+  const accessoriesCost = toPositiveNumber(getValue('accessoriesCost'), getConfigNumber('accessoriesCost'));
+  const shippingCost = toPositiveNumber(getValue('shippingCost'), getConfigNumber('shippingCost'));
+  const directAddOnsCost = accessoriesCost + shippingCost;
 
   const laborRate = toPositiveNumber(getValue('laborRate'), getConfigNumber('laborRate'));
   const electricityCostPerHour = toPositiveNumber(getValue('electricityCostPerHour'), getConfigNumber('electricityCostPerHour'));
@@ -92,9 +93,6 @@ function calc() {
   const priceAfterDiscount = Math.max(priceAfterDiscountBeforeMinimum, minimumOrderPrice);
   const finalPrice = roundUpByStep(priceAfterDiscount, roundingStep);
   const roundedAdjustment = finalPrice - priceAfterDiscount;
-  syncOrderPaymentFields(finalPrice);
-  const paymentSnapshot = getOrderPaymentSnapshot(finalPrice);
-
   // مهم: المصاريف المباشرة مش ربح.
   const profit = finalPrice - totalCost - directAddOnsCost;
 
@@ -113,8 +111,6 @@ function calc() {
   setText('resMinimum', formatMoney(minimumOrderPrice));
   setText('resRoundedAdjustment', formatMoney(roundedAdjustment));
   setText('resFinal', formatMoney(finalPrice));
-  setText('resPaid', formatMoney(paymentSnapshot.paidAmount));
-  setText('resDue', formatMoney(paymentSnapshot.amountDue));
   setText('resProfit', formatMoney(profit));
 
   currentCalc = {
@@ -125,7 +121,8 @@ function calc() {
     electricityCost: roundMoney(electricityCost),
     laborCost: roundMoney(laborCost),
     packagingCost: roundMoney(packagingCost),
-    shippingCost: roundMoney(directAddOnsCost),
+    accessoriesCost: roundMoney(accessoriesCost),
+    shippingCost: roundMoney(shippingCost),
     riskCost: roundMoney(riskCost),
     taxCost: roundMoney(taxCost),
     totalCost: roundMoney(totalCost),
@@ -136,10 +133,10 @@ function calc() {
     roundedAdjustment: roundMoney(roundedAdjustment),
     finalPrice: roundMoney(finalPrice),
     profit: roundMoney(profit),
-    paymentStatus: paymentSnapshot.paymentStatus,
-    paymentMethod: paymentSnapshot.paymentMethod,
-    paidAmount: roundMoney(paymentSnapshot.paidAmount),
-    amountDue: roundMoney(paymentSnapshot.amountDue),
+    paymentStatus: 'collected',
+    paymentMethod: 'cash',
+    paidAmount: roundMoney(finalPrice),
+    amountDue: 0,
     materialUsage
   };
 }
@@ -160,8 +157,6 @@ function resetResultsPanel() {
   setText('resMinimum', formatMoney(0));
   setText('resRoundedAdjustment', formatMoney(0));
   setText('resFinal', formatMoney(0));
-  setText('resPaid', formatMoney(0));
-  setText('resDue', formatMoney(0));
   setText('resProfit', formatMoney(0));
 }
 
@@ -171,11 +166,7 @@ function resetOrderForm() {
   setValue('selectedPrinter', '');
   setValue('printHours', '0');
   setValue('opDate', new Date().toISOString().slice(0, 10));
-  setValue('orderStatus', 'new');
-  setValue('paymentStatus', dashboardData.config.defaultPaymentStatus || 'collected');
-  setValue('paymentMethod', dashboardData.config.defaultPaymentMethod || 'cash');
-  setValue('paidAmount', '0');
-  orderPaidAmountTouched = false;
+  setValue('orderStatus', 'delivered');
   setValue('orderNotes', '');
   document.querySelectorAll('.ams-weight').forEach((input) => {
     input.value = '';
@@ -228,15 +219,9 @@ function validateOrderBeforeSave() {
     return { valid: false };
   }
 
-  const minimumNoLossPrice = Number(currentCalc.totalCost || 0) + Number(currentCalc.shippingCost || 0);
+  const minimumNoLossPrice = Number(currentCalc.totalCost || 0) + Number(currentCalc.accessoriesCost || 0) + Number(currentCalc.shippingCost || 0);
   if (Number(currentCalc.finalPrice || 0) < minimumNoLossPrice) {
     showToast('سعر البيع أقل من التكلفة والمصاريف المباشرة', 'error');
-    return { valid: false };
-  }
-
-  if (currentCalc.paymentStatus === 'partial' && Number(currentCalc.paidAmount || 0) <= 0) {
-    showToast('في حالة التحصيل الجزئي لازم تدخل مبلغ محصل', 'error');
-    $('paidAmount')?.focus();
     return { valid: false };
   }
 
@@ -260,7 +245,7 @@ async function saveSale() {
     itemName: validation.itemName,
     customerName: getTrimmedValue('customerName'),
     printerId: Number(validation.printerId),
-    status: getTrimmedValue('orderStatus', 'new'),
+    status: 'delivered',
     printHours: toPositiveNumber(getValue('printHours'), 0),
     manualMinutes: toPositiveNumber(getValue('manualMins'), 0),
     notes: getTrimmedValue('orderNotes'),
@@ -272,6 +257,7 @@ async function saveSale() {
     electricityCost: currentCalc.electricityCost,
     laborCost: currentCalc.laborCost,
     packagingCost: currentCalc.packagingCost,
+    accessoriesCost: currentCalc.accessoriesCost,
     shippingCost: currentCalc.shippingCost,
     riskCost: currentCalc.riskCost,
     taxCost: currentCalc.taxCost,
@@ -283,9 +269,9 @@ async function saveSale() {
     roundedAdjustment: currentCalc.roundedAdjustment,
     finalPrice: currentCalc.finalPrice,
     profit: currentCalc.profit,
-    paymentStatus: currentCalc.paymentStatus,
-    paymentMethod: currentCalc.paymentMethod,
-    paidAmount: currentCalc.paidAmount,
+    paymentStatus: 'collected',
+    paymentMethod: 'cash',
+    paidAmount: currentCalc.finalPrice,
     materialUsage: validation.materialUsage
   };
 

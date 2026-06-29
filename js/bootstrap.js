@@ -1,3 +1,10 @@
+function scheduleCalc() {
+  clearTimeout(window.__moo3dCalcTimer);
+  window.__moo3dCalcTimer = setTimeout(() => {
+    if (typeof calc === 'function') calc();
+  }, 120);
+}
+
 function bindLiveCalculationInputs() {
   [
     'printHours',
@@ -11,13 +18,14 @@ function bindLiveCalculationInputs() {
     'failurePercent',
     'wasteWeight',
     'minimumOrderPrice',
+    'accessoriesCost',
     'shippingCost',
     'defaultTaxPercent'
   ].forEach((id) => {
     const el = $(id);
     if (!el) return;
 
-    el.addEventListener('input', calc);
+    el.addEventListener('input', scheduleCalc);
     el.addEventListener('change', calc);
   });
 }
@@ -73,6 +81,7 @@ function bindSettingsLiveInputs() {
     'settingsFailurePercent',
     'settingsDefaultWasteWeight',
     'settingsMinimumOrderPrice',
+    'settingsAccessoriesCost',
     'settingsShippingCost',
     'settingsDefaultTaxPercent',
     'settingsDefaultDiscountValue',

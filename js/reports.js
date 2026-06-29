@@ -2,17 +2,14 @@ function getFilteredOrders() {
   const search = getTrimmedValue('salesSearch').toLowerCase();
   const from = getValue('filterFrom');
   const to = getValue('filterTo');
-  const filterStatus = getValue('filterStatus');
   const filterPrinter = getValue('filterPrinter');
   const filterCustomer = getTrimmedValue('filterCustomer').toLowerCase();
-  const filterPaymentStatus = getValue('filterPaymentStatus');
 
   return getSortedOrders().filter((order) => {
     const code = String(order.code || '').toLowerCase();
     const itemName = String(order.itemName || '').toLowerCase();
     const customerName = String(order.customerName || '').toLowerCase();
     const notes = String(order.notes || '').toLowerCase();
-    const status = String(order.status || '');
     const printerId = String(order.printerId || '');
 
     const matchesSearch =
@@ -24,12 +21,10 @@ function getFilteredOrders() {
 
     const matchesFrom = !from || (order.date && order.date >= from);
     const matchesTo = !to || (order.date && order.date <= to);
-    const matchesStatus = !filterStatus || status === filterStatus;
     const matchesPrinter = !filterPrinter || printerId === String(filterPrinter);
     const matchesCustomer = !filterCustomer || customerName.includes(filterCustomer);
-    const matchesPaymentStatus = !filterPaymentStatus || normalizePaymentStatus(order.paymentStatus) === filterPaymentStatus;
 
-    return matchesSearch && matchesFrom && matchesTo && matchesStatus && matchesPrinter && matchesCustomer && matchesPaymentStatus;
+    return matchesSearch && matchesFrom && matchesTo && matchesPrinter && matchesCustomer;
   });
 }
 
@@ -41,8 +36,6 @@ function renderReportsTable() {
 
   let totalRevenue = 0;
   let totalProfit = 0;
-  let totalCollected = 0;
-  let totalPending = 0;
   let topSale = 0;
   let cancelledCount = 0;
   const customerMap = new Map();
@@ -51,8 +44,6 @@ function renderReportsTable() {
     if (!isCancelled(order)) {
       totalRevenue += Number(order.finalPrice || 0);
       totalProfit += Number(order.profit || 0);
-      totalCollected += getOrderPaidAmount(order);
-      totalPending += getOrderDueAmount(order);
       topSale = Math.max(topSale, Number(order.finalPrice || 0));
 
       const customer = String(order.customerName || '').trim();
@@ -65,7 +56,6 @@ function renderReportsTable() {
       cancelledCount += 1;
     }
 
-    const statusClass = getOrderStatusClass(order.status);
     const safeCode = escapeHtml(order.code || '');
 
     return `
@@ -75,13 +65,8 @@ function renderReportsTable() {
         <td>${escapeHtml(order.itemName || '')}</td>
         <td>${escapeHtml(order.customerName || '')}</td>
         <td>${escapeHtml(order.printerName || '-')}</td>
-        <td><span class="status-chip ${statusClass}">${escapeHtml(getOrderStatusText(order.status))}</span></td>
         <td>${formatMoney(order.totalCost || 0)}</td>
         <td>${formatMoney(order.finalPrice || 0)}</td>
-        <td>${formatMoney(getOrderPaidAmount(order))}</td>
-        <td>${formatMoney(getOrderDueAmount(order))}</td>
-        <td><span class="status-chip ${getPaymentStatusClass(order.paymentStatus)}">${escapeHtml(getPaymentStatusText(order.paymentStatus))}</span></td>
-        <td>${escapeHtml(getPaymentMethodText(order.paymentMethod))}</td>
         <td>${formatMoney(order.profit || 0)}</td>
         <td>
           <button class="action-btn edit" type="button" onclick="openEditSale('${safeCode}')">تعديل</button>
@@ -94,7 +79,7 @@ function renderReportsTable() {
 
   salesTableBody.innerHTML = orders.length
     ? rowsHtml
-    : `<tr><td colspan="14"><div class="empty-state">لا توجد نتائج مطابقة.</div></td></tr>`;
+    : `<tr><td colspan="9"><div class="empty-state">لا توجد نتائج مطابقة.</div></td></tr>`;
 
   const validOrders = orders.filter((order) => !isCancelled(order));
   const avgProfit = validOrders.length ? totalProfit / validOrders.length : 0;
@@ -105,13 +90,10 @@ function renderReportsTable() {
     .sort((a, b) => Number(a.remaining || 0) - Number(b.remaining || 0))[0];
 
   setText('statRev', formatMoney(totalRevenue));
-  setText('statCollected', formatMoney(totalCollected));
-  setText('statPending', formatMoney(totalPending));
   setText('statProfit', formatMoney(totalProfit));
   setText('statCount', String(orders.length));
   setText('statTop', formatMoney(topSale));
   setText('statAvgProfit', formatMoney(avgProfit));
-  setText('statCancelled', String(cancelledCount));
   setText('statTopCustomer', topCustomer ? `${topCustomer[0]} (${formatMoney(topCustomer[1])})` : '-');
   setText(
     'statLowestStock',

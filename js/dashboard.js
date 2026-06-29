@@ -72,12 +72,11 @@ function applyConfigToInputs() {
   const failurePercent = String(toPositiveNumber(dashboardData.config.failurePercent, DEFAULT_CONFIG.failurePercent));
   const defaultWasteWeight = String(toPositiveNumber(dashboardData.config.defaultWasteWeight, DEFAULT_CONFIG.defaultWasteWeight));
   const minimumOrderPrice = String(toPositiveNumber(dashboardData.config.minimumOrderPrice, DEFAULT_CONFIG.minimumOrderPrice));
+  const accessoriesCost = String(toPositiveNumber(dashboardData.config.accessoriesCost, DEFAULT_CONFIG.accessoriesCost));
   const shippingCost = String(toPositiveNumber(dashboardData.config.shippingCost, DEFAULT_CONFIG.shippingCost));
   const defaultTax = String(toPositiveNumber(dashboardData.config.defaultTaxPercent, DEFAULT_CONFIG.defaultTaxPercent));
   const defaultDiscount = String(toPositiveNumber(dashboardData.config.defaultDiscountValue, DEFAULT_CONFIG.defaultDiscountValue));
   const roundingStep = String(toPositiveNumber(dashboardData.config.roundingStep, DEFAULT_CONFIG.roundingStep));
-  const defaultPaymentMethod = normalizePaymentMethod(dashboardData.config.defaultPaymentMethod || DEFAULT_CONFIG.defaultPaymentMethod);
-  const defaultPaymentStatus = normalizePaymentStatus(dashboardData.config.defaultPaymentStatus || DEFAULT_CONFIG.defaultPaymentStatus);
   const currencyName = getCurrency();
 
   setValue('farmName', dashboardData.config.farmName || DEFAULT_CONFIG.farmName);
@@ -86,15 +85,13 @@ function applyConfigToInputs() {
   setValue('profitMargin', defaultProfitMargin);
   setValue('manualMins', defaultManualMinutes);
   setValue('discountValue', defaultDiscount);
-  setValue('paymentMethod', defaultPaymentMethod);
-  setValue('paymentStatus', defaultPaymentStatus);
-
   setValue('laborRate', laborRate);
   setValue('electricityCostPerHour', electricityCostPerHour);
   setValue('packagingCost', packagingCost);
   setValue('failurePercent', failurePercent);
   setValue('wasteWeight', defaultWasteWeight);
   setValue('minimumOrderPrice', minimumOrderPrice);
+  setValue('accessoriesCost', accessoriesCost);
   setValue('shippingCost', shippingCost);
   setValue('defaultTaxPercent', defaultTax);
 
@@ -106,6 +103,7 @@ function applyConfigToInputs() {
   setValue('settingsFailurePercent', failurePercent);
   setValue('settingsDefaultWasteWeight', defaultWasteWeight);
   setValue('settingsMinimumOrderPrice', minimumOrderPrice);
+  setValue('settingsAccessoriesCost', accessoriesCost);
   setValue('settingsShippingCost', shippingCost);
   setValue('settingsDefaultTaxPercent', defaultTax);
   setValue('settingsDefaultDiscountValue', defaultDiscount);

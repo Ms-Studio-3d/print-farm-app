@@ -42,14 +42,9 @@ function openEditSale(code) {
   setValue('editItemName', order.itemName || '');
   setValue('editCustomerName', order.customerName || '');
   setValue('editPrinter', order.printerId || '');
-  setValue('editStatus', order.status || 'new');
   setValue('editPrintHours', order.printHours || 0);
   setValue('editManualMinutes', order.manualMinutes || 0);
   setValue('editFinalPrice', order.finalPrice || 0);
-  setValue('editPaymentStatus', normalizePaymentStatus(order.paymentStatus));
-  setValue('editPaymentMethod', normalizePaymentMethod(order.paymentMethod));
-  setValue('editPaidAmount', getOrderPaidAmount(order));
-  editPaidAmountTouched = false;
   setValue('editNotes', order.notes || '');
 
   openModal('editModal');
@@ -83,18 +78,12 @@ async function saveEditSale() {
 
   const finalPrice = toPositiveNumber(getValue('editFinalPrice'), Number(oldOrder.finalPrice || 0));
   const totalCost = Number(oldOrder.totalCost || 0);
+  const accessoriesCost = Number(oldOrder.accessoriesCost || 0);
   const shippingCost = Number(oldOrder.shippingCost || 0);
-  const minimumNoLossPrice = totalCost + shippingCost;
+  const minimumNoLossPrice = totalCost + accessoriesCost + shippingCost;
 
   if (finalPrice < minimumNoLossPrice) {
     showToast('سعر البيع أقل من التكلفة والمصاريف المباشرة', 'error');
-    return;
-  }
-
-  const paymentSnapshot = getEditPaymentSnapshot(finalPrice);
-  if (paymentSnapshot.paymentStatus === 'partial' && Number(paymentSnapshot.paidAmount || 0) <= 0) {
-    showToast('في حالة التحصيل الجزئي لازم تدخل مبلغ محصل', 'error');
-    $('editPaidAmount')?.focus();
     return;
   }
 
@@ -104,7 +93,7 @@ async function saveEditSale() {
     itemName,
     customerName: getTrimmedValue('editCustomerName'),
     printerId: getValue('editPrinter') ? Number(getValue('editPrinter')) : null,
-    status: getValue('editStatus') || 'new',
+    status: oldOrder.status || 'delivered',
     printHours: toPositiveNumber(getValue('editPrintHours'), Number(oldOrder.printHours || 0)),
     manualMinutes: toPositiveNumber(getValue('editManualMinutes'), Number(oldOrder.manualMinutes || 0)),
     notes: getTrimmedValue('editNotes'),
@@ -116,6 +105,7 @@ async function saveEditSale() {
     electricityCost: Number(oldOrder.electricityCost || 0),
     laborCost: Number(oldOrder.laborCost || 0),
     packagingCost: Number(oldOrder.packagingCost || 0),
+    accessoriesCost: Number(oldOrder.accessoriesCost || 0),
     shippingCost: Number(oldOrder.shippingCost || 0),
     riskCost: Number(oldOrder.riskCost || 0),
     taxCost: Number(oldOrder.taxCost || 0),
@@ -126,10 +116,10 @@ async function saveEditSale() {
     minimumOrderPrice: Number(oldOrder.minimumOrderPrice || 0),
     roundedAdjustment: Number(oldOrder.roundedAdjustment || 0),
     finalPrice,
-    profit: finalPrice - totalCost - shippingCost,
-    paymentStatus: paymentSnapshot.paymentStatus,
-    paymentMethod: paymentSnapshot.paymentMethod,
-    paidAmount: paymentSnapshot.paidAmount
+    profit: finalPrice - totalCost - accessoriesCost - shippingCost,
+    paymentStatus: 'collected',
+    paymentMethod: 'cash',
+    paidAmount: finalPrice
   };
 
   const response = await window.farmAPI.updateOrder(payload);

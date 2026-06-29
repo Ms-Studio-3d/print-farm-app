@@ -11,8 +11,6 @@ function getPipelineFilteredOrders() {
       order.customerName,
       order.printerName,
       order.notes,
-      getPaymentStatusText(order.paymentStatus),
-      getPaymentMethodText(order.paymentMethod)
     ].join(' ').toLowerCase();
 
     const matchesSearch = !search || haystack.includes(search);
@@ -25,64 +23,20 @@ function getPipelineFilteredOrders() {
 }
 
 function renderPipeline() {
-  const targetMap = {
-    new: $('pipelineNew'),
-    printing: $('pipelinePrinting'),
-    finished: $('pipelineFinished'),
-    delivered: $('pipelineDelivered'),
-    cancelled: $('pipelineCancelled')
-  };
+  const target = $('pipelineAll');
+  const count = $('pipelineCountAll');
+  if (!target) return;
 
-  const countMap = {
-    new: $('pipelineCountNew'),
-    printing: $('pipelineCountPrinting'),
-    finished: $('pipelineCountFinished'),
-    delivered: $('pipelineCountDelivered'),
-    cancelled: $('pipelineCountCancelled')
-  };
+  const orders = getPipelineFilteredOrders();
+  if (count) count.innerText = String(orders.length);
 
-  Object.values(targetMap).forEach((el) => {
-    if (el) el.innerHTML = '';
-  });
-
-  Object.values(countMap).forEach((el) => {
-    if (el) el.innerText = '0';
-  });
-
-  const grouped = {
-    new: [],
-    printing: [],
-    finished: [],
-    delivered: [],
-    cancelled: []
-  };
-
-  getPipelineFilteredOrders().forEach((order) => {
-    const status = grouped[order.status] ? order.status : 'new';
-    grouped[status].push(order);
-  });
-
-  Object.entries(grouped).forEach(([status, orders]) => {
-    if (countMap[status]) countMap[status].innerText = String(orders.length);
-
-    if (!targetMap[status]) return;
-
-    targetMap[status].innerHTML = orders.length
-      ? orders.map((order) => renderPipelineCard(order)).join('')
-      : `<div class="empty-state">لا يوجد أوردرات</div>`;
-  });
+  target.innerHTML = orders.length
+    ? orders.map((order) => renderPipelineCard(order)).join('')
+    : `<div class="empty-state">لا يوجد أوردرات</div>`;
 }
 
 function renderPipelineCard(order) {
-  const statusClass = getOrderStatusClass(order.status);
   const code = escapeHtml(order.code || '');
-
-  const steps = ORDER_STATUS_FLOW
-    .filter((status) => status !== order.status)
-    .map((status) => {
-      return `<button class="status-step-btn" type="button" onclick="updateOrderStatusQuick('${code}', '${status}')">${escapeHtml(getOrderStatusText(status))}</button>`;
-    })
-    .join('');
 
   return `
     <article class="pipeline-card">
@@ -91,7 +45,6 @@ function renderPipelineCard(order) {
           <span class="pipeline-code">${code}</span>
           <strong class="pipeline-title">${escapeHtml(order.itemName || '-')}</strong>
         </div>
-        <span class="status-chip ${statusClass}">${escapeHtml(getOrderStatusText(order.status))}</span>
       </div>
 
       <div class="pipeline-meta">
@@ -103,13 +56,8 @@ function renderPipelineCard(order) {
       <div class="pipeline-price">
         <span>التكلفة: ${formatMoney(order.totalCost || 0)}</span>
         <strong>البيع: ${formatMoney(order.finalPrice || 0)}</strong>
-        <span>محصل: ${formatMoney(getOrderPaidAmount(order))}</span>
-        <span>متبقي: ${formatMoney(getOrderDueAmount(order))}</span>
         <span>الربح: ${formatMoney(order.profit || 0)}</span>
-        <span class="status-chip ${getPaymentStatusClass(order.paymentStatus)}">${escapeHtml(getPaymentStatusText(order.paymentStatus))}</span>
       </div>
-
-      <div class="status-step-row">${steps}</div>
 
       <div class="pipeline-actions">
         <button class="action-btn edit" type="button" onclick="openEditSale('${code}')">تعديل</button>
