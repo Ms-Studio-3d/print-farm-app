@@ -38,15 +38,18 @@ jobs:
             ~\AppData\Local\npm-cache
             .cache\electron
             .cache\electron-builder
-          key: ${{ runner.os }}-npm-electron-${{ hashFiles('package.json') }}
+          key: ${{ runner.os }}-npm-electron-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-electron-
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund --prefer-offline
+        run: npm ci --no-audit --no-fund --prefer-offline
 
       - name: Rebuild native dependencies
         run: npm run rebuild
+
+      - name: Run pricing tests
+        run: npm test
 
       - name: Build NSIS installer only
         run: npm run dist:installer
