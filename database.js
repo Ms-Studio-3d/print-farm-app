@@ -1,8 +1,15 @@
-const Database = require('better-sqlite3');
+let DatabaseDriver = null;
 const path = require('path');
 const { app } = require('electron');
 
 let db = null;
+
+function getDatabaseDriver() {
+  if (!DatabaseDriver) {
+    DatabaseDriver = require('better-sqlite3');
+  }
+  return DatabaseDriver;
+}
 
 function getDatabasePath() {
   const userDataPath = app.getPath('userData');
@@ -12,6 +19,7 @@ function getDatabasePath() {
 function getDb() {
   if (db) return db;
 
+  const Database = getDatabaseDriver();
   db = new Database(getDatabasePath());
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');

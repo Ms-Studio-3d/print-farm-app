@@ -26,6 +26,30 @@ const {
 let mainWindow = null;
 let ipcHandlersRegistered = false;
 
+function writeStartupError(error) {
+  try {
+    const dir = path.join(app.getPath('documents'), 'MOO3D', 'Logs');
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, 'startup-error.log');
+    const text = `[${new Date().toISOString()}] ${error?.stack || error?.message || String(error)}\n`;
+    fs.appendFileSync(file, text, 'utf8');
+    return file;
+  } catch (_) {
+    return null;
+  }
+}
+
+process.on('uncaughtException', (error) => {
+  const logFile = writeStartupError(error);
+  try {
+    dialog.showErrorBox('MOO3D Startup Error', `${error?.message || error}\n${logFile ? `\nLog: ${logFile}` : ''}`);
+  } catch (_) {}
+});
+
+process.on('unhandledRejection', (error) => {
+  writeStartupError(error);
+});
+
 const CHANNELS = {
   getDashboardData: 'db:getDashboardData',
   getNextOrderCode: 'db:getNextOrderCode',
@@ -551,17 +575,23 @@ function registerIpcHandlers() {
 app.disableHardwareAcceleration();
 
 app.whenReady().then(() => {
-  ensureDbReady();
-  scheduleAutomaticBackup('startup');
-  setInterval(() => scheduleAutomaticBackup('daily'), 24 * 60 * 60 * 1000);
-  registerIpcHandlers();
-  createMainWindow();
+  try {
+    ensureDbReady();
+    scheduleAutomaticBackup('startup');
+    setInterval(() => scheduleAutomaticBackup('daily'), 24 * 60 * 60 * 1000);
+    registerIpcHandlers();
+    createMainWindow();
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createMainWindow();
-    }
-  });
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createMainWindow();
+      }
+    });
+  } catch (error) {
+    const logFile = writeStartupError(error);
+    dialog.showErrorBox('MOO3D لم يبدأ', `${error?.message || error}\n${logFile ? `\nتم حفظ التفاصيل في: ${logFile}` : ''}`);
+    app.quit();
+  }
 });
 
 app.on('web-contents-created', (_event, contents) => {

@@ -1,6 +1,6 @@
 {
   "name": "printing-business-manager",
-  "version": "1.7.0",
+  "version": "1.7.2",
   "description": "MOO3D desktop app for 3D printing pricing, orders, inventory, and local data management",
   "main": "main.js",
   "author": "Ms-Studio-3d",
@@ -48,9 +48,7 @@
       "style.css",
       "package.json",
       "js/**/*",
-      "node_modules/better-sqlite3/**/*",
-      "node_modules/bindings/**/*",
-      "node_modules/file-uri-to-path/**/*",
+      "node_modules/**/*",
       "!**/.git/**/*",
       "!**/.github/**/*",
       "!**/.cache/**/*",
@@ -95,6 +93,10 @@
     "portable": {
       "artifactName": "${productName}-Portable-${version}.${ext}"
     },
-    "publish": null
+    "publish": null,
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**/*",
+      "node_modules/**/*.node"
+    ]
   }
 }
