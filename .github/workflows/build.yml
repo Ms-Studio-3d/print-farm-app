@@ -1,52 +1,51 @@
 name: Build Windows Installer
 
 on:
-  workflow_dispatch:
   push:
-    branches: [ main ]
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  npm_config_audit: false
+  npm_config_fund: false
+  ELECTRON_CACHE: ${{ github.workspace }}\.cache\electron
+  ELECTRON_BUILDER_CACHE: ${{ github.workspace }}\.cache\electron-builder
 
 jobs:
-  build-windows:
+  build-installer:
     runs-on: windows-latest
+    timeout-minutes: 35
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v4
         with:
           node-version: 22
-
-      - name: Show versions
-        run: |
-          node -v
-          npm -v
-
-      - name: Use stable npm
-        run: npm install -g npm@10.9.2
-
-      - name: Clean npm cache
-        run: |
-          npm cache clean --force
-          if (Test-Path node_modules) {
-            Remove-Item node_modules -Recurse -Force
-          }
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
+
+      - name: Rebuild native dependencies
+        run: npm run rebuild
 
       - name: Run pricing tests
         run: npm test
 
       - name: Build Windows installer
-        run: npm run dist:win -- --publish never
+        run: npm run dist:installer
 
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: MOO3D-Windows-Installer
-          path: |
-            dist/*.exe
-            dist/*.blockmap
+          name: windows-installer
+          path: dist/*Setup*.exe
           if-no-files-found: error
