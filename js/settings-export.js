@@ -14,9 +14,7 @@ async function saveSettings() {
     shippingCost: String(toPositiveNumber(getValue('settingsShippingCost'), DEFAULT_CONFIG.shippingCost)),
     defaultTaxPercent: String(toPositiveNumber(getValue('settingsDefaultTaxPercent'), DEFAULT_CONFIG.defaultTaxPercent)),
     defaultDiscountValue: String(toPositiveNumber(getValue('settingsDefaultDiscountValue'), DEFAULT_CONFIG.defaultDiscountValue)),
-    roundingStep: String(toPositiveNumber(getValue('settingsRoundingStep'), DEFAULT_CONFIG.roundingStep)),
-    defaultPaymentMethod: normalizePaymentMethod(dashboardData.config.defaultPaymentMethod || DEFAULT_CONFIG.defaultPaymentMethod),
-    defaultPaymentStatus: normalizePaymentStatus(dashboardData.config.defaultPaymentStatus || DEFAULT_CONFIG.defaultPaymentStatus)
+    roundingStep: String(toPositiveNumber(getValue('settingsRoundingStep'), DEFAULT_CONFIG.roundingStep))
   };
 
   const response = await window.farmAPI.saveConfig(config);
@@ -76,8 +74,9 @@ function exportSalesCSV() {
     'المجسم',
     'العميل',
     'الطابعة',
-    'ساعات الطباعة',
-    'دقائق يدوي',
+    'عدد القطع',
+    'ساعات الطباعة للقطعة',
+    'دقائق يدوي للقطعة',
     'تكلفة الخامة',
     'وزن الهالك',
     'تكلفة الهالك الوزني',
@@ -106,6 +105,7 @@ function exportSalesCSV() {
     order.itemName,
     order.customerName,
     order.printerName,
+    formatNumber(order.quantity || 1),
     formatNumber(order.printHours),
     formatNumber(order.manualMinutes),
     formatNumber(order.materialCost),

@@ -32,7 +32,8 @@ function renderReportsTable() {
   const salesTableBody = $('salesTableBody');
   if (!salesTableBody) return;
 
-  const orders = getFilteredOrders();
+  const allOrders = getFilteredOrders();
+  const visibleOrders = allOrders.slice(0, reportsVisibleCount);
 
   let totalRevenue = 0;
   let totalProfit = 0;
@@ -40,7 +41,7 @@ function renderReportsTable() {
   let cancelledCount = 0;
   const customerMap = new Map();
 
-  const rowsHtml = orders.map((order) => {
+  allOrders.forEach((order) => {
     if (!isCancelled(order)) {
       totalRevenue += Number(order.finalPrice || 0);
       totalProfit += Number(order.profit || 0);
@@ -52,10 +53,10 @@ function renderReportsTable() {
       }
     }
 
-    if (String(order.status || '') === 'cancelled') {
-      cancelledCount += 1;
-    }
+    if (String(order.status || '') === 'cancelled') cancelledCount += 1;
+  });
 
+  const rowsHtml = visibleOrders.map((order) => {
     const safeCode = escapeHtml(order.code || '');
 
     return `
@@ -65,6 +66,7 @@ function renderReportsTable() {
         <td>${escapeHtml(order.itemName || '')}</td>
         <td>${escapeHtml(order.customerName || '')}</td>
         <td>${escapeHtml(order.printerName || '-')}</td>
+        <td>${formatNumber(order.quantity || 1)}</td>
         <td>${formatMoney(order.totalCost || 0)}</td>
         <td>${formatMoney(order.finalPrice || 0)}</td>
         <td>${formatMoney(order.profit || 0)}</td>
@@ -77,11 +79,15 @@ function renderReportsTable() {
     `;
   }).join('');
 
-  salesTableBody.innerHTML = orders.length
-    ? rowsHtml
-    : `<tr><td colspan="9"><div class="empty-state">لا توجد نتائج مطابقة.</div></td></tr>`;
+  const moreRow = allOrders.length > visibleOrders.length
+    ? `<tr><td colspan="10"><button class="btn btn-secondary btn-small" type="button" onclick="showMoreReports()">عرض المزيد (${allOrders.length - visibleOrders.length})</button></td></tr>`
+    : '';
 
-  const validOrders = orders.filter((order) => !isCancelled(order));
+  salesTableBody.innerHTML = allOrders.length
+    ? rowsHtml + moreRow
+    : `<tr><td colspan="10"><div class="empty-state">لا توجد نتائج مطابقة.</div></td></tr>`;
+
+  const validOrders = allOrders.filter((order) => !isCancelled(order));
   const avgProfit = validOrders.length ? totalProfit / validOrders.length : 0;
 
   const topCustomer = [...customerMap.entries()].sort((a, b) => b[1] - a[1])[0];
@@ -91,7 +97,7 @@ function renderReportsTable() {
 
   setText('statRev', formatMoney(totalRevenue));
   setText('statProfit', formatMoney(totalProfit));
-  setText('statCount', String(orders.length));
+  setText('statCount', String(allOrders.length));
   setText('statTop', formatMoney(topSale));
   setText('statAvgProfit', formatMoney(avgProfit));
   setText('statTopCustomer', topCustomer ? `${topCustomer[0]} (${formatMoney(topCustomer[1])})` : '-');
@@ -103,11 +109,17 @@ function renderReportsTable() {
   );
 }
 
+function showMoreReports() {
+  reportsVisibleCount += LIST_PAGE_SIZE;
+  renderReportsTable();
+}
+
 function renderReportsTableSafe() {
   if (isModalOpen('reportsModal')) renderReportsTable();
 }
 
 function openReports() {
+  reportsVisibleCount = LIST_PAGE_SIZE;
   setActiveNav('reports');
   closeMainPanels();
   renderPrinterSelects();

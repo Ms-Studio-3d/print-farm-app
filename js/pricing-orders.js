@@ -1,46 +1,6 @@
-function roundUpByStep(value, step) {
-  const safeValue = Number(value || 0);
-  const safeStep = Number(step || 5);
-  if (!Number.isFinite(safeStep) || safeStep <= 0) return safeValue;
-  return Math.ceil(safeValue / safeStep) * safeStep;
-}
-
-function syncOrderPaymentFields(finalPrice, force = false) {
-  const paymentStatusEl = $('paymentStatus');
-  const paidAmountEl = $('paidAmount');
-  if (!paymentStatusEl || !paidAmountEl) return;
-
-  const status = normalizePaymentStatus(paymentStatusEl.value);
-  const safeFinalPrice = Math.max(0, Number(finalPrice || 0));
-
-  if (status === 'collected') {
-    if (force || !orderPaidAmountTouched) paidAmountEl.value = roundMoney(safeFinalPrice);
-    return;
-  }
-
-  if (status === 'unpaid' || status === 'refunded') {
-    paidAmountEl.value = 0;
-    orderPaidAmountTouched = false;
-    return;
-  }
-
-  if (status === 'partial') {
-    const paid = Math.min(toPositiveNumber(paidAmountEl.value, 0), safeFinalPrice);
-    paidAmountEl.value = roundMoney(paid);
-  }
-}
-
-function getOrderPaymentSnapshot(finalPrice) {
-  const status = normalizePaymentStatus(getValue('paymentStatus', 'collected'));
-  const method = normalizePaymentMethod(getValue('paymentMethod', 'cash'));
-  const paidAmount = getPaidAmountFromStatus(status, finalPrice, getValue('paidAmount'));
-  const amountDue = Math.max(Number(finalPrice || 0) - paidAmount, 0);
-
-  return { paymentStatus: status, paymentMethod: method, paidAmount, amountDue };
-}
-
 function calc() {
   const materialUsage = getMaterialUsageFromInputs();
+  const quantity = MOO3DPricing.toPositiveInteger(getValue('pieceQuantity'), 1);
   const printHours = toPositiveNumber(getValue('printHours'), 0);
   const manualMinutes = toPositiveNumber(getValue('manualMins'), 0);
 
@@ -51,8 +11,6 @@ function calc() {
   // الإكسسوارات والشحن مصاريف مباشرة: تتضاف على سعر البيع فقط بدون فشل وبدون مكسب.
   const accessoriesCost = toPositiveNumber(getValue('accessoriesCost'), getConfigNumber('accessoriesCost'));
   const shippingCost = toPositiveNumber(getValue('shippingCost'), getConfigNumber('shippingCost'));
-  const directAddOnsCost = accessoriesCost + shippingCost;
-
   const laborRate = toPositiveNumber(getValue('laborRate'), getConfigNumber('laborRate'));
   const electricityCostPerHour = toPositiveNumber(getValue('electricityCostPerHour'), getConfigNumber('electricityCostPerHour'));
   const failurePercent = toPositiveNumber(getValue('failurePercent'), getConfigNumber('failurePercent'));
@@ -73,36 +31,51 @@ function calc() {
   const electricityCost = printHours * electricityCostPerHour;
   const laborCost = (manualMinutes / 60) * laborRate;
 
-  // نفس منطق MOO3D الجديد:
-  // تكلفة إنتاج فقط = خامة + هالك + ماكينة + كهرباء + شغل يدوي + تغليف.
-  // بعدها نضيف فشل / مخاطرة على تكلفة الإنتاج فقط.
-  // بعدها نحسب المكسب على تكلفة الإنتاج النهائية.
-  // وبعد كده نضيف المصاريف المباشرة بدون مكسب وبدون فشل.
-  const productionSubtotal = materialCost + wasteCost + depreciationCost + electricityCost + laborCost + packagingCost;
-  const riskCost = productionSubtotal * (failurePercent / 100);
-  const productionCostAfterRisk = productionSubtotal + riskCost;
+  const pricing = calculateMoo3dPricing({
+    quantity,
+    materialCost,
+    wasteCost,
+    depreciationCost,
+    electricityCost,
+    laborCost,
+    packagingCost,
+    accessoriesCost,
+    shippingCost,
+    failurePercent,
+    taxPercent: defaultTaxPercent,
+    profitMargin,
+    discountValue,
+    minimumOrderPrice,
+    roundingStep,
+  });
 
-  // الضريبة اختيارية وموجودة في البرنامج القديم. لو صفر يبقى الحساب مطابق لطريقة MOO3D الجديدة.
-  const taxCost = productionCostAfterRisk * (defaultTaxPercent / 100);
-  const totalCost = productionCostAfterRisk + taxCost;
+  const riskCost = pricing.riskCost;
+  const taxCost = pricing.taxCost;
+  const totalCost = pricing.totalCost;
+  const totalMaterialCost = pricing.materialCost;
+  const totalWasteCost = pricing.wasteCost;
+  const totalDepreciationCost = pricing.depreciationCost;
+  const totalElectricityCost = pricing.electricityCost;
+  const totalLaborCost = pricing.laborCost;
+  const totalPackagingCost = pricing.packagingCost;
+  const totalAccessoriesCost = pricing.accessoriesCost;
+  const totalShippingCost = pricing.shippingCost;
+  const priceBeforeDiscount = pricing.priceBeforeDiscount;
+  const safeDiscountValue = pricing.safeDiscountValue;
+  const priceAfterDiscount = pricing.priceAfterDiscount;
+  const finalPrice = pricing.finalPrice;
+  const roundedAdjustment = pricing.roundedAdjustment;
+  const profit = pricing.profit;
 
-  const sellBeforeAddOns = totalCost * (1 + (profitMargin / 100));
-  const priceBeforeDiscount = sellBeforeAddOns + directAddOnsCost;
-  const safeDiscountValue = Math.min(discountValue, priceBeforeDiscount);
-  const priceAfterDiscountBeforeMinimum = Math.max(0, priceBeforeDiscount - safeDiscountValue);
-  const priceAfterDiscount = Math.max(priceAfterDiscountBeforeMinimum, minimumOrderPrice);
-  const finalPrice = roundUpByStep(priceAfterDiscount, roundingStep);
-  const roundedAdjustment = finalPrice - priceAfterDiscount;
-  // مهم: المصاريف المباشرة مش ربح.
-  const profit = finalPrice - totalCost - directAddOnsCost;
-
-  setText('resMat', formatMoney(materialCost));
-  setText('resWaste', formatMoney(wasteCost));
-  setText('resDep', formatMoney(depreciationCost));
-  setText('resElectricity', formatMoney(electricityCost));
-  setText('resLabor', formatMoney(laborCost));
-  setText('resPackaging', formatMoney(packagingCost));
-  setText('resShipping', formatMoney(directAddOnsCost));
+  setText('resPieces', `${quantity} قطعة`);
+  setText('resUnitFinal', formatMoney(pricing.unitFinalPrice));
+  setText('resMat', formatMoney(totalMaterialCost));
+  setText('resWaste', formatMoney(totalWasteCost));
+  setText('resDep', formatMoney(totalDepreciationCost));
+  setText('resElectricity', formatMoney(totalElectricityCost));
+  setText('resLabor', formatMoney(totalLaborCost));
+  setText('resPackaging', formatMoney(totalPackagingCost));
+  setText('resShipping', formatMoney(totalAccessoriesCost + totalShippingCost));
   setText('resRisk', formatMoney(riskCost));
   setText('resTax', formatMoney(taxCost));
   setText('resTotal', formatMoney(totalCost));
@@ -114,15 +87,19 @@ function calc() {
   setText('resProfit', formatMoney(profit));
 
   currentCalc = {
-    materialCost: roundMoney(materialCost),
-    wasteWeight: roundMoney(wasteWeight),
-    wasteCost: roundMoney(wasteCost),
-    depreciationCost: roundMoney(depreciationCost),
-    electricityCost: roundMoney(electricityCost),
-    laborCost: roundMoney(laborCost),
-    packagingCost: roundMoney(packagingCost),
-    accessoriesCost: roundMoney(accessoriesCost),
-    shippingCost: roundMoney(shippingCost),
+    quantity,
+    unitFinalPrice: roundMoney(pricing.unitFinalPrice),
+    unitTotalCost: roundMoney(pricing.unitTotalCost),
+    unitProfit: roundMoney(pricing.unitProfit),
+    materialCost: roundMoney(totalMaterialCost),
+    wasteWeight: roundMoney(wasteWeight * quantity),
+    wasteCost: roundMoney(totalWasteCost),
+    depreciationCost: roundMoney(totalDepreciationCost),
+    electricityCost: roundMoney(totalElectricityCost),
+    laborCost: roundMoney(totalLaborCost),
+    packagingCost: roundMoney(totalPackagingCost),
+    accessoriesCost: roundMoney(totalAccessoriesCost),
+    shippingCost: roundMoney(totalShippingCost),
     riskCost: roundMoney(riskCost),
     taxCost: roundMoney(taxCost),
     totalCost: roundMoney(totalCost),
@@ -133,15 +110,18 @@ function calc() {
     roundedAdjustment: roundMoney(roundedAdjustment),
     finalPrice: roundMoney(finalPrice),
     profit: roundMoney(profit),
-    paymentStatus: 'collected',
-    paymentMethod: 'cash',
-    paidAmount: roundMoney(finalPrice),
-    amountDue: 0,
-    materialUsage
+    materialUsage: materialUsage.map((item) => ({
+      ...item,
+      grams: roundMoney(Number(item.grams || 0) * quantity),
+      totalCost: roundMoney(Number(item.totalCost || 0) * quantity),
+      quantity
+    }))
   };
 }
 
 function resetResultsPanel() {
+  setText('resPieces', '1 قطعة');
+  setText('resUnitFinal', formatMoney(0));
   setText('resMat', formatMoney(0));
   setText('resWaste', formatMoney(0));
   setText('resDep', formatMoney(0));
@@ -164,9 +144,9 @@ function resetOrderForm() {
   setValue('itemName', '');
   setValue('customerName', '');
   setValue('selectedPrinter', '');
+  setValue('pieceQuantity', '1');
   setValue('printHours', '0');
   setValue('opDate', new Date().toISOString().slice(0, 10));
-  setValue('orderStatus', 'delivered');
   setValue('orderNotes', '');
   document.querySelectorAll('.ams-weight').forEach((input) => {
     input.value = '';
@@ -180,6 +160,8 @@ function resetOrderForm() {
 
 function validateOrderBeforeSave() {
   const itemName = getTrimmedValue('itemName');
+  const rawQuantity = Number(getValue('pieceQuantity'));
+  const quantity = MOO3DPricing.toPositiveInteger(rawQuantity, 1);
   const printHours = toPositiveNumber(getValue('printHours'), 0);
   const printerId = getValue('selectedPrinter');
   const materialUsage = getMaterialUsageFromInputs();
@@ -196,6 +178,12 @@ function validateOrderBeforeSave() {
     return { valid: false };
   }
 
+  if (!Number.isInteger(rawQuantity) || rawQuantity <= 0) {
+    showToast('عدد القطع لازم يكون رقم صحيح موجب', 'error');
+    $('pieceQuantity')?.focus();
+    return { valid: false };
+  }
+
   if (printHours <= 0) {
     showToast('وقت الطباعة لازم يكون أكبر من صفر', 'error');
     $('printHours')?.focus();
@@ -207,9 +195,20 @@ function validateOrderBeforeSave() {
     return { valid: false };
   }
 
-  for (const item of materialUsage) {
+  const requiredByMaterial = new Map();
+  (currentCalc.materialUsage || []).forEach((item) => {
+    const key = Number(item.materialId || 0);
+    if (!key) return;
+    const current = requiredByMaterial.get(key) || { grams: 0, remaining: Number(item.remaining || 0), name: item.materialName };
+    current.grams += Number(item.grams || 0);
+    current.remaining = Number(item.remaining || current.remaining || 0);
+    current.name = item.materialName || current.name;
+    requiredByMaterial.set(key, current);
+  });
+
+  for (const item of requiredByMaterial.values()) {
     if (Number(item.grams || 0) > Number(item.remaining || 0)) {
-      showToast(`المخزون غير كافٍ في ${item.materialName}`, 'error');
+      showToast(`المخزون غير كافٍ في ${item.name}: المطلوب ${formatNumber(item.grams)} جم والمتاح ${formatNumber(item.remaining)} جم`, 'error');
       return { valid: false };
     }
   }
@@ -233,6 +232,9 @@ async function saveSale() {
   const validation = validateOrderBeforeSave();
   if (!validation.valid) return;
 
+  const confirmResponse = await window.farmAPI.confirm('هل تم استلام المبلغ كاملًا؟ سيتم تسجيل الأوردر وخصم المخزون');
+  if (!confirmResponse?.confirmed) return;
+
   const responseCode = await window.farmAPI.getNextOrderCode();
   if (!responseCode?.success) {
     showToast(responseCode?.message || 'فشل في إنشاء كود الأوردر', 'error');
@@ -240,16 +242,64 @@ async function saveSale() {
   }
 
   const responseOrderCode = String(responseCode.data || 'ORD-1001');
-  const payload = {
+  const payload = buildCurrentOrderPayload(responseOrderCode);
+  payload.itemName = validation.itemName;
+  payload.printerId = Number(validation.printerId);
+
+  const response = await window.farmAPI.createOrder(payload);
+  if (!response?.success) {
+    showToast(response?.message || 'فشل في حفظ الأوردر', 'error');
+    return;
+  }
+
+  showToast('تم تسجيل الأوردر المدفوع وخصم المخزون بنجاح');
+  applySavedOrderLocally(payload);
+  resetOrderForm();
+  setActiveNav('order');
+}
+
+function applySavedOrderLocally(payload) {
+  const printer = getPrinterById(payload.printerId);
+  const savedOrder = {
+    ...payload,
+    id: Date.now(),
+    printerName: printer ? printer.name : '',
+    status: 'delivered'
+  };
+  dashboardData.orders = [savedOrder, ...(dashboardData.orders || [])];
+
+  (payload.materialUsage || []).forEach((usage) => {
+    const material = (dashboardData.materials || []).find((item) => Number(item.id) === Number(usage.materialId));
+    if (material) material.remaining = Math.max(0, Number(material.remaining || 0) - Number(usage.grams || 0));
+  });
+
+  updateCustomersDatalist();
+  renderInventory();
+  renderMaterialUsageInputs();
+  renderReportsTableSafe();
+  renderStockMovementsTableSafe();
+  if (isModalOpen('pipelineModal')) renderPipeline();
+  setNextOrderCode();
+}
+
+
+function buildCurrentOrderPayload(code) {
+  calc();
+  const responseOrderCode = String(code || 'ORD-1001');
+  return {
     code: responseOrderCode,
-    itemName: validation.itemName,
+    itemName: getTrimmedValue('itemName'),
     customerName: getTrimmedValue('customerName'),
-    printerId: Number(validation.printerId),
+    printerId: Number(getValue('selectedPrinter')),
     status: 'delivered',
+    quantity: currentCalc.quantity || 1,
     printHours: toPositiveNumber(getValue('printHours'), 0),
     manualMinutes: toPositiveNumber(getValue('manualMins'), 0),
     notes: getTrimmedValue('orderNotes'),
     date: getValue('opDate') || new Date().toISOString().slice(0, 10),
+    unitFinalPrice: currentCalc.unitFinalPrice,
+    unitTotalCost: currentCalc.unitTotalCost,
+    unitProfit: currentCalc.unitProfit,
     materialCost: currentCalc.materialCost,
     wasteWeight: currentCalc.wasteWeight,
     wasteCost: currentCalc.wasteCost,
@@ -269,20 +319,32 @@ async function saveSale() {
     roundedAdjustment: currentCalc.roundedAdjustment,
     finalPrice: currentCalc.finalPrice,
     profit: currentCalc.profit,
-    paymentStatus: 'collected',
-    paymentMethod: 'cash',
-    paidAmount: currentCalc.finalPrice,
-    materialUsage: validation.materialUsage
+    materialUsage: currentCalc.materialUsage
   };
+}
 
-  const response = await window.farmAPI.createOrder(payload);
-  if (!response?.success) {
-    showToast(response?.message || 'فشل في حفظ الأوردر', 'error');
+async function saveQuote() {
+  calc();
+  const validation = validateOrderBeforeSave();
+  if (!validation.valid) return;
+
+  const responseCode = await window.farmAPI.getNextQuoteCode();
+  if (!responseCode?.success) {
+    showToast(responseCode?.message || 'فشل في إنشاء كود عرض السعر', 'error');
     return;
   }
 
-  showToast('تم تسجيل الأوردر وخصم المخزون بنجاح');
+  const quoteCode = String(responseCode.data || 'Q-1001');
+  const payload = buildCurrentOrderPayload('QUOTE-DRAFT');
+  payload.quoteCode = quoteCode;
+
+  const response = await window.farmAPI.createQuote(payload);
+  if (!response?.success) {
+    showToast(response?.message || 'فشل في حفظ عرض السعر', 'error');
+    return;
+  }
+
+  showToast('تم حفظ عرض السعر بدون خصم المخزون');
   await loadDashboardData();
-  resetOrderForm();
-  setActiveNav('order');
+  if (typeof openQuotesModal === 'function') openQuotesModal();
 }

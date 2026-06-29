@@ -1,32 +1,3 @@
-function syncEditPaymentFields(force = false) {
-  const finalPrice = toPositiveNumber(getValue('editFinalPrice'), 0);
-  const status = normalizePaymentStatus(getValue('editPaymentStatus', 'collected'));
-  const paidAmountEl = $('editPaidAmount');
-  if (!paidAmountEl) return;
-
-  if (status === 'collected') {
-    if (force || !editPaidAmountTouched) paidAmountEl.value = roundMoney(finalPrice);
-    return;
-  }
-
-  if (status === 'unpaid' || status === 'refunded') {
-    paidAmountEl.value = 0;
-    editPaidAmountTouched = false;
-    return;
-  }
-
-  if (status === 'partial') {
-    paidAmountEl.value = roundMoney(Math.min(toPositiveNumber(paidAmountEl.value, 0), finalPrice));
-  }
-}
-
-function getEditPaymentSnapshot(finalPrice) {
-  const status = normalizePaymentStatus(getValue('editPaymentStatus', 'collected'));
-  const method = normalizePaymentMethod(getValue('editPaymentMethod', 'cash'));
-  const paidAmount = getPaidAmountFromStatus(status, finalPrice, getValue('editPaidAmount'));
-  return { paymentStatus: status, paymentMethod: method, paidAmount };
-}
-
 function openEditSale(code) {
   const order = getOrderByCode(code);
 
@@ -94,6 +65,7 @@ async function saveEditSale() {
     customerName: getTrimmedValue('editCustomerName'),
     printerId: getValue('editPrinter') ? Number(getValue('editPrinter')) : null,
     status: oldOrder.status || 'delivered',
+    quantity: Number(oldOrder.quantity || 1),
     printHours: toPositiveNumber(getValue('editPrintHours'), Number(oldOrder.printHours || 0)),
     manualMinutes: toPositiveNumber(getValue('editManualMinutes'), Number(oldOrder.manualMinutes || 0)),
     notes: getTrimmedValue('editNotes'),
@@ -117,9 +89,9 @@ async function saveEditSale() {
     roundedAdjustment: Number(oldOrder.roundedAdjustment || 0),
     finalPrice,
     profit: finalPrice - totalCost - accessoriesCost - shippingCost,
-    paymentStatus: 'collected',
-    paymentMethod: 'cash',
-    paidAmount: finalPrice
+    unitFinalPrice: finalPrice / Math.max(1, Number(oldOrder.quantity || 1)),
+    unitTotalCost: totalCost / Math.max(1, Number(oldOrder.quantity || 1)),
+    unitProfit: (finalPrice - totalCost - accessoriesCost - shippingCost) / Math.max(1, Number(oldOrder.quantity || 1))
   };
 
   const response = await window.farmAPI.updateOrder(payload);

@@ -28,7 +28,7 @@ function renderInvoice(order) {
         <div class="invoice-brand">
           <h1>${escapeHtml(farmName)}</h1>
           <p>فاتورة طباعة ثلاثية الأبعاد</p>
-          <span class="invoice-badge">${escapeHtml(getOrderStatusText(order.status))}</span>
+          <span class="invoice-badge">مدفوع بالكامل</span>
         </div>
 
         <div class="invoice-meta">
@@ -52,7 +52,12 @@ function renderInvoice(order) {
           </div>
 
           <div class="invoice-box">
-            <span>وقت الطباعة</span>
+            <span>عدد القطع</span>
+            <strong>${formatNumber(order.quantity || 1)}</strong>
+          </div>
+
+          <div class="invoice-box">
+            <span>وقت الطباعة للقطعة</span>
             <strong>${formatNumber(order.printHours || 0)} ساعة</strong>
           </div>
 
@@ -124,6 +129,10 @@ function renderInvoice(order) {
       </div>
 
       <div class="invoice-total">
+        <div>
+          <span>سعر القطعة تقريبيًا</span>
+          <strong>${formatMoney(order.unitFinalPrice || ((order.finalPrice || 0) / Math.max(1, Number(order.quantity || 1))))}</strong>
+        </div>
         <div>
           <span>سعر البيع النهائي</span>
           <strong>${formatMoney(order.finalPrice || 0)}</strong>

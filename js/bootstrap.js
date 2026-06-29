@@ -7,6 +7,7 @@ function scheduleCalc() {
 
 function bindLiveCalculationInputs() {
   [
+    'pieceQuantity',
     'printHours',
     'manualMins',
     'profitMargin',
@@ -31,44 +32,8 @@ function bindLiveCalculationInputs() {
 }
 
 function bindPaymentInputs() {
-  const paidAmount = $('paidAmount');
-  if (paidAmount) {
-    paidAmount.addEventListener('input', () => {
-      orderPaidAmountTouched = true;
-      calc();
-    });
-  }
-
-  const paymentStatus = $('paymentStatus');
-  if (paymentStatus) {
-    paymentStatus.addEventListener('change', () => {
-      syncOrderPaymentFields(currentCalc.finalPrice || 0, true);
-      calc();
-    });
-  }
-
-  const editPaidAmount = $('editPaidAmount');
-  if (editPaidAmount) {
-    editPaidAmount.addEventListener('input', () => {
-      editPaidAmountTouched = true;
-    });
-  }
-
-  const editPaymentStatus = $('editPaymentStatus');
-  if (editPaymentStatus) {
-    editPaymentStatus.addEventListener('change', () => {
-      syncEditPaymentFields(true);
-    });
-  }
-
-  const editFinalPrice = $('editFinalPrice');
-  if (editFinalPrice) {
-    editFinalPrice.addEventListener('input', () => {
-      syncEditPaymentFields(false);
-    });
-  }
+  // النسخة المبسطة تعتبر كل أوردر مدفوع بالكامل، لذلك لا توجد حقول تحصيل في الواجهة.
 }
-
 function bindSettingsLiveInputs() {
   [
     'farmName',

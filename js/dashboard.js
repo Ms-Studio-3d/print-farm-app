@@ -17,8 +17,6 @@ function getCustomersSummary() {
         count: 0,
         revenue: 0,
         profit: 0,
-        collected: 0,
-        pending: 0,
         lastOrderCode: '',
         lastOrderDate: '',
         lastOrderItem: ''
@@ -31,8 +29,6 @@ function getCustomersSummary() {
     if (!isCancelled(order)) {
       entry.revenue += Number(order.finalPrice || 0);
       entry.profit += Number(order.profit || 0);
-      entry.collected += getOrderPaidAmount(order);
-      entry.pending += getOrderDueAmount(order);
     }
 
     const orderDate = String(order.date || '');
@@ -82,6 +78,7 @@ function applyConfigToInputs() {
   setValue('farmName', dashboardData.config.farmName || DEFAULT_CONFIG.farmName);
   setValue('currencyName', currencyName);
 
+  setValue('pieceQuantity', getValue('pieceQuantity', '1') || '1');
   setValue('profitMargin', defaultProfitMargin);
   setValue('manualMins', defaultManualMinutes);
   setValue('discountValue', defaultDiscount);
@@ -131,7 +128,8 @@ async function loadDashboardData() {
     printers: Array.isArray(response.data?.printers) ? response.data.printers : [],
     materials: Array.isArray(response.data?.materials) ? response.data.materials : [],
     orders: Array.isArray(response.data?.orders) ? response.data.orders : [],
-    stockMovements: Array.isArray(response.data?.stockMovements) ? response.data.stockMovements : []
+    stockMovements: Array.isArray(response.data?.stockMovements) ? response.data.stockMovements : [],
+    quotes: Array.isArray(response.data?.quotes) ? response.data.quotes : []
   };
 
   if (String(dashboardData.config.currencyName || '').trim() === 'ج') {
@@ -150,6 +148,7 @@ async function loadDashboardData() {
 
   if (isModalOpen('pipelineModal')) renderPipeline();
   if (isModalOpen('customersModal')) renderCustomers();
+  if (isModalOpen('quotesModal') && typeof renderQuotes === 'function') renderQuotes();
 
   await setNextOrderCode();
   calc();

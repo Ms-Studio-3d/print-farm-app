@@ -3,14 +3,16 @@ let dashboardData = {
   printers: [],
   materials: [],
   orders: [],
-  stockMovements: []
+  stockMovements: [],
+  quotes: []
 };
 
 let currentCalc = createEmptyCalc();
 let editingOrderCode = null;
 let currentInvoiceOrderCode = null;
-let orderPaidAmountTouched = false;
-let editPaidAmountTouched = false;
+let reportsVisibleCount = 100;
+let pipelineVisibleCount = 100;
+const LIST_PAGE_SIZE = 100;
 
 const DEFAULT_CONFIG = {
   farmName: '3D Print Farm App',
@@ -27,12 +29,9 @@ const DEFAULT_CONFIG = {
   shippingCost: 0,
   defaultTaxPercent: 0,
   defaultDiscountValue: 0,
-  roundingStep: 5,
-  defaultPaymentMethod: 'cash',
-  defaultPaymentStatus: 'collected'
+  roundingStep: 5
 };
 
-const ORDER_STATUS_FLOW = ['new', 'printing', 'finished', 'delivered', 'cancelled'];
 
 const MAIN_PANEL_IDS = [
   'reportsModal',
@@ -40,7 +39,8 @@ const MAIN_PANEL_IDS = [
   'printersManagerModal',
   'customersModal',
   'pipelineModal',
-  'settingsModal'
+  'settingsModal',
+  'quotesModal'
 ];
 
 const MODAL_IDS = [
@@ -54,11 +54,16 @@ const MODAL_IDS = [
   'stockMovementsModal',
   'customersModal',
   'pipelineModal',
-  'settingsModal'
+  'settingsModal',
+  'quotesModal'
 ];
 
 function createEmptyCalc() {
   return {
+    quantity: 1,
+    unitFinalPrice: 0,
+    unitTotalCost: 0,
+    unitProfit: 0,
     materialCost: 0,
     wasteWeight: 0,
     wasteCost: 0,
@@ -78,10 +83,6 @@ function createEmptyCalc() {
     roundedAdjustment: 0,
     finalPrice: 0,
     profit: 0,
-    paymentStatus: 'collected',
-    paymentMethod: 'cash',
-    paidAmount: 0,
-    amountDue: 0,
     materialUsage: []
   };
 }
