@@ -1,0 +1,73 @@
+name: Build Windows Installer Clean
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
+      ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Show versions
+        run: |
+          node -v
+          npm -v
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+          pnpm -v
+
+      - name: Clean install state
+        run: |
+          rm -rf node_modules
+          rm -f package-lock.json
+
+      - name: Install dependencies with pnpm
+        run: |
+          pnpm install --no-frozen-lockfile
+
+      - name: Run pricing tests
+        run: |
+          pnpm test
+
+      - name: Rebuild native dependencies
+        run: |
+          pnpm run rebuild
+
+      - name: Build Windows installer
+        run: |
+          pnpm run dist:win -- --publish never
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: MOO3D-Windows-Installer
+          path: |
+            dist/*.exe
+            dist/*.blockmap
+          if-no-files-found: error
