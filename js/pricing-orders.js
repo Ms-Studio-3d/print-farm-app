@@ -8,7 +8,7 @@ function calc() {
   const discountValue = toPositiveNumber(getValue('discountValue'), getConfigNumber('defaultDiscountValue'));
   const packagingCost = toPositiveNumber(getValue('packagingCost'), getConfigNumber('packagingCost'));
 
-  // الإكسسوارات والشحن مصاريف مباشرة: تتضاف على سعر البيع فقط بدون فشل وبدون مكسب.
+  // الإكسسوارات تكلفة للقطعة الواحدة وتُضرب في عدد القطع. الشحن مرة واحدة للأوردر كله.
   const accessoriesCost = toPositiveNumber(getValue('accessoriesCost'), getConfigNumber('accessoriesCost'));
   const shippingCost = toPositiveNumber(getValue('shippingCost'), getConfigNumber('shippingCost'));
   const laborRate = toPositiveNumber(getValue('laborRate'), getConfigNumber('laborRate'));
@@ -92,7 +92,7 @@ function calc() {
     unitTotalCost: roundMoney(pricing.unitTotalCost),
     unitProfit: roundMoney(pricing.unitProfit),
     materialCost: roundMoney(totalMaterialCost),
-    wasteWeight: roundMoney(wasteWeight * quantity),
+    wasteWeight: roundMoney(wasteWeight),
     wasteCost: roundMoney(totalWasteCost),
     depreciationCost: roundMoney(totalDepreciationCost),
     electricityCost: roundMoney(totalElectricityCost),
@@ -110,10 +110,11 @@ function calc() {
     roundedAdjustment: roundMoney(roundedAdjustment),
     finalPrice: roundMoney(finalPrice),
     profit: roundMoney(profit),
+    // الجرامات المدخلة هي إجمالي استهلاك الأوردر كله لكل لون، لذلك لا نضربها في عدد القطع.
     materialUsage: materialUsage.map((item) => ({
       ...item,
-      grams: roundMoney(Number(item.grams || 0) * quantity),
-      totalCost: roundMoney(Number(item.totalCost || 0) * quantity),
+      grams: roundMoney(Number(item.grams || 0)),
+      totalCost: roundMoney(Number(item.totalCost || 0)),
       quantity
     }))
   };

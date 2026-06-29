@@ -29,24 +29,20 @@
   function calculateMoo3dPricing(input = {}) {
     const quantity = toPositiveInteger(input.quantity, 1);
 
-    const unitMaterialCost = toNumber(input.materialCost, 0);
-    const unitWasteCost = toNumber(input.wasteCost, 0);
-    const unitDepreciationCost = toNumber(input.depreciationCost, 0);
-    const unitElectricityCost = toNumber(input.electricityCost, 0);
-    const unitLaborCost = toNumber(input.laborCost, 0);
-    const unitPackagingCost = toNumber(input.packagingCost, 0);
+    // في نظام MOO3D الحالي: وزن الخامة، وقت الطباعة، الشغل اليدوي، التغليف، والهالك
+    // يتم إدخالهم كإجماليات للأوردر كله، حتى لو عدد القطع أكبر من 1.
+    // الإكسسوارات فقط هي تكلفة للقطعة الواحدة وتُضرب في عدد القطع.
+    // الشحن يضاف مرة واحدة للأوردر كله.
+    const materialCost = toNumber(input.materialCost, 0);
+    const wasteCost = toNumber(input.wasteCost, 0);
+    const depreciationCost = toNumber(input.depreciationCost, 0);
+    const electricityCost = toNumber(input.electricityCost, 0);
+    const laborCost = toNumber(input.laborCost, 0);
+    const packagingCost = toNumber(input.packagingCost, 0);
     const unitAccessoriesCost = toNumber(input.accessoriesCost, 0);
-    const unitShippingCost = toNumber(input.shippingCost, 0);
+    const shippingCost = toNumber(input.shippingCost, 0);
 
-    const materialCost = unitMaterialCost * quantity;
-    const wasteCost = unitWasteCost * quantity;
-    const depreciationCost = unitDepreciationCost * quantity;
-    const electricityCost = unitElectricityCost * quantity;
-    const laborCost = unitLaborCost * quantity;
-    const packagingCost = unitPackagingCost * quantity;
-    // الإكسسوارات تكلفة على كل قطعة، أما الشحن فيضاف مرة واحدة على الأوردر كله.
     const accessoriesCost = unitAccessoriesCost * quantity;
-    const shippingCost = unitShippingCost;
 
     const failurePercent = toNumber(input.failurePercent, 0);
     const taxPercent = toNumber(input.taxPercent, 0);
@@ -75,22 +71,15 @@
 
     return {
       quantity,
-      unitMaterialCost,
-      unitWasteCost,
-      unitDepreciationCost,
-      unitElectricityCost,
-      unitLaborCost,
-      unitPackagingCost,
-      unitAccessoriesCost,
-      unitShippingCost,
       materialCost,
       wasteCost,
       depreciationCost,
       electricityCost,
       laborCost,
       packagingCost,
-      accessoriesCost,
+      unitAccessoriesCost,
       shippingCost,
+      accessoriesCost,
       productionSubtotal,
       riskCost,
       productionCostAfterRisk,
