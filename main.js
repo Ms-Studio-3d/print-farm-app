@@ -1,9 +1,11 @@
 const { app, BrowserWindow, shell, ipcMain, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const {
   getDb,
   getDashboardData,
   getNextOrderCode,
+  getNextQuoteCode,
   setConfig,
   createPrinter,
   updatePrinter,
@@ -14,6 +16,9 @@ const {
   createOrder,
   updateOrder,
   deleteOrder,
+  createQuote,
+  deleteQuote,
+  convertQuoteToOrder,
   replaceAllData,
   exportBackupData
 } = require('./database');
@@ -24,6 +29,7 @@ let ipcHandlersRegistered = false;
 const CHANNELS = {
   getDashboardData: 'db:getDashboardData',
   getNextOrderCode: 'db:getNextOrderCode',
+  getNextQuoteCode: 'db:getNextQuoteCode',
   saveConfig: 'db:saveConfig',
   savePrinter: 'db:savePrinter',
   deletePrinter: 'db:deletePrinter',
@@ -32,6 +38,9 @@ const CHANNELS = {
   createOrder: 'db:createOrder',
   updateOrder: 'db:updateOrder',
   deleteOrder: 'db:deleteOrder',
+  createQuote: 'db:createQuote',
+  deleteQuote: 'db:deleteQuote',
+  convertQuoteToOrder: 'db:convertQuoteToOrder',
   exportBackup: 'db:exportBackup',
   importBackup: 'db:importBackup',
   confirmDialog: 'dialog:confirm'
@@ -251,6 +260,7 @@ function normalizeOrderPayload(payload) {
     customerName: asTrimmedString(data.customerName),
     printerId: asNullableId(data.printerId),
     status: normalizeStatus(data.status, 'new'),
+    quantity: Math.max(1, asPositiveNumber(data.quantity, 1)),
     printHours: asPositiveNumber(data.printHours, 0),
     manualMinutes: asPositiveNumber(data.manualMinutes, 0),
     notes: asTrimmedString(data.notes),
@@ -263,6 +273,7 @@ function normalizeOrderPayload(payload) {
     electricityCost: asPositiveNumber(data.electricityCost, 0),
     laborCost: asPositiveNumber(data.laborCost, 0),
     packagingCost: asPositiveNumber(data.packagingCost, 0),
+    accessoriesCost: asPositiveNumber(data.accessoriesCost, 0),
     shippingCost: asPositiveNumber(data.shippingCost, 0),
     riskCost: asPositiveNumber(data.riskCost, 0),
     taxCost: asPositiveNumber(data.taxCost, 0),
@@ -276,6 +287,9 @@ function normalizeOrderPayload(payload) {
 
     finalPrice,
     profit: asNumber(data.profit, 0),
+    unitFinalPrice: asPositiveNumber(data.unitFinalPrice, finalPrice / Math.max(1, asPositiveNumber(data.quantity, 1))),
+    unitTotalCost: asPositiveNumber(data.unitTotalCost, asPositiveNumber(data.totalCost, 0) / Math.max(1, asPositiveNumber(data.quantity, 1))),
+    unitProfit: asNumber(data.unitProfit, asNumber(data.profit, 0) / Math.max(1, asPositiveNumber(data.quantity, 1))),
     paymentStatus,
     paymentMethod,
     paidAmount,
@@ -312,14 +326,79 @@ function validateCreateOrderPayload(data) {
     if (asPositiveNumber(item.grams, 0) <= 0) throw new Error('كمية الخامة لازم تكون أكبر من صفر');
   }
 
-  if (data.finalPrice < data.totalCost + data.shippingCost) throw new Error('سعر البيع أقل من التكلفة والمصاريف المباشرة');
+  if (data.finalPrice < data.totalCost + data.accessoriesCost + data.shippingCost) throw new Error('سعر البيع أقل من التكلفة والمصاريف المباشرة');
 }
 
 function validateUpdateOrderPayload(data) {
   if (!data.code) throw new Error('كود الأوردر غير صالح');
   if (!data.itemName) throw new Error('اسم المجسم مطلوب');
   if (!data.date) throw new Error('تاريخ الأوردر مطلوب');
-  if (data.finalPrice < data.totalCost + data.shippingCost) throw new Error('سعر البيع أقل من التكلفة والمصاريف المباشرة');
+  if (data.finalPrice < data.totalCost + data.accessoriesCost + data.shippingCost) throw new Error('سعر البيع أقل من التكلفة والمصاريف المباشرة');
+}
+
+
+function getBackupsDir() {
+  return path.join(app.getPath('documents'), 'MOO3D', 'Backups');
+}
+
+function ensureBackupsDir() {
+  const dir = getBackupsDir();
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function createAutomaticBackup(reason = 'auto') {
+  try {
+    ensureDbReady();
+    const dir = ensureBackupsDir();
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const safeReason = String(reason || 'auto').replace(/[^a-z0-9_-]/gi, '').slice(0, 20) || 'auto';
+    const filePath = path.join(dir, `moo3d-backup-${safeReason}-${stamp}.json`);
+    fs.writeFileSync(filePath, JSON.stringify(exportBackupData(), null, 2), 'utf8');
+
+    const backups = fs.readdirSync(dir)
+      .filter((name) => /^moo3d-backup-.*\.json$/i.test(name))
+      .map((name) => ({ name, fullPath: path.join(dir, name), time: fs.statSync(path.join(dir, name)).mtimeMs }))
+      .sort((a, b) => b.time - a.time);
+
+    backups.slice(10).forEach((file) => {
+      try { fs.unlinkSync(file.fullPath); } catch (_) {}
+    });
+
+    return filePath;
+  } catch (error) {
+    console.warn('[AUTO BACKUP FAILED]', error?.message || error);
+    return null;
+  }
+}
+
+function validateBackupPayload(payload) {
+  const data = asObject(payload);
+  const schemaVersion = Number(data.schemaVersion || 0);
+
+  if (!data.appName || !String(data.appName).toLowerCase().includes('print farm')) {
+    throw new Error('ملف النسخة الاحتياطية لا يبدو أنه خاص بالبرنامج');
+  }
+
+  if (!Number.isFinite(schemaVersion) || schemaVersion < 7) {
+    throw new Error('إصدار النسخة الاحتياطية قديم أو غير صالح');
+  }
+
+  if (!data.config || typeof data.config !== 'object') {
+    throw new Error('ملف النسخة الاحتياطية لا يحتوي على إعدادات صحيحة');
+  }
+
+  ['printers', 'materials', 'orders', 'orderMaterials', 'stockMovements'].forEach((key) => {
+    if (data[key] !== undefined && !Array.isArray(data[key])) {
+      throw new Error(`بنية النسخة الاحتياطية غير صالحة في: ${key}`);
+    }
+  });
+
+  if (data.quotes !== undefined && !Array.isArray(data.quotes)) {
+    throw new Error('بنية عروض الأسعار في النسخة الاحتياطية غير صالحة');
+  }
+
+  return data;
 }
 
 function registerIpcHandlers() {
@@ -328,6 +407,7 @@ function registerIpcHandlers() {
 
   handleIpc(CHANNELS.getDashboardData, async () => ok(getDashboardData()), 'فشل في تحميل البيانات');
   handleIpc(CHANNELS.getNextOrderCode, async () => ok(getNextOrderCode()), 'فشل في إنشاء كود الأوردر');
+  handleIpc(CHANNELS.getNextQuoteCode, async () => ok(getNextQuoteCode()), 'فشل في إنشاء كود عرض السعر');
 
   handleIpc(
     CHANNELS.saveConfig,
@@ -397,6 +477,7 @@ function registerIpcHandlers() {
       const data = normalizeOrderPayload(payload);
       validateCreateOrderPayload(data);
       createOrder(data);
+      createAutomaticBackup('after-order');
       return ok();
     },
     'فشل في حفظ الأوردر'
@@ -408,9 +489,45 @@ function registerIpcHandlers() {
       const data = normalizeOrderPayload(payload);
       validateUpdateOrderPayload(data);
       updateOrder(data);
+      createAutomaticBackup('after-update');
       return ok();
     },
     'فشل في تعديل الأوردر'
+  );
+
+  handleIpc(
+    CHANNELS.createQuote,
+    async (payload) => {
+      const data = normalizeOrderPayload(payload);
+      data.quoteCode = asTrimmedString(asObject(payload).quoteCode || asObject(payload).code);
+      validateCreateOrderPayload({ ...data, code: data.quoteCode || 'QUOTE-DRAFT' });
+      return ok(createQuote({ ...data, quoteCode: data.quoteCode }));
+    },
+    'فشل في حفظ عرض السعر'
+  );
+
+  handleIpc(
+    CHANNELS.deleteQuote,
+    async (payload) => {
+      const code = asTrimmedString(asObject(payload).code);
+      if (!code) throw new Error('كود عرض السعر غير صالح');
+      deleteQuote(code);
+      return ok();
+    },
+    'فشل في حذف عرض السعر'
+  );
+
+  handleIpc(
+    CHANNELS.convertQuoteToOrder,
+    async (payload) => {
+      const quoteCode = asTrimmedString(asObject(payload).code);
+      if (!quoteCode) throw new Error('كود عرض السعر غير صالح');
+      const orderCode = getNextOrderCode();
+      const createdOrderCode = convertQuoteToOrder(quoteCode, orderCode);
+      createAutomaticBackup('after-convert-quote');
+      return ok(createdOrderCode);
+    },
+    'فشل في تحويل عرض السعر لأوردر'
   );
 
   handleIpc(
@@ -420,6 +537,7 @@ function registerIpcHandlers() {
       if (!code) throw new Error('كود الأوردر غير صالح');
 
       deleteOrder(code);
+      createAutomaticBackup('after-delete');
       return ok();
     },
     'فشل في حذف الأوردر'
@@ -430,7 +548,10 @@ function registerIpcHandlers() {
   handleIpc(
     CHANNELS.importBackup,
     async (payload) => {
-      replaceAllData(asObject(payload));
+      const data = validateBackupPayload(payload);
+      createAutomaticBackup('before-import');
+      replaceAllData(data);
+      createAutomaticBackup('after-import');
       return ok();
     },
     'فشل في استيراد النسخة الاحتياطية'
@@ -457,6 +578,8 @@ app.disableHardwareAcceleration();
 
 app.whenReady().then(() => {
   ensureDbReady();
+  createAutomaticBackup('startup');
+  setInterval(() => createAutomaticBackup('daily'), 24 * 60 * 60 * 1000);
   registerIpcHandlers();
   createMainWindow();
 
@@ -471,6 +594,10 @@ app.on('web-contents-created', (_event, contents) => {
   contents.on('will-attach-webview', (event) => {
     event.preventDefault();
   });
+});
+
+app.on('before-quit', () => {
+  createAutomaticBackup('shutdown');
 });
 
 app.on('window-all-closed', () => {

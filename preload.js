@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 const CHANNELS = {
   getDashboardData: 'db:getDashboardData',
   getNextOrderCode: 'db:getNextOrderCode',
+  getNextQuoteCode: 'db:getNextQuoteCode',
   saveConfig: 'db:saveConfig',
 
   savePrinter: 'db:savePrinter',
@@ -14,6 +15,9 @@ const CHANNELS = {
   createOrder: 'db:createOrder',
   updateOrder: 'db:updateOrder',
   deleteOrder: 'db:deleteOrder',
+  createQuote: 'db:createQuote',
+  deleteQuote: 'db:deleteQuote',
+  convertQuoteToOrder: 'db:convertQuoteToOrder',
 
   exportBackup: 'db:exportBackup',
   importBackup: 'db:importBackup',
@@ -41,6 +45,10 @@ contextBridge.exposeInMainWorld('farmAPI', {
 
   getNextOrderCode() {
     return safeInvoke(CHANNELS.getNextOrderCode);
+  },
+
+  getNextQuoteCode() {
+    return safeInvoke(CHANNELS.getNextQuoteCode);
   },
 
   saveConfig(config) {
@@ -73,6 +81,18 @@ contextBridge.exposeInMainWorld('farmAPI', {
 
   deleteOrder(code) {
     return safeInvoke(CHANNELS.deleteOrder, { code });
+  },
+
+  createQuote(quote) {
+    return safeInvoke(CHANNELS.createQuote, quote);
+  },
+
+  deleteQuote(code) {
+    return safeInvoke(CHANNELS.deleteQuote, { code });
+  },
+
+  convertQuoteToOrder(code) {
+    return safeInvoke(CHANNELS.convertQuoteToOrder, { code });
   },
 
   exportBackup() {

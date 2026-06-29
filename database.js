@@ -63,6 +63,7 @@ function createTables() {
       customer_name TEXT DEFAULT '',
       printer_id INTEGER,
       order_status TEXT DEFAULT 'new',
+      quantity REAL NOT NULL DEFAULT 1,
       print_hours REAL NOT NULL DEFAULT 0,
       manual_minutes REAL NOT NULL DEFAULT 0,
       notes TEXT DEFAULT '',
@@ -86,6 +87,9 @@ function createTables() {
       rounded_adjustment REAL NOT NULL DEFAULT 0,
       final_price REAL NOT NULL DEFAULT 0,
       profit REAL NOT NULL DEFAULT 0,
+      unit_final_price REAL NOT NULL DEFAULT 0,
+      unit_total_cost REAL NOT NULL DEFAULT 0,
+      unit_profit REAL NOT NULL DEFAULT 0,
       payment_status TEXT DEFAULT 'collected',
       payment_method TEXT DEFAULT 'cash',
       paid_amount REAL NOT NULL DEFAULT 0,
@@ -116,6 +120,21 @@ function createTables() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE SET NULL
     );
+
+    CREATE TABLE IF NOT EXISTS quotes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT NOT NULL UNIQUE,
+      item_name TEXT NOT NULL,
+      customer_name TEXT DEFAULT '',
+      quote_date TEXT NOT NULL,
+      final_price REAL NOT NULL DEFAULT 0,
+      profit REAL NOT NULL DEFAULT 0,
+      quantity REAL NOT NULL DEFAULT 1,
+      status TEXT NOT NULL DEFAULT 'open',
+      payload_json TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      converted_order_code TEXT DEFAULT ''
+    );
   `);
 }
 
@@ -131,6 +150,7 @@ function runMigrations() {
   ensureColumnExists('printers', 'is_archived', `ALTER TABLE printers ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0`);
 
   ensureColumnExists('orders', 'order_status', `ALTER TABLE orders ADD COLUMN order_status TEXT DEFAULT 'new'`);
+  ensureColumnExists('orders', 'quantity', `ALTER TABLE orders ADD COLUMN quantity REAL NOT NULL DEFAULT 1`);
   ensureColumnExists('orders', 'print_hours', `ALTER TABLE orders ADD COLUMN print_hours REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'manual_minutes', `ALTER TABLE orders ADD COLUMN manual_minutes REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'material_cost', `ALTER TABLE orders ADD COLUMN material_cost REAL NOT NULL DEFAULT 0`);
@@ -149,6 +169,9 @@ function runMigrations() {
   ensureColumnExists('orders', 'price_after_discount', `ALTER TABLE orders ADD COLUMN price_after_discount REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'minimum_order_price', `ALTER TABLE orders ADD COLUMN minimum_order_price REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'rounded_adjustment', `ALTER TABLE orders ADD COLUMN rounded_adjustment REAL NOT NULL DEFAULT 0`);
+  ensureColumnExists('orders', 'unit_final_price', `ALTER TABLE orders ADD COLUMN unit_final_price REAL NOT NULL DEFAULT 0`);
+  ensureColumnExists('orders', 'unit_total_cost', `ALTER TABLE orders ADD COLUMN unit_total_cost REAL NOT NULL DEFAULT 0`);
+  ensureColumnExists('orders', 'unit_profit', `ALTER TABLE orders ADD COLUMN unit_profit REAL NOT NULL DEFAULT 0`);
   ensureColumnExists('orders', 'payment_status', `ALTER TABLE orders ADD COLUMN payment_status TEXT DEFAULT 'collected'`);
   ensureColumnExists('orders', 'payment_method', `ALTER TABLE orders ADD COLUMN payment_method TEXT DEFAULT 'cash'`);
   ensureColumnExists('orders', 'paid_amount', `ALTER TABLE orders ADD COLUMN paid_amount REAL NOT NULL DEFAULT 0`);
@@ -339,6 +362,7 @@ function getDashboardData() {
       o.printer_id AS printerId,
       COALESCE(p.name, '') AS printerName,
       o.order_status AS status,
+      o.quantity AS quantity,
       o.print_hours AS printHours,
       o.manual_minutes AS manualMinutes,
       o.notes,
@@ -362,6 +386,9 @@ function getDashboardData() {
       o.rounded_adjustment AS roundedAdjustment,
       o.final_price AS finalPrice,
       o.profit,
+      o.unit_final_price AS unitFinalPrice,
+      o.unit_total_cost AS unitTotalCost,
+      o.unit_profit AS unitProfit,
       o.payment_status AS paymentStatus,
       o.payment_method AS paymentMethod,
       o.paid_amount AS paidAmount
@@ -385,12 +412,35 @@ function getDashboardData() {
     LIMIT 1000
   `).all();
 
+  const quotes = db.prepare(`
+    SELECT
+      id,
+      code,
+      item_name AS itemName,
+      customer_name AS customerName,
+      quote_date AS date,
+      final_price AS finalPrice,
+      profit,
+      quantity,
+      status,
+      payload_json AS payloadJson,
+      converted_order_code AS convertedOrderCode,
+      created_at AS createdAt
+    FROM quotes
+    ORDER BY id DESC
+  `).all().map((quote) => {
+    let payload = null;
+    try { payload = JSON.parse(quote.payloadJson || '{}'); } catch (_) { payload = null; }
+    return { ...quote, payload };
+  });
+
   return {
     config: getAllConfig(),
     printers,
     materials,
     orders,
-    stockMovements
+    stockMovements,
+    quotes
   };
 }
 
@@ -589,6 +639,76 @@ function deleteMaterial(id) {
   return { deleted: true, archived: false, reason: 'deleted' };
 }
 
+
+function getNextQuoteCode() {
+  const lastQuote = db.prepare(`
+    SELECT code
+    FROM quotes
+    ORDER BY id DESC
+    LIMIT 1
+  `).get();
+
+  if (!lastQuote || !lastQuote.code) return 'Q-1001';
+  const match = String(lastQuote.code).match(/Q-(\d+)/);
+  if (!match) return 'Q-1001';
+  return `Q-${Number(match[1]) + 1}`;
+}
+
+function createQuote(payload) {
+  const data = payload && typeof payload === 'object' ? payload : {};
+  const quoteCode = String(data.quoteCode || data.code || '').trim();
+  if (!quoteCode) throw new Error('كود عرض السعر غير صالح');
+  if (!String(data.itemName || '').trim()) throw new Error('اسم المجسم مطلوب');
+
+  db.prepare(`
+    INSERT INTO quotes (code, item_name, customer_name, quote_date, final_price, profit, quantity, status, payload_json)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    quoteCode,
+    String(data.itemName || '').trim(),
+    String(data.customerName || '').trim(),
+    String(data.date || new Date().toISOString().slice(0, 10)).trim(),
+    Number(data.finalPrice || 0),
+    Number(data.profit || 0),
+    Number(data.quantity || 1),
+    'open',
+    JSON.stringify(data)
+  );
+
+  return quoteCode;
+}
+
+function deleteQuote(code) {
+  db.prepare('DELETE FROM quotes WHERE code = ?').run(String(code || '').trim());
+}
+
+function convertQuoteToOrder(quoteCode, orderCode) {
+  const quote = db.prepare('SELECT * FROM quotes WHERE code = ?').get(String(quoteCode || '').trim());
+  if (!quote) throw new Error('عرض السعر غير موجود');
+  if (String(quote.status || '') === 'converted') throw new Error('عرض السعر اتحول قبل كده لأوردر');
+
+  let payload;
+  try { payload = JSON.parse(quote.payload_json || '{}'); }
+  catch (_) { throw new Error('بيانات عرض السعر غير صالحة'); }
+
+  payload.code = String(orderCode || '').trim() || getNextOrderCode();
+  payload.date = new Date().toISOString().slice(0, 10);
+  payload.status = 'delivered';
+  payload.paymentStatus = 'collected';
+  payload.paymentMethod = 'cash';
+  payload.paidAmount = Number(payload.finalPrice || 0);
+
+  createOrder(payload);
+
+  db.prepare(`
+    UPDATE quotes
+    SET status = 'converted', converted_order_code = ?
+    WHERE code = ?
+  `).run(payload.code, String(quoteCode || '').trim());
+
+  return payload.code;
+}
+
 function getNextOrderCode() {
   const lastOrder = db.prepare(`
     SELECT code
@@ -618,6 +738,7 @@ function createOrder(payload) {
       customer_name,
       printer_id,
       order_status,
+      quantity,
       print_hours,
       manual_minutes,
       notes,
@@ -641,11 +762,14 @@ function createOrder(payload) {
       rounded_adjustment,
       final_price,
       profit,
+      unit_final_price,
+      unit_total_cost,
+      unit_profit,
       payment_status,
       payment_method,
       paid_amount
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertMaterialUsage = db.prepare(`
@@ -732,7 +856,8 @@ function createOrder(payload) {
       String(data.itemName || '').trim(),
       String(data.customerName || '').trim(),
       data.printerId ? Number(data.printerId) : null,
-      String(data.status || 'new').trim(),
+      String(data.status || 'delivered').trim(),
+      Number(data.quantity || 1),
       Number(data.printHours || 0),
       Number(data.manualMinutes || 0),
       String(data.notes || '').trim(),
@@ -756,6 +881,9 @@ function createOrder(payload) {
       Number(data.roundedAdjustment || 0),
       finalPrice,
       Number(data.profit || 0),
+      Number(data.unitFinalPrice || (finalPrice / Math.max(1, Number(data.quantity || 1)))),
+      Number(data.unitTotalCost || (Number(data.totalCost || 0) / Math.max(1, Number(data.quantity || 1)))),
+      Number(data.unitProfit || (Number(data.profit || 0) / Math.max(1, Number(data.quantity || 1)))),
       String(data.paymentStatus || 'collected').trim(),
       String(data.paymentMethod || 'cash').trim(),
       Number(data.paidAmount || 0)
@@ -951,6 +1079,7 @@ function updateOrder(payload) {
         customer_name = ?,
         printer_id = ?,
         order_status = ?,
+        quantity = ?,
         print_hours = ?,
         manual_minutes = ?,
         notes = ?,
@@ -974,6 +1103,9 @@ function updateOrder(payload) {
         rounded_adjustment = ?,
         final_price = ?,
         profit = ?,
+        unit_final_price = ?,
+        unit_total_cost = ?,
+        unit_profit = ?,
         payment_status = ?,
         payment_method = ?,
         paid_amount = ?
@@ -982,7 +1114,8 @@ function updateOrder(payload) {
       String(data.itemName || '').trim(),
       String(data.customerName || '').trim(),
       data.printerId ? Number(data.printerId) : null,
-      String(data.status || 'new').trim(),
+      String(data.status || 'delivered').trim(),
+      Number(data.quantity || 1),
       Number(data.printHours || 0),
       Number(data.manualMinutes || 0),
       String(data.notes || '').trim(),
@@ -1006,6 +1139,9 @@ function updateOrder(payload) {
       Number(data.roundedAdjustment || 0),
       finalPrice,
       Number(data.profit || 0),
+      Number(data.unitFinalPrice || (finalPrice / Math.max(1, Number(data.quantity || 1)))),
+      Number(data.unitTotalCost || (Number(data.totalCost || 0) / Math.max(1, Number(data.quantity || 1)))),
+      Number(data.unitProfit || (Number(data.profit || 0) / Math.max(1, Number(data.quantity || 1)))),
       String(data.paymentStatus || 'collected').trim(),
       String(data.paymentMethod || 'cash').trim(),
       Number(data.paidAmount || 0),
@@ -1071,11 +1207,12 @@ function replaceAllData(data) {
     db.exec(`
       DELETE FROM order_materials;
       DELETE FROM stock_movements;
+      DELETE FROM quotes;
       DELETE FROM orders;
       DELETE FROM materials;
       DELETE FROM printers;
       DELETE FROM app_config;
-      DELETE FROM sqlite_sequence WHERE name IN ('printers', 'materials', 'orders', 'order_materials', 'stock_movements');
+      DELETE FROM sqlite_sequence WHERE name IN ('printers', 'materials', 'orders', 'order_materials', 'stock_movements', 'quotes');
     `);
 
     const insertConfig = db.prepare(`
@@ -1100,6 +1237,7 @@ function replaceAllData(data) {
         customer_name,
         printer_id,
         order_status,
+        quantity,
         print_hours,
         manual_minutes,
         notes,
@@ -1123,11 +1261,14 @@ function replaceAllData(data) {
         rounded_adjustment,
         final_price,
         profit,
+        unit_final_price,
+        unit_total_cost,
+        unit_profit,
         payment_status,
         payment_method,
         paid_amount
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const insertMovement = db.prepare(`
@@ -1152,6 +1293,11 @@ function replaceAllData(data) {
         total_cost
       )
       VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    const insertQuote = db.prepare(`
+      INSERT INTO quotes (code, item_name, customer_name, quote_date, final_price, profit, quantity, status, payload_json, converted_order_code)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     Object.entries(payload.config || {}).forEach(([key, value]) => {
@@ -1215,6 +1361,7 @@ function replaceAllData(data) {
         String(order.customerName || '').trim(),
         mappedPrinterId,
         String(order.status || 'new').trim(),
+        Number(order.quantity || 1),
         Number(order.printHours || 0),
         Number(order.manualMinutes || 0),
         String(order.notes || '').trim(),
@@ -1238,6 +1385,9 @@ function replaceAllData(data) {
         Number(order.roundedAdjustment || 0),
         finalPrice,
         Number(order.profit || 0),
+        Number(order.unitFinalPrice || (finalPrice / Math.max(1, Number(order.quantity || 1)))),
+        Number(order.unitTotalCost || (Number(order.totalCost || 0) / Math.max(1, Number(order.quantity || 1)))),
+        Number(order.unitProfit || (Number(order.profit || 0) / Math.max(1, Number(order.quantity || 1)))),
         String(order.paymentStatus || 'collected').trim(),
         String(order.paymentMethod || 'cash').trim(),
         Number(order.paidAmount || (String(order.paymentStatus || 'collected') === 'collected' ? finalPrice : 0))
@@ -1279,6 +1429,23 @@ function replaceAllData(data) {
         Number(movement.quantity || 0),
         String(movement.reason || '').trim(),
         String(movement.referenceCode || '').trim()
+      );
+    });
+
+    (payload.quotes || []).forEach((quote) => {
+      const payloadJson = quote.payload ? JSON.stringify(quote.payload) : String(quote.payloadJson || '{}');
+      if (!String(quote.code || '').trim()) return;
+      insertQuote.run(
+        String(quote.code || '').trim(),
+        String(quote.itemName || '').trim(),
+        String(quote.customerName || '').trim(),
+        String(quote.date || new Date().toISOString().slice(0, 10)).trim(),
+        Number(quote.finalPrice || 0),
+        Number(quote.profit || 0),
+        Number(quote.quantity || 1),
+        String(quote.status || 'open').trim(),
+        payloadJson,
+        String(quote.convertedOrderCode || '').trim()
       );
     });
 
@@ -1352,7 +1519,7 @@ function exportBackupData() {
   return {
     exportedAt: new Date().toISOString(),
     appName: 'Print Farm App',
-    schemaVersion: 6,
+    schemaVersion: 8,
     ...data,
     printers: [...data.printers, ...archivedPrinters],
     materials: [...data.materials, ...archivedMaterials],
@@ -1365,6 +1532,7 @@ module.exports = {
   getDb,
   getDashboardData,
   getNextOrderCode,
+  getNextQuoteCode,
   setConfig,
   createPrinter,
   updatePrinter,
@@ -1375,6 +1543,9 @@ module.exports = {
   createOrder,
   updateOrder,
   deleteOrder,
+  createQuote,
+  deleteQuote,
+  convertQuoteToOrder,
   replaceAllData,
   exportBackupData
 };

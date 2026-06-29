@@ -79,14 +79,18 @@
               </div>
 
               <div class="grid-3 section-gap-sm">
+                <div class="form-group">
+                  <label for="pieceQuantity">عدد القطع</label>
+                  <input type="text" id="pieceQuantity" value="1" inputmode="decimal" />
+                </div>
 
                 <div class="form-group">
-                  <label for="printHours">وقت الطباعة / ساعة *</label>
+                  <label for="printHours">وقت الطباعة / ساعة للقطعة *</label>
                   <input type="text" id="printHours" value="0" inputmode="decimal" />
                 </div>
 
                 <div class="form-group">
-                  <label for="manualMins">دقائق خدمة / شغل يدوي</label>
+                  <label for="manualMins">دقائق خدمة / شغل يدوي للقطعة</label>
                   <input type="text" id="manualMins" value="15" inputmode="decimal" />
                 </div>
               </div>
@@ -200,6 +204,16 @@
 
               <div class="summary-main">
                 <div class="summary-stat">
+                  <span class="summary-label">عدد القطع</span>
+                  <strong id="resPieces" class="summary-value">1 قطعة</strong>
+                </div>
+
+                <div class="summary-stat">
+                  <span class="summary-label">سعر القطعة تقريبيًا</span>
+                  <strong id="resUnitFinal" class="summary-value">0 جنيه</strong>
+                </div>
+
+                <div class="summary-stat">
                   <span class="summary-label">تكلفة الخامة</span>
                   <strong id="resMat" class="summary-value">0 جنيه</strong>
                 </div>
@@ -280,7 +294,10 @@
                 </div>
               </div>
 
-              <button class="btn btn-save section-gap-md" type="button" onclick="saveSale()">تسجيل الأوردر</button>
+              <div class="inline-actions section-gap-md">
+                <button class="btn btn-secondary" type="button" onclick="saveQuote()">حفظ عرض سعر</button>
+                <button class="btn btn-save" type="button" onclick="saveSale()">تسجيل الأوردر</button>
+              </div>
             </section>
           </aside>
         </section>
@@ -305,6 +322,10 @@
 
         <button class="nav-btn" data-view="reports" type="button" onclick="openReports()">
           <span>التقارير</span>
+        </button>
+
+        <button class="nav-btn" data-view="quotes" type="button" onclick="openQuotesModal()">
+          <span>العروض</span>
         </button>
 
         <button class="nav-btn" data-view="customers" type="button" onclick="openCustomersModal()">
@@ -418,6 +439,7 @@
               <th>المجسم</th>
               <th>العميل</th>
               <th>الطابعة</th>
+              <th>عدد القطع</th>
               <th>التكلفة</th>
               <th>البيع</th>
               <th>الربح</th>
@@ -427,6 +449,24 @@
           <tbody id="salesTableBody"></tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+
+  <div class="modal app-panel" id="quotesModal" aria-hidden="true">
+    <div class="modal-content modal-xl panel-content">
+      <div class="panel-head">
+        <button type="button" onclick="closeQuotesModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2>عروض الأسعار</h2>
+        <button type="button" class="btn btn-secondary btn-auto" onclick="exportQuotesCSV()">تصدير CSV</button>
+      </div>
+
+      <div class="helper-box">
+        <strong>فكرة عروض الأسعار:</strong>
+        <span>عرض السعر لا يخصم من المخزون. عند الموافقة اضغط تحويل لأوردر وسيتم خصم الخامات وقتها فقط.</span>
+      </div>
+
+      <div id="quotesList" class="stack-list section-gap-md"></div>
     </div>
   </div>
 
@@ -806,10 +846,12 @@
 
   <script src="js/state.js"></script>
   <script src="js/utils.js"></script>
+  <script src="js/pricing-core.js"></script>
   <script src="js/dashboard.js"></script>
   <script src="js/printers-view.js"></script>
   <script src="js/inventory-view.js"></script>
   <script src="js/pricing-orders.js"></script>
+  <script src="js/quotes.js"></script>
   <script src="js/reports.js"></script>
   <script src="js/pipeline.js"></script>
   <script src="js/edit-orders.js"></script>
