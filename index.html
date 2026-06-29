@@ -9,13 +9,6 @@
     content="برنامج لإدارة أعمال الطباعة ثلاثية الأبعاد والتسعير والأوردرات والمخزون والطابعات"
   />
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap"
-    rel="stylesheet"
-  />
-
   <link rel="stylesheet" href="style.css" />
 </head>
 
@@ -81,7 +74,7 @@
               <div class="grid-3 section-gap-sm">
                 <div class="form-group">
                   <label for="pieceQuantity">عدد القطع</label>
-                  <input type="text" id="pieceQuantity" value="1" inputmode="decimal" />
+                  <input type="number" id="pieceQuantity" value="1" min="1" step="1" inputmode="numeric" />
                 </div>
 
                 <div class="form-group">
@@ -170,12 +163,12 @@
 
               <div class="grid-3 section-gap-sm">
                 <div class="form-group">
-                  <label for="accessoriesCost">إكسسوارات</label>
+                  <label for="accessoriesCost">إكسسوارات / تكلفة إضافية للقطعة</label>
                   <input type="text" id="accessoriesCost" value="0" inputmode="decimal" />
                 </div>
 
                 <div class="form-group">
-                  <label for="shippingCost">شحن</label>
+                  <label for="shippingCost">شحن الأوردر كله</label>
                   <input type="text" id="shippingCost" value="0" inputmode="decimal" />
                 </div>
 
@@ -188,7 +181,7 @@
               <div class="helper-box section-gap-sm">
                 <strong>ملاحظة مهمة:</strong>
                 <span>الكهرباء، التغليف، الفشل، وسعر الشغل اليدوي قيم ثابتة من الإعدادات. اتركها كما هي إلا لو الأوردر حالة خاصة.</span>
-                <span>الإكسسوارات والشحن يتضافوا على السعر النهائي فقط بدون فشل وبدون مكسب.</span>
+                <span>الإكسسوارات تتضرب في عدد القطع، والشحن يضاف مرة واحدة للأوردر كله. الاتنين بدون فشل وبدون مكسب.</span>
               </div>
             </section>
           </section>
@@ -295,8 +288,8 @@
               </div>
 
               <div class="inline-actions section-gap-md">
-                <button class="btn btn-secondary" type="button" onclick="saveQuote()">حفظ عرض سعر</button>
-                <button class="btn btn-save" type="button" onclick="saveSale()">تسجيل الأوردر</button>
+                <button class="btn btn-secondary" type="button" onclick="saveQuote()">حفظ عرض سعر اختياري</button>
+                <button class="btn btn-save" type="button" onclick="saveSale()">تسجيل الأوردر بعد الدفع</button>
               </div>
             </section>
           </aside>

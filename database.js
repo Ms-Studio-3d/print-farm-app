@@ -200,18 +200,11 @@ function backfillPricingBreakdown() {
         WHEN price_after_discount IS NULL OR price_after_discount = 0 THEN final_price
         ELSE price_after_discount
       END,
-      payment_status = CASE
-        WHEN payment_status IS NULL OR payment_status = '' THEN 'collected'
-        ELSE payment_status
-      END,
-      payment_method = CASE
-        WHEN payment_method IS NULL OR payment_method = '' THEN 'cash'
-        ELSE payment_method
-      END,
+      payment_status = 'collected',
+      payment_method = 'cash',
       paid_amount = CASE
-        WHEN (paid_amount IS NULL OR paid_amount = 0) AND final_price > 0 AND (payment_status IS NULL OR payment_status = '' OR payment_status = 'collected') THEN final_price
-        WHEN payment_status IN ('unpaid', 'refunded') THEN 0
-        ELSE paid_amount
+        WHEN final_price > 0 THEN final_price
+        ELSE 0
       END
   `).run();
 }
@@ -694,9 +687,6 @@ function convertQuoteToOrder(quoteCode, orderCode) {
   payload.code = String(orderCode || '').trim() || getNextOrderCode();
   payload.date = new Date().toISOString().slice(0, 10);
   payload.status = 'delivered';
-  payload.paymentStatus = 'collected';
-  payload.paymentMethod = 'cash';
-  payload.paidAmount = Number(payload.finalPrice || 0);
 
   createOrder(payload);
 
@@ -884,9 +874,9 @@ function createOrder(payload) {
       Number(data.unitFinalPrice || (finalPrice / Math.max(1, Number(data.quantity || 1)))),
       Number(data.unitTotalCost || (Number(data.totalCost || 0) / Math.max(1, Number(data.quantity || 1)))),
       Number(data.unitProfit || (Number(data.profit || 0) / Math.max(1, Number(data.quantity || 1)))),
-      String(data.paymentStatus || 'collected').trim(),
-      String(data.paymentMethod || 'cash').trim(),
-      Number(data.paidAmount || 0)
+      'collected',
+      'cash',
+      finalPrice
     );
 
     const orderId = Number(orderResult.lastInsertRowid);
@@ -1142,9 +1132,9 @@ function updateOrder(payload) {
       Number(data.unitFinalPrice || (finalPrice / Math.max(1, Number(data.quantity || 1)))),
       Number(data.unitTotalCost || (Number(data.totalCost || 0) / Math.max(1, Number(data.quantity || 1)))),
       Number(data.unitProfit || (Number(data.profit || 0) / Math.max(1, Number(data.quantity || 1)))),
-      String(data.paymentStatus || 'collected').trim(),
-      String(data.paymentMethod || 'cash').trim(),
-      Number(data.paidAmount || 0),
+      'collected',
+      'cash',
+      finalPrice,
       code
     );
   });
@@ -1388,9 +1378,9 @@ function replaceAllData(data) {
         Number(order.unitFinalPrice || (finalPrice / Math.max(1, Number(order.quantity || 1)))),
         Number(order.unitTotalCost || (Number(order.totalCost || 0) / Math.max(1, Number(order.quantity || 1)))),
         Number(order.unitProfit || (Number(order.profit || 0) / Math.max(1, Number(order.quantity || 1)))),
-        String(order.paymentStatus || 'collected').trim(),
-        String(order.paymentMethod || 'cash').trim(),
-        Number(order.paidAmount || (String(order.paymentStatus || 'collected') === 'collected' ? finalPrice : 0))
+        'collected',
+        'cash',
+        finalPrice
       );
 
       if (order.id != null) {

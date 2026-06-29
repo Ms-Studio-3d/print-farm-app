@@ -81,6 +81,13 @@ function asNullableId(value) {
   return Number.isFinite(num) && num > 0 ? num : null;
 }
 
+function asPositiveInteger(value, fallback = 1) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  const integer = Math.floor(num);
+  return integer > 0 ? integer : fallback;
+}
+
 function normalizeStatus(value, fallback = 'new') {
   const status = asTrimmedString(value, fallback);
 
@@ -89,36 +96,6 @@ function normalizeStatus(value, fallback = 'new') {
   }
 
   return fallback;
-}
-
-function normalizePaymentStatus(value, fallback = 'collected') {
-  const status = asTrimmedString(value, fallback);
-
-  if (['collected', 'partial', 'unpaid', 'refunded'].includes(status)) {
-    return status;
-  }
-
-  return fallback;
-}
-
-function normalizePaymentMethod(value, fallback = 'cash') {
-  const method = asTrimmedString(value, fallback);
-
-  if (['cash', 'instapay', 'vodafone_cash', 'bank_transfer', 'mixed', 'other'].includes(method)) {
-    return method;
-  }
-
-  return fallback;
-}
-
-function normalizePaidAmount(paymentStatus, finalPrice, paidAmount) {
-  const safeFinalPrice = asPositiveNumber(finalPrice, 0);
-  const safeStatus = normalizePaymentStatus(paymentStatus);
-
-  if (safeStatus === 'collected') return safeFinalPrice;
-  if (safeStatus === 'unpaid' || safeStatus === 'refunded') return 0;
-
-  return Math.min(asPositiveNumber(paidAmount, 0), safeFinalPrice);
 }
 
 function normalizePrinterStatus(value, fallback = 'idle') {
@@ -250,17 +227,13 @@ function normalizeMaterialUsageItem(item) {
 function normalizeOrderPayload(payload) {
   const data = asObject(payload);
   const finalPrice = asPositiveNumber(data.finalPrice, 0);
-  const paymentStatus = normalizePaymentStatus(data.paymentStatus, 'collected');
-  const paymentMethod = normalizePaymentMethod(data.paymentMethod, 'cash');
-  const paidAmount = normalizePaidAmount(paymentStatus, finalPrice, data.paidAmount);
-
   return {
     code: asTrimmedString(data.code),
     itemName: asTrimmedString(data.itemName),
     customerName: asTrimmedString(data.customerName),
     printerId: asNullableId(data.printerId),
     status: normalizeStatus(data.status, 'new'),
-    quantity: Math.max(1, asPositiveNumber(data.quantity, 1)),
+    quantity: asPositiveInteger(data.quantity, 1),
     printHours: asPositiveNumber(data.printHours, 0),
     manualMinutes: asPositiveNumber(data.manualMinutes, 0),
     notes: asTrimmedString(data.notes),
@@ -290,10 +263,6 @@ function normalizeOrderPayload(payload) {
     unitFinalPrice: asPositiveNumber(data.unitFinalPrice, finalPrice / Math.max(1, asPositiveNumber(data.quantity, 1))),
     unitTotalCost: asPositiveNumber(data.unitTotalCost, asPositiveNumber(data.totalCost, 0) / Math.max(1, asPositiveNumber(data.quantity, 1))),
     unitProfit: asNumber(data.unitProfit, asNumber(data.profit, 0) / Math.max(1, asPositiveNumber(data.quantity, 1))),
-    paymentStatus,
-    paymentMethod,
-    paidAmount,
-
     materialUsage: Array.isArray(data.materialUsage)
       ? data.materialUsage.map(normalizeMaterialUsageItem)
       : []
@@ -315,6 +284,7 @@ function validateCreateOrderPayload(data) {
   if (!data.itemName) throw new Error('اسم المجسم مطلوب');
   if (!data.printerId) throw new Error('اختار الطابعة المستخدمة');
   if (!data.date) throw new Error('تاريخ الأوردر مطلوب');
+  if (!Number.isInteger(Number(data.quantity)) || Number(data.quantity) <= 0) throw new Error('عدد القطع لازم يكون رقم صحيح موجب');
   if (data.printHours <= 0) throw new Error('وقت الطباعة لازم يكون أكبر من صفر');
 
   if (!Array.isArray(data.materialUsage) || data.materialUsage.length === 0) {
@@ -370,6 +340,10 @@ function createAutomaticBackup(reason = 'auto') {
     console.warn('[AUTO BACKUP FAILED]', error?.message || error);
     return null;
   }
+}
+
+function scheduleAutomaticBackup(reason = 'auto') {
+  setTimeout(() => createAutomaticBackup(reason), 150);
 }
 
 function validateBackupPayload(payload) {
@@ -477,7 +451,7 @@ function registerIpcHandlers() {
       const data = normalizeOrderPayload(payload);
       validateCreateOrderPayload(data);
       createOrder(data);
-      createAutomaticBackup('after-order');
+      scheduleAutomaticBackup('after-order');
       return ok();
     },
     'فشل في حفظ الأوردر'
@@ -489,7 +463,7 @@ function registerIpcHandlers() {
       const data = normalizeOrderPayload(payload);
       validateUpdateOrderPayload(data);
       updateOrder(data);
-      createAutomaticBackup('after-update');
+      scheduleAutomaticBackup('after-update');
       return ok();
     },
     'فشل في تعديل الأوردر'
@@ -524,7 +498,7 @@ function registerIpcHandlers() {
       if (!quoteCode) throw new Error('كود عرض السعر غير صالح');
       const orderCode = getNextOrderCode();
       const createdOrderCode = convertQuoteToOrder(quoteCode, orderCode);
-      createAutomaticBackup('after-convert-quote');
+      scheduleAutomaticBackup('after-convert-quote');
       return ok(createdOrderCode);
     },
     'فشل في تحويل عرض السعر لأوردر'
@@ -537,7 +511,7 @@ function registerIpcHandlers() {
       if (!code) throw new Error('كود الأوردر غير صالح');
 
       deleteOrder(code);
-      createAutomaticBackup('after-delete');
+      scheduleAutomaticBackup('after-delete');
       return ok();
     },
     'فشل في حذف الأوردر'
@@ -551,7 +525,7 @@ function registerIpcHandlers() {
       const data = validateBackupPayload(payload);
       createAutomaticBackup('before-import');
       replaceAllData(data);
-      createAutomaticBackup('after-import');
+      scheduleAutomaticBackup('after-import');
       return ok();
     },
     'فشل في استيراد النسخة الاحتياطية'
@@ -578,8 +552,8 @@ app.disableHardwareAcceleration();
 
 app.whenReady().then(() => {
   ensureDbReady();
-  createAutomaticBackup('startup');
-  setInterval(() => createAutomaticBackup('daily'), 24 * 60 * 60 * 1000);
+  scheduleAutomaticBackup('startup');
+  setInterval(() => scheduleAutomaticBackup('daily'), 24 * 60 * 60 * 1000);
   registerIpcHandlers();
   createMainWindow();
 
