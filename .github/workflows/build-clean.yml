@@ -34,6 +34,18 @@ jobs:
           corepack prepare pnpm@9.15.9 --activate
           pnpm --version
 
+      - name: Configure pnpm hoisted node_modules
+        shell: powershell
+        run: |
+          pnpm config set node-linker hoisted
+          pnpm config set strict-peer-dependencies false
+
+      - name: Clean install state
+        shell: powershell
+        run: |
+          if (Test-Path node_modules) { Remove-Item node_modules -Recurse -Force }
+          if (Test-Path package-lock.json) { Remove-Item package-lock.json -Force }
+
       - name: Install dependencies
         shell: powershell
         run: pnpm install --no-frozen-lockfile
