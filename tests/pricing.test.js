@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const { calculateMoo3dPricing, toPositiveInteger } = require('../js/pricing-core');
 
 const sample = calculateMoo3dPricing({
+  quantity: 1,
   materialCost: 8,
   wasteCost: 0,
   depreciationCost: 20,
@@ -27,27 +28,37 @@ assert.equal(Number(sample.profit.toFixed(2)), 43.2);
 assert.equal(Number(sample.minimumNoLossPrice.toFixed(2)), 61.8);
 assert.ok(sample.finalPrice >= sample.minimumNoLossPrice);
 
-const multiPiece = calculateMoo3dPricing({
+// 3 قطع في طبعة واحدة: الوقت والتغليف والخامات إجمالي للأوردر كله، وليس للقطعة.
+// الإكسسوارات فقط لكل قطعة، والشحن مرة واحدة للأوردر.
+const threePiecesSamePrint = calculateMoo3dPricing({
   quantity: 3,
-  materialCost: 8,
+  materialCost: 24,
   depreciationCost: 20,
   packagingCost: 10,
   accessoriesCost: 20,
-  shippingCost: 0,
+  shippingCost: 15,
   failurePercent: 10,
   profitMargin: 100,
   roundingStep: 5,
 });
 
-assert.equal(multiPiece.quantity, 3);
-assert.equal(Number(multiPiece.totalCost.toFixed(2)), 125.4);
-assert.equal(multiPiece.directAddOnsCost, 60);
-assert.equal(Number(multiPiece.priceBeforeDiscount.toFixed(2)), 310.8);
-assert.equal(multiPiece.finalPrice, 315);
-assert.equal(Number(multiPiece.profit.toFixed(2)), 129.6);
-assert.equal(Number(multiPiece.unitFinalPrice.toFixed(2)), 105);
+assert.equal(threePiecesSamePrint.quantity, 3);
+assert.equal(threePiecesSamePrint.materialCost, 24);
+assert.equal(threePiecesSamePrint.depreciationCost, 20);
+assert.equal(threePiecesSamePrint.packagingCost, 10);
+assert.equal(threePiecesSamePrint.accessoriesCost, 60);
+assert.equal(threePiecesSamePrint.shippingCost, 15);
+assert.equal(Number(threePiecesSamePrint.productionSubtotal.toFixed(2)), 54);
+assert.equal(Number(threePiecesSamePrint.riskCost.toFixed(2)), 5.4);
+assert.equal(Number(threePiecesSamePrint.totalCost.toFixed(2)), 59.4);
+assert.equal(threePiecesSamePrint.directAddOnsCost, 75);
+assert.equal(Number(threePiecesSamePrint.priceBeforeDiscount.toFixed(2)), 193.8);
+assert.equal(threePiecesSamePrint.finalPrice, 195);
+assert.equal(Number(threePiecesSamePrint.profit.toFixed(2)), 60.6);
+assert.equal(Number(threePiecesSamePrint.unitFinalPrice.toFixed(2)), 65);
 
 const withShippingAndAccessories = calculateMoo3dPricing({
+  quantity: 1,
   materialCost: 8,
   depreciationCost: 20,
   packagingCost: 10,
@@ -64,25 +75,6 @@ assert.equal(Number(withShippingAndAccessories.priceBeforeDiscount.toFixed(2)), 
 assert.equal(withShippingAndAccessories.finalPrice, 120);
 assert.equal(Number(withShippingAndAccessories.profit.toFixed(2)), 43.2);
 assert.equal(Number(withShippingAndAccessories.minimumNoLossPrice.toFixed(2)), 76.8);
-
-const multiPieceWithOneShipping = calculateMoo3dPricing({
-  quantity: 3,
-  materialCost: 8,
-  depreciationCost: 20,
-  packagingCost: 10,
-  accessoriesCost: 20,
-  shippingCost: 15,
-  failurePercent: 10,
-  profitMargin: 100,
-  roundingStep: 5,
-});
-
-assert.equal(multiPieceWithOneShipping.accessoriesCost, 60);
-assert.equal(multiPieceWithOneShipping.shippingCost, 15);
-assert.equal(multiPieceWithOneShipping.directAddOnsCost, 75);
-assert.equal(Number(multiPieceWithOneShipping.priceBeforeDiscount.toFixed(2)), 325.8);
-assert.equal(multiPieceWithOneShipping.finalPrice, 330);
-assert.equal(Number(multiPieceWithOneShipping.profit.toFixed(2)), 129.6);
 
 assert.equal(toPositiveInteger(3.8), 3);
 assert.equal(toPositiveInteger('4'), 4);
