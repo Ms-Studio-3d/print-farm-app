@@ -141,7 +141,7 @@ function createMainWindow() {
     width: 1500,
     height: 960,
     minWidth: 1200,
-    minHeight: 820,
+    minHeight: 720,
     show: false,
     center: true,
     autoHideMenuBar: true,
