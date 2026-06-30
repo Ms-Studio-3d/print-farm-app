@@ -64,33 +64,49 @@ function closeQuotesModal() {
 }
 
 async function convertQuoteToOrder(code) {
+  if (convertingQuote) return;
+
   const confirmed = await askConfirm('تحويل عرض السعر لأوردر سيخصم الخامات من المخزون. هل تريد المتابعة؟');
   if (!confirmed) return;
 
-  const response = await window.farmAPI.convertQuoteToOrder(code);
-  if (!response?.success) {
-    showToast(response?.message || 'فشل في تحويل عرض السعر', 'error');
-    return;
-  }
+  convertingQuote = true;
 
-  showToast(`تم تحويل عرض السعر إلى أوردر ${response.data || ''}`);
-  await loadDashboardData();
-  renderQuotes();
+  try {
+    const response = await window.farmAPI.convertQuoteToOrder(code);
+    if (!response?.success) {
+      showToast(response?.message || 'فشل في تحويل عرض السعر', 'error');
+      return;
+    }
+
+    showToast(`تم تحويل عرض السعر إلى أوردر ${response.data || ''}`);
+    await loadDashboardData();
+    renderQuotes();
+  } finally {
+    convertingQuote = false;
+  }
 }
 
 async function deleteQuoteAction(code) {
+  if (deletingQuote) return;
+
   const confirmed = await askConfirm('هل تريد حذف عرض السعر؟');
   if (!confirmed) return;
 
-  const response = await window.farmAPI.deleteQuote(code);
-  if (!response?.success) {
-    showToast(response?.message || 'فشل في حذف عرض السعر', 'error');
-    return;
-  }
+  deletingQuote = true;
 
-  showToast('تم حذف عرض السعر');
-  await loadDashboardData();
-  renderQuotes();
+  try {
+    const response = await window.farmAPI.deleteQuote(code);
+    if (!response?.success) {
+      showToast(response?.message || 'فشل في حذف عرض السعر', 'error');
+      return;
+    }
+
+    showToast('تم حذف عرض السعر');
+    await loadDashboardData();
+    renderQuotes();
+  } finally {
+    deletingQuote = false;
+  }
 }
 
 function exportQuotesCSV() {

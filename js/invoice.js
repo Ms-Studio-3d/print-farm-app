@@ -57,7 +57,7 @@ function renderInvoice(order) {
           </div>
 
           <div class="invoice-box">
-            <span>وقت الطباعة للقطعة</span>
+            <span>إجمالي وقت الطباعة للأوردر</span>
             <strong>${formatNumber(order.printHours || 0)} ساعة</strong>
           </div>
 

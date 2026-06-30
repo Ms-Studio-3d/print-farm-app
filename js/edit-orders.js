@@ -1,3 +1,85 @@
+function safeDivide(numerator, denominator, fallback = 0) {
+  const top = Number(numerator || 0);
+  const bottom = Number(denominator || 0);
+  return Number.isFinite(top) && Number.isFinite(bottom) && bottom > 0 ? top / bottom : fallback;
+}
+
+function inferPercent(part, base, fallback = 0) {
+  const value = safeDivide(part, base, fallback / 100) * 100;
+  return Number.isFinite(value) && value >= 0 ? value : fallback;
+}
+
+function recalculateEditedOrderCosts(oldOrder, printHours, manualMinutes, printerId) {
+  const quantity = Math.max(1, Number(oldOrder.quantity || 1));
+  const oldPrintHours = Number(oldOrder.printHours || 0);
+  const oldManualMinutes = Number(oldOrder.manualMinutes || 0);
+
+  const materialCost = Number(oldOrder.materialCost || 0);
+  const wasteCost = Number(oldOrder.wasteCost || 0);
+  const packagingCost = Number(oldOrder.packagingCost || 0);
+  const accessoriesCost = Number(oldOrder.accessoriesCost || 0);
+  const shippingCost = Number(oldOrder.shippingCost || 0);
+
+  const oldDepreciationCost = Number(oldOrder.depreciationCost || 0);
+  const oldElectricityCost = Number(oldOrder.electricityCost || 0);
+  const oldLaborCost = Number(oldOrder.laborCost || 0);
+  const oldRiskCost = Number(oldOrder.riskCost || 0);
+  const oldTaxCost = Number(oldOrder.taxCost || 0);
+
+  const previousMachineHourCost = safeDivide(oldDepreciationCost, oldPrintHours, 0);
+  const selectedPrinter = printerId ? getPrinterById(printerId) : null;
+  const machineHourCost = selectedPrinter
+    ? toPositiveNumber(selectedPrinter.hourlyDepreciation, previousMachineHourCost)
+    : previousMachineHourCost;
+
+  const electricityCostPerHour = safeDivide(oldElectricityCost, oldPrintHours, getConfigNumber('electricityCostPerHour'));
+  const laborRate = safeDivide(oldLaborCost, oldManualMinutes / 60, getConfigNumber('laborRate'));
+
+  const oldProductionSubtotal = materialCost + wasteCost + oldDepreciationCost + oldElectricityCost + oldLaborCost + packagingCost;
+  const failurePercent = inferPercent(oldRiskCost, oldProductionSubtotal, getConfigNumber('failurePercent'));
+  const oldProductionCostAfterRisk = oldProductionSubtotal + oldRiskCost;
+  const taxPercent = inferPercent(oldTaxCost, oldProductionCostAfterRisk, getConfigNumber('defaultTaxPercent'));
+
+  const depreciationCost = Number(printHours || 0) * machineHourCost;
+  const electricityCost = Number(printHours || 0) * electricityCostPerHour;
+  const laborCost = (Number(manualMinutes || 0) / 60) * laborRate;
+
+  const pricing = calculateMoo3dPricing({
+    quantity,
+    materialCost,
+    wasteCost,
+    depreciationCost,
+    electricityCost,
+    laborCost,
+    packagingCost,
+    accessoriesCost: accessoriesCost / quantity,
+    shippingCost,
+    failurePercent,
+    taxPercent,
+    profitMargin: 0,
+    discountValue: 0,
+    minimumOrderPrice: 0,
+    roundingStep: 1
+  });
+
+  return {
+    quantity,
+    materialCost: roundMoney(materialCost),
+    wasteWeight: roundMoney(Number(oldOrder.wasteWeight || 0)),
+    wasteCost: roundMoney(wasteCost),
+    depreciationCost: roundMoney(pricing.depreciationCost),
+    electricityCost: roundMoney(pricing.electricityCost),
+    laborCost: roundMoney(pricing.laborCost),
+    packagingCost: roundMoney(packagingCost),
+    accessoriesCost: roundMoney(pricing.accessoriesCost),
+    shippingCost: roundMoney(pricing.shippingCost),
+    riskCost: roundMoney(pricing.riskCost),
+    taxCost: roundMoney(pricing.taxCost),
+    totalCost: roundMoney(pricing.totalCost),
+    directAddOnsCost: roundMoney(pricing.directAddOnsCost)
+  };
+}
+
 function openEditSale(code) {
   const order = getOrderByCode(code);
 
@@ -22,9 +104,11 @@ function openEditSale(code) {
 }
 
 async function saveEditSale() {
-  if (!editingOrderCode) return;
+  if (savingEdit || !editingOrderCode) return;
+  savingEdit = true;
 
-  const oldOrder = getOrderByCode(editingOrderCode);
+  try {
+    const oldOrder = getOrderByCode(editingOrderCode);
 
   if (!oldOrder) {
     showToast('الأوردر غير موجود', 'error');
@@ -48,50 +132,54 @@ async function saveEditSale() {
   }
 
   const finalPrice = toPositiveNumber(getValue('editFinalPrice'), Number(oldOrder.finalPrice || 0));
-  const totalCost = Number(oldOrder.totalCost || 0);
-  const accessoriesCost = Number(oldOrder.accessoriesCost || 0);
-  const shippingCost = Number(oldOrder.shippingCost || 0);
-  const minimumNoLossPrice = totalCost + accessoriesCost + shippingCost;
+  const printerId = getValue('editPrinter') ? Number(getValue('editPrinter')) : null;
+  const printHours = toPositiveNumber(getValue('editPrintHours'), Number(oldOrder.printHours || 0));
+  const manualMinutes = toPositiveNumber(getValue('editManualMinutes'), Number(oldOrder.manualMinutes || 0));
+  const recalculated = recalculateEditedOrderCosts(oldOrder, printHours, manualMinutes, printerId);
+  const minimumNoLossPrice = recalculated.totalCost + recalculated.directAddOnsCost;
 
   if (finalPrice < minimumNoLossPrice) {
-    showToast('سعر البيع أقل من التكلفة والمصاريف المباشرة', 'error');
+    showToast(`سعر البيع أقل من التكلفة الجديدة: الحد الأدنى ${formatMoney(minimumNoLossPrice)}`, 'error');
     return;
   }
+
+  const profit = roundMoney(finalPrice - recalculated.totalCost - recalculated.directAddOnsCost);
+  const quantity = Math.max(1, recalculated.quantity);
 
   const payload = {
     code: editingOrderCode,
     date,
     itemName,
     customerName: getTrimmedValue('editCustomerName'),
-    printerId: getValue('editPrinter') ? Number(getValue('editPrinter')) : null,
+    printerId,
     status: oldOrder.status || 'delivered',
-    quantity: Number(oldOrder.quantity || 1),
-    printHours: toPositiveNumber(getValue('editPrintHours'), Number(oldOrder.printHours || 0)),
-    manualMinutes: toPositiveNumber(getValue('editManualMinutes'), Number(oldOrder.manualMinutes || 0)),
+    quantity,
+    printHours,
+    manualMinutes,
     notes: getTrimmedValue('editNotes'),
 
-    materialCost: Number(oldOrder.materialCost || 0),
-    wasteWeight: Number(oldOrder.wasteWeight || 0),
-    wasteCost: Number(oldOrder.wasteCost || 0),
-    depreciationCost: Number(oldOrder.depreciationCost || 0),
-    electricityCost: Number(oldOrder.electricityCost || 0),
-    laborCost: Number(oldOrder.laborCost || 0),
-    packagingCost: Number(oldOrder.packagingCost || 0),
-    accessoriesCost: Number(oldOrder.accessoriesCost || 0),
-    shippingCost: Number(oldOrder.shippingCost || 0),
-    riskCost: Number(oldOrder.riskCost || 0),
-    taxCost: Number(oldOrder.taxCost || 0),
-    totalCost,
-    priceBeforeDiscount: Number(oldOrder.priceBeforeDiscount || oldOrder.finalPrice || 0),
-    discountValue: Number(oldOrder.discountValue || 0),
-    priceAfterDiscount: Number(oldOrder.priceAfterDiscount || oldOrder.finalPrice || 0),
+    materialCost: recalculated.materialCost,
+    wasteWeight: recalculated.wasteWeight,
+    wasteCost: recalculated.wasteCost,
+    depreciationCost: recalculated.depreciationCost,
+    electricityCost: recalculated.electricityCost,
+    laborCost: recalculated.laborCost,
+    packagingCost: recalculated.packagingCost,
+    accessoriesCost: recalculated.accessoriesCost,
+    shippingCost: recalculated.shippingCost,
+    riskCost: recalculated.riskCost,
+    taxCost: recalculated.taxCost,
+    totalCost: recalculated.totalCost,
+    priceBeforeDiscount: finalPrice,
+    discountValue: 0,
+    priceAfterDiscount: finalPrice,
     minimumOrderPrice: Number(oldOrder.minimumOrderPrice || 0),
-    roundedAdjustment: Number(oldOrder.roundedAdjustment || 0),
+    roundedAdjustment: 0,
     finalPrice,
-    profit: finalPrice - totalCost - accessoriesCost - shippingCost,
-    unitFinalPrice: finalPrice / Math.max(1, Number(oldOrder.quantity || 1)),
-    unitTotalCost: totalCost / Math.max(1, Number(oldOrder.quantity || 1)),
-    unitProfit: (finalPrice - totalCost - accessoriesCost - shippingCost) / Math.max(1, Number(oldOrder.quantity || 1))
+    profit,
+    unitFinalPrice: roundMoney(finalPrice / quantity),
+    unitTotalCost: roundMoney(recalculated.totalCost / quantity),
+    unitProfit: roundMoney(profit / quantity)
   };
 
   const response = await window.farmAPI.updateOrder(payload);
@@ -108,6 +196,9 @@ async function saveEditSale() {
 
   if (isModalOpen('reportsModal')) renderReportsTable();
   if (isModalOpen('pipelineModal')) renderPipeline();
+  } finally {
+    savingEdit = false;
+  }
 }
 
 async function deleteSale(code) {

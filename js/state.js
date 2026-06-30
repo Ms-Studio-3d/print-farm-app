@@ -12,6 +12,11 @@ let editingOrderCode = null;
 let currentInvoiceOrderCode = null;
 let reportsVisibleCount = 100;
 let pipelineVisibleCount = 100;
+let savingOrder = false;
+let savingQuote = false;
+let savingEdit = false;
+let convertingQuote = false;
+let deletingQuote = false;
 const LIST_PAGE_SIZE = 100;
 
 const DEFAULT_CONFIG = {

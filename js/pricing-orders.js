@@ -159,7 +159,8 @@ function resetOrderForm() {
   calc();
 }
 
-function validateOrderBeforeSave() {
+function validateOrderBeforeSave(options = {}) {
+  const checkStock = options.checkStock !== false;
   const itemName = getTrimmedValue('itemName');
   const rawQuantity = Number(getValue('pieceQuantity'));
   const quantity = MOO3DPricing.toPositiveInteger(rawQuantity, 1);
@@ -196,21 +197,23 @@ function validateOrderBeforeSave() {
     return { valid: false };
   }
 
-  const requiredByMaterial = new Map();
-  (currentCalc.materialUsage || []).forEach((item) => {
-    const key = Number(item.materialId || 0);
-    if (!key) return;
-    const current = requiredByMaterial.get(key) || { grams: 0, remaining: Number(item.remaining || 0), name: item.materialName };
-    current.grams += Number(item.grams || 0);
-    current.remaining = Number(item.remaining || current.remaining || 0);
-    current.name = item.materialName || current.name;
-    requiredByMaterial.set(key, current);
-  });
+  if (checkStock) {
+    const requiredByMaterial = new Map();
+    (currentCalc.materialUsage || []).forEach((item) => {
+      const key = Number(item.materialId || 0);
+      if (!key) return;
+      const current = requiredByMaterial.get(key) || { grams: 0, remaining: Number(item.remaining || 0), name: item.materialName };
+      current.grams += Number(item.grams || 0);
+      current.remaining = Number(item.remaining || current.remaining || 0);
+      current.name = item.materialName || current.name;
+      requiredByMaterial.set(key, current);
+    });
 
-  for (const item of requiredByMaterial.values()) {
-    if (Number(item.grams || 0) > Number(item.remaining || 0)) {
-      showToast(`المخزون غير كافٍ في ${item.name}: المطلوب ${formatNumber(item.grams)} جم والمتاح ${formatNumber(item.remaining)} جم`, 'error');
-      return { valid: false };
+    for (const item of requiredByMaterial.values()) {
+      if (Number(item.grams || 0) > Number(item.remaining || 0)) {
+        showToast(`المخزون غير كافٍ في ${item.name}: المطلوب ${formatNumber(item.grams)} جم والمتاح ${formatNumber(item.remaining)} جم`, 'error');
+        return { valid: false };
+      }
     }
   }
 
@@ -229,34 +232,41 @@ function validateOrderBeforeSave() {
 }
 
 async function saveSale() {
-  calc();
-  const validation = validateOrderBeforeSave();
-  if (!validation.valid) return;
+  if (savingOrder) return;
+  savingOrder = true;
 
-  const confirmResponse = await window.farmAPI.confirm('هل تم استلام المبلغ كاملًا؟ سيتم تسجيل الأوردر وخصم المخزون');
-  if (!confirmResponse?.confirmed) return;
+  try {
+    calc();
+    const validation = validateOrderBeforeSave();
+    if (!validation.valid) return;
 
-  const responseCode = await window.farmAPI.getNextOrderCode();
-  if (!responseCode?.success) {
-    showToast(responseCode?.message || 'فشل في إنشاء كود الأوردر', 'error');
-    return;
+    const confirmResponse = await window.farmAPI.confirm('هل تم استلام المبلغ كاملًا؟ سيتم تسجيل الأوردر وخصم المخزون');
+    if (!confirmResponse?.confirmed) return;
+
+    const responseCode = await window.farmAPI.getNextOrderCode();
+    if (!responseCode?.success) {
+      showToast(responseCode?.message || 'فشل في إنشاء كود الأوردر', 'error');
+      return;
+    }
+
+    const responseOrderCode = String(responseCode.data || 'ORD-1001');
+    const payload = buildCurrentOrderPayload(responseOrderCode);
+    payload.itemName = validation.itemName;
+    payload.printerId = Number(validation.printerId);
+
+    const response = await window.farmAPI.createOrder(payload);
+    if (!response?.success) {
+      showToast(response?.message || 'فشل في حفظ الأوردر', 'error');
+      return;
+    }
+
+    showToast('تم تسجيل الأوردر المدفوع وخصم المخزون بنجاح');
+    applySavedOrderLocally(payload);
+    resetOrderForm();
+    setActiveNav('order');
+  } finally {
+    savingOrder = false;
   }
-
-  const responseOrderCode = String(responseCode.data || 'ORD-1001');
-  const payload = buildCurrentOrderPayload(responseOrderCode);
-  payload.itemName = validation.itemName;
-  payload.printerId = Number(validation.printerId);
-
-  const response = await window.farmAPI.createOrder(payload);
-  if (!response?.success) {
-    showToast(response?.message || 'فشل في حفظ الأوردر', 'error');
-    return;
-  }
-
-  showToast('تم تسجيل الأوردر المدفوع وخصم المخزون بنجاح');
-  applySavedOrderLocally(payload);
-  resetOrderForm();
-  setActiveNav('order');
 }
 
 function applySavedOrderLocally(payload) {
@@ -325,27 +335,34 @@ function buildCurrentOrderPayload(code) {
 }
 
 async function saveQuote() {
-  calc();
-  const validation = validateOrderBeforeSave();
-  if (!validation.valid) return;
+  if (savingQuote) return;
+  savingQuote = true;
 
-  const responseCode = await window.farmAPI.getNextQuoteCode();
-  if (!responseCode?.success) {
-    showToast(responseCode?.message || 'فشل في إنشاء كود عرض السعر', 'error');
-    return;
+  try {
+    calc();
+    const validation = validateOrderBeforeSave({ checkStock: false });
+    if (!validation.valid) return;
+
+    const responseCode = await window.farmAPI.getNextQuoteCode();
+    if (!responseCode?.success) {
+      showToast(responseCode?.message || 'فشل في إنشاء كود عرض السعر', 'error');
+      return;
+    }
+
+    const quoteCode = String(responseCode.data || 'Q-1001');
+    const payload = buildCurrentOrderPayload('QUOTE-DRAFT');
+    payload.quoteCode = quoteCode;
+
+    const response = await window.farmAPI.createQuote(payload);
+    if (!response?.success) {
+      showToast(response?.message || 'فشل في حفظ عرض السعر', 'error');
+      return;
+    }
+
+    showToast('تم حفظ عرض السعر بدون خصم المخزون');
+    await loadDashboardData();
+    if (typeof openQuotesModal === 'function') openQuotesModal();
+  } finally {
+    savingQuote = false;
   }
-
-  const quoteCode = String(responseCode.data || 'Q-1001');
-  const payload = buildCurrentOrderPayload('QUOTE-DRAFT');
-  payload.quoteCode = quoteCode;
-
-  const response = await window.farmAPI.createQuote(payload);
-  if (!response?.success) {
-    showToast(response?.message || 'فشل في حفظ عرض السعر', 'error');
-    return;
-  }
-
-  showToast('تم حفظ عرض السعر بدون خصم المخزون');
-  await loadDashboardData();
-  if (typeof openQuotesModal === 'function') openQuotesModal();
 }

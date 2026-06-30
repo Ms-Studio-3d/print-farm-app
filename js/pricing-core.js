@@ -12,9 +12,14 @@
     return Number.isFinite(n) ? n : fallback;
   }
 
+  function toNonNegativeNumber(value, fallback = 0) {
+    const n = toNumber(value, fallback);
+    return n >= 0 ? n : Math.max(0, fallback);
+  }
+
   function roundUpByStep(value, step) {
-    const safeValue = toNumber(value, 0);
-    const safeStep = toNumber(step, 5);
+    const safeValue = toNonNegativeNumber(value, 0);
+    const safeStep = toNonNegativeNumber(step, 5);
     if (!Number.isFinite(safeStep) || safeStep <= 0) return safeValue;
     return Math.ceil(safeValue / safeStep) * safeStep;
   }
@@ -33,23 +38,23 @@
     // يتم إدخالهم كإجماليات للأوردر كله، حتى لو عدد القطع أكبر من 1.
     // الإكسسوارات فقط هي تكلفة للقطعة الواحدة وتُضرب في عدد القطع.
     // الشحن يضاف مرة واحدة للأوردر كله.
-    const materialCost = toNumber(input.materialCost, 0);
-    const wasteCost = toNumber(input.wasteCost, 0);
-    const depreciationCost = toNumber(input.depreciationCost, 0);
-    const electricityCost = toNumber(input.electricityCost, 0);
-    const laborCost = toNumber(input.laborCost, 0);
-    const packagingCost = toNumber(input.packagingCost, 0);
-    const unitAccessoriesCost = toNumber(input.accessoriesCost, 0);
-    const shippingCost = toNumber(input.shippingCost, 0);
+    const materialCost = toNonNegativeNumber(input.materialCost, 0);
+    const wasteCost = toNonNegativeNumber(input.wasteCost, 0);
+    const depreciationCost = toNonNegativeNumber(input.depreciationCost, 0);
+    const electricityCost = toNonNegativeNumber(input.electricityCost, 0);
+    const laborCost = toNonNegativeNumber(input.laborCost, 0);
+    const packagingCost = toNonNegativeNumber(input.packagingCost, 0);
+    const unitAccessoriesCost = toNonNegativeNumber(input.accessoriesCost, 0);
+    const shippingCost = toNonNegativeNumber(input.shippingCost, 0);
 
     const accessoriesCost = unitAccessoriesCost * quantity;
 
-    const failurePercent = toNumber(input.failurePercent, 0);
-    const taxPercent = toNumber(input.taxPercent, 0);
-    const profitMargin = toNumber(input.profitMargin, 0);
-    const discountValue = toNumber(input.discountValue, 0);
-    const minimumOrderPrice = toNumber(input.minimumOrderPrice, 0);
-    const roundingStep = toNumber(input.roundingStep, 5);
+    const failurePercent = toNonNegativeNumber(input.failurePercent, 0);
+    const taxPercent = toNonNegativeNumber(input.taxPercent, 0);
+    const profitMargin = toNonNegativeNumber(input.profitMargin, 0);
+    const discountValue = toNonNegativeNumber(input.discountValue, 0);
+    const minimumOrderPrice = toNonNegativeNumber(input.minimumOrderPrice, 0);
+    const roundingStep = toNonNegativeNumber(input.roundingStep, 5);
 
     const productionSubtotal = materialCost + wasteCost + depreciationCost + electricityCost + laborCost + packagingCost;
     const riskCost = productionSubtotal * (failurePercent / 100);
@@ -102,5 +107,5 @@
     };
   }
 
-  return { roundUpByStep, toPositiveInteger, calculateMoo3dPricing };
+  return { roundUpByStep, toNumber, toNonNegativeNumber, toPositiveInteger, calculateMoo3dPricing };
 });
