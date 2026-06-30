@@ -641,6 +641,17 @@ function deleteMaterial(id) {
 }
 
 
+function getNextOrderCode() {
+  const row = db.prepare(`
+    SELECT MAX(CAST(SUBSTR(code, 5) AS INTEGER)) AS maxNumber
+    FROM orders
+    WHERE code GLOB 'ORD-[0-9]*'
+  `).get();
+
+  return `ORD-${Math.max(1000, Number(row?.maxNumber || 0)) + 1}`;
+}
+
+
 function getNextQuoteCode() {
   const row = db.prepare(`
     SELECT MAX(CAST(SUBSTR(code, 3) AS INTEGER)) AS maxNumber
