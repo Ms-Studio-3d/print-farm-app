@@ -640,26 +640,82 @@ function deleteMaterial(id) {
   return { deleted: true, archived: false, reason: 'deleted' };
 }
 
-
 function getNextOrderCode() {
-  const row = db.prepare(`
+  const database = db || getDb();
+
+  const row = database.prepare(`
     SELECT MAX(CAST(SUBSTR(code, 5) AS INTEGER)) AS maxNumber
     FROM orders
     WHERE code GLOB 'ORD-[0-9]*'
   `).get();
 
-  return `ORD-${Math.max(1000, Number(row?.maxNumber || 0)) + 1}`;
+  const maxNumber = Number(row && row.maxNumber ? row.maxNumber : 0);
+  return `ORD-${Math.max(1000, maxNumber) + 1}`;
 }
 
-
 function getNextQuoteCode() {
-  const row = db.prepare(`
+  const database = db || getDb();
+
+  const row = database.prepare(`
     SELECT MAX(CAST(SUBSTR(code, 3) AS INTEGER)) AS maxNumber
     FROM quotes
     WHERE code GLOB 'Q-[0-9]*'
   `).get();
 
-  return `Q-${Math.max(1000, Number(row?.maxNumber || 0)) + 1}`;
+  const maxNumber = Number(row && row.maxNumber ? row.maxNumber : 0);
+  return `Q-${Math.max(1000, maxNumber) + 1}`;
+}
+
+function generateUniqueOrderCode(preferredCode) {
+  const database = db || getDb();
+
+  const exists = (code) => {
+    const cleanCode = String(code || '').trim();
+    if (!cleanCode) return false;
+
+    return !!database.prepare(`
+      SELECT id
+      FROM orders
+      WHERE code = ?
+      LIMIT 1
+    `).get(cleanCode);
+  };
+
+  let candidate = String(preferredCode || '').trim();
+
+  if (!candidate) {
+    candidate = getNextOrderCode();
+  }
+
+  if (!/^ORD-\d+$/.test(candidate)) {
+    const numberMatch = candidate.match(/\d+/);
+    candidate = numberMatch ? `ORD-${Number(numberMatch[0])}` : getNextOrderCode();
+  }
+
+  if (!exists(candidate)) {
+    return candidate;
+  }
+
+  const row = database.prepare(`
+    SELECT MAX(CAST(SUBSTR(code, 5) AS INTEGER)) AS maxNumber
+    FROM orders
+    WHERE code GLOB 'ORD-[0-9]*'
+  `).get();
+
+  let nextNumber = Math.max(
+    1000,
+    Number(row && row.maxNumber ? row.maxNumber : 0),
+    Number(String(candidate).replace('ORD-', '')) || 0
+  ) + 1;
+
+  let nextCode = `ORD-${nextNumber}`;
+
+  while (exists(nextCode)) {
+    nextNumber += 1;
+    nextCode = `ORD-${nextNumber}`;
+  }
+
+  return nextCode;
 }
 
 function createQuote(payload) {
@@ -1533,6 +1589,7 @@ module.exports = {
   getDashboardData,
   getNextOrderCode,
   getNextQuoteCode,
+  generateUniqueOrderCode,
   setConfig,
   createPrinter,
   updatePrinter,
