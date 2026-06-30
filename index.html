@@ -90,7 +90,7 @@
 
               <div class="grid-3 section-gap-sm">
                 <div class="form-group">
-                  <label for="profitMargin">نسبة المكسب %</label>
+                  <label for="profitMargin">زيادة على التكلفة %</label>
                   <input type="text" id="profitMargin" value="100" inputmode="decimal" />
                 </div>
 
@@ -519,12 +519,12 @@
 
       <div class="grid-3 section-gap-sm">
         <div class="form-group">
-          <label for="editPrintHours">وقت الطباعة / ساعة</label>
+          <label for="editPrintHours">إجمالي وقت الطباعة للأوردر / ساعة</label>
           <input type="text" id="editPrintHours" inputmode="decimal" />
         </div>
 
         <div class="form-group">
-          <label for="editManualMinutes">دقائق يدوي</label>
+          <label for="editManualMinutes">إجمالي دقائق يدوي للأوردر</label>
           <input type="text" id="editManualMinutes" inputmode="decimal" />
         </div>
 
@@ -536,7 +536,7 @@
 
       <div class="helper-box section-gap-sm">
         <strong>تنبيه:</strong>
-        <span>التعديل السريع هنا لا يغير استهلاك الخامات. لو عايز تعديل خامات الأوردر، احذف الأوردر وسجله من جديد.</span>
+        <span>تعديل وقت الطباعة أو الشغل اليدوي يعيد حساب التكلفة والربح. استهلاك الخامات لا يتغير من هنا؛ لو عايز تعديل خامات الأوردر، احذف الأوردر وسجله من جديد.</span>
       </div>
 
       <button type="button" class="btn btn-primary section-gap-sm" onclick="saveEditSale()">حفظ التعديل</button>
@@ -742,7 +742,7 @@
         </div>
 
         <div class="form-group">
-          <label for="settingsDefaultProfitMargin">نسبة المكسب الافتراضية %</label>
+          <label for="settingsDefaultProfitMargin">زيادة على التكلفة الافتراضية %</label>
           <input type="text" id="settingsDefaultProfitMargin" value="100" inputmode="decimal" />
         </div>
       </div>

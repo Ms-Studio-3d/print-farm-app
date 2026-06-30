@@ -25,6 +25,8 @@ const {
 
 let mainWindow = null;
 let ipcHandlersRegistered = false;
+let autoBackupTimer = null;
+let autoBackupRunning = false;
 
 function writeStartupError(error) {
   try {
@@ -330,6 +332,18 @@ function validateUpdateOrderPayload(data) {
   if (data.finalPrice < data.totalCost + data.accessoriesCost + data.shippingCost) throw new Error('سعر البيع أقل من التكلفة والمصاريف المباشرة');
 }
 
+function validateCreateQuotePayload(data) {
+  if (!data.quoteCode) throw new Error('كود عرض السعر غير صالح');
+  if (!data.itemName) throw new Error('اسم المجسم مطلوب');
+  if (!data.printerId) throw new Error('اختار الطابعة المستخدمة');
+  if (!data.date) throw new Error('تاريخ عرض السعر مطلوب');
+  if (!Number.isInteger(Number(data.quantity)) || Number(data.quantity) <= 0) throw new Error('عدد القطع لازم يكون رقم صحيح موجب');
+  if (data.printHours <= 0) throw new Error('وقت الطباعة لازم يكون أكبر من صفر');
+  if (!Array.isArray(data.materialUsage) || data.materialUsage.length === 0) {
+    throw new Error('أدخل استهلاك خامة واحدة على الأقل');
+  }
+  if (data.finalPrice < data.totalCost + data.accessoriesCost + data.shippingCost) throw new Error('سعر البيع أقل من التكلفة والمصاريف المباشرة');
+}
 
 function getBackupsDir() {
   return path.join(app.getPath('documents'), 'MOO3D', 'Backups');
@@ -366,8 +380,27 @@ function createAutomaticBackup(reason = 'auto') {
   }
 }
 
-function scheduleAutomaticBackup(reason = 'auto') {
-  setTimeout(() => createAutomaticBackup(reason), 150);
+function scheduleAutomaticBackup(reason = 'auto', delayMs = 2000) {
+  if (autoBackupTimer) {
+    clearTimeout(autoBackupTimer);
+  }
+
+  autoBackupTimer = setTimeout(() => {
+    autoBackupTimer = null;
+
+    if (autoBackupRunning) {
+      scheduleAutomaticBackup(reason, delayMs);
+      return;
+    }
+
+    autoBackupRunning = true;
+
+    try {
+      createAutomaticBackup(reason);
+    } finally {
+      autoBackupRunning = false;
+    }
+  }, Math.max(500, Number(delayMs || 2000)));
 }
 
 function validateBackupPayload(payload) {
@@ -498,7 +531,7 @@ function registerIpcHandlers() {
     async (payload) => {
       const data = normalizeOrderPayload(payload);
       data.quoteCode = asTrimmedString(asObject(payload).quoteCode || asObject(payload).code);
-      validateCreateOrderPayload({ ...data, code: data.quoteCode || 'QUOTE-DRAFT' });
+      validateCreateQuotePayload(data);
       return ok(createQuote({ ...data, quoteCode: data.quoteCode }));
     },
     'فشل في حفظ عرض السعر'
@@ -577,8 +610,8 @@ app.disableHardwareAcceleration();
 app.whenReady().then(() => {
   try {
     ensureDbReady();
-    scheduleAutomaticBackup('startup');
-    setInterval(() => scheduleAutomaticBackup('daily'), 24 * 60 * 60 * 1000);
+    scheduleAutomaticBackup('startup', 8000);
+    setInterval(() => scheduleAutomaticBackup('daily', 8000), 24 * 60 * 60 * 1000);
     registerIpcHandlers();
     createMainWindow();
 

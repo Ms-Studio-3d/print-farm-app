@@ -642,17 +642,13 @@ function deleteMaterial(id) {
 
 
 function getNextQuoteCode() {
-  const lastQuote = db.prepare(`
-    SELECT code
+  const row = db.prepare(`
+    SELECT MAX(CAST(SUBSTR(code, 3) AS INTEGER)) AS maxNumber
     FROM quotes
-    ORDER BY id DESC
-    LIMIT 1
+    WHERE code GLOB 'Q-[0-9]*'
   `).get();
 
-  if (!lastQuote || !lastQuote.code) return 'Q-1001';
-  const match = String(lastQuote.code).match(/Q-(\d+)/);
-  if (!match) return 'Q-1001';
-  return `Q-${Number(match[1]) + 1}`;
+  return `Q-${Math.max(1000, Number(row?.maxNumber || 0)) + 1}`;
 }
 
 function createQuote(payload) {
@@ -683,52 +679,7 @@ function deleteQuote(code) {
   db.prepare('DELETE FROM quotes WHERE code = ?').run(String(code || '').trim());
 }
 
-function convertQuoteToOrder(quoteCode, orderCode) {
-  const quote = db.prepare('SELECT * FROM quotes WHERE code = ?').get(String(quoteCode || '').trim());
-  if (!quote) throw new Error('عرض السعر غير موجود');
-  if (String(quote.status || '') === 'converted') throw new Error('عرض السعر اتحول قبل كده لأوردر');
-
-  let payload;
-  try { payload = JSON.parse(quote.payload_json || '{}'); }
-  catch (_) { throw new Error('بيانات عرض السعر غير صالحة'); }
-
-  payload.code = String(orderCode || '').trim() || getNextOrderCode();
-  payload.date = new Date().toISOString().slice(0, 10);
-  payload.status = 'delivered';
-
-  createOrder(payload);
-
-  db.prepare(`
-    UPDATE quotes
-    SET status = 'converted', converted_order_code = ?
-    WHERE code = ?
-  `).run(payload.code, String(quoteCode || '').trim());
-
-  return payload.code;
-}
-
-function getNextOrderCode() {
-  const lastOrder = db.prepare(`
-    SELECT code
-    FROM orders
-    ORDER BY id DESC
-    LIMIT 1
-  `).get();
-
-  if (!lastOrder || !lastOrder.code) {
-    return 'ORD-1001';
-  }
-
-  const match = String(lastOrder.code).match(/ORD-(\d+)/);
-
-  if (!match) {
-    return 'ORD-1001';
-  }
-
-  return `ORD-${Number(match[1]) + 1}`;
-}
-
-function createOrder(payload) {
+function insertOrderWithStock(data) {
   const insertOrder = db.prepare(`
     INSERT INTO orders (
       code,
@@ -800,128 +751,168 @@ function createOrder(payload) {
     VALUES (?, ?, ?, ?, ?, ?)
   `);
 
-  const transaction = db.transaction((data) => {
-    if (!data || !String(data.code || '').trim()) {
-      throw new Error('كود الأوردر غير صالح');
+  if (!data || !String(data.code || '').trim()) {
+    throw new Error('كود الأوردر غير صالح');
+  }
+
+  if (!String(data.itemName || '').trim()) {
+    throw new Error('اسم المجسم مطلوب');
+  }
+
+  if (!Array.isArray(data.materialUsage) || data.materialUsage.length === 0) {
+    throw new Error('لا يوجد استهلاك خامات في الأوردر');
+  }
+
+  const cleanCode = String(data.code || '').trim();
+  const existingCode = db.prepare('SELECT id FROM orders WHERE code = ?').get(cleanCode);
+
+  if (existingCode) {
+    throw new Error('كود الأوردر موجود بالفعل، حاول مرة أخرى');
+  }
+
+  for (const item of data.materialUsage) {
+    const material = db.prepare('SELECT * FROM materials WHERE id = ?').get(Number(item.materialId));
+
+    if (!material) {
+      throw new Error(`الخامة غير موجودة: ${item.materialName}`);
     }
 
-    if (!String(data.itemName || '').trim()) {
-      throw new Error('اسم المجسم مطلوب');
+    if (Number(material.is_archived || 0) === 1) {
+      throw new Error(`الخامة مؤرشفة ولا يمكن استخدامها: ${item.materialName}`);
     }
 
-    if (!Array.isArray(data.materialUsage) || data.materialUsage.length === 0) {
-      throw new Error('لا يوجد استهلاك خامات في الأوردر');
+    if (Number(material.remaining || 0) < Number(item.grams || 0)) {
+      throw new Error(`المخزون غير كافٍ في: ${item.materialName}`);
+    }
+  }
+
+  if (data.printerId) {
+    const printer = db.prepare('SELECT id, is_archived FROM printers WHERE id = ?').get(Number(data.printerId));
+
+    if (!printer) {
+      throw new Error('الطابعة المحددة غير موجودة');
     }
 
-    const existingCode = db.prepare('SELECT id FROM orders WHERE code = ?').get(String(data.code || '').trim());
-
-    if (existingCode) {
-      throw new Error('كود الأوردر موجود بالفعل، حاول مرة أخرى');
+    if (Number(printer.is_archived || 0) === 1) {
+      throw new Error('الطابعة المحددة مؤرشفة ولا يمكن استخدامها');
     }
+  }
 
-    for (const item of data.materialUsage) {
-      const material = db.prepare('SELECT * FROM materials WHERE id = ?').get(Number(item.materialId));
+  const finalPrice = Number(data.finalPrice || 0);
+  const quantity = Math.max(1, Number(data.quantity || 1));
 
-      if (!material) {
-        throw new Error(`الخامة غير موجودة: ${item.materialName}`);
-      }
+  const orderResult = insertOrder.run(
+    cleanCode,
+    String(data.itemName || '').trim(),
+    String(data.customerName || '').trim(),
+    data.printerId ? Number(data.printerId) : null,
+    String(data.status || 'delivered').trim(),
+    quantity,
+    Number(data.printHours || 0),
+    Number(data.manualMinutes || 0),
+    String(data.notes || '').trim(),
+    String(data.date || '').trim(),
+    Number(data.materialCost || 0),
+    Number(data.wasteWeight || 0),
+    Number(data.wasteCost || 0),
+    Number(data.depreciationCost || 0),
+    Number(data.electricityCost || 0),
+    Number(data.laborCost || 0),
+    Number(data.packagingCost || 0),
+    Number(data.accessoriesCost || 0),
+    Number(data.shippingCost || 0),
+    Number(data.riskCost || 0),
+    Number(data.taxCost || 0),
+    Number(data.totalCost || 0),
+    Number(data.priceBeforeDiscount || finalPrice),
+    Number(data.discountValue || 0),
+    Number(data.priceAfterDiscount || finalPrice),
+    Number(data.minimumOrderPrice || 0),
+    Number(data.roundedAdjustment || 0),
+    finalPrice,
+    Number(data.profit || 0),
+    Number(data.unitFinalPrice || (finalPrice / quantity)),
+    Number(data.unitTotalCost || (Number(data.totalCost || 0) / quantity)),
+    Number(data.unitProfit || (Number(data.profit || 0) / quantity)),
+    'collected',
+    'cash',
+    finalPrice
+  );
 
-      if (Number(material.is_archived || 0) === 1) {
-        throw new Error(`الخامة مؤرشفة ولا يمكن استخدامها: ${item.materialName}`);
-      }
+  const orderId = Number(orderResult.lastInsertRowid);
 
-      if (Number(material.remaining || 0) < Number(item.grams || 0)) {
-        throw new Error(`المخزون غير كافٍ في: ${item.materialName}`);
-      }
-    }
-
-    if (data.printerId) {
-      const printer = db.prepare('SELECT id, is_archived FROM printers WHERE id = ?').get(Number(data.printerId));
-
-      if (!printer) {
-        throw new Error('الطابعة المحددة غير موجودة');
-      }
-
-      if (Number(printer.is_archived || 0) === 1) {
-        throw new Error('الطابعة المحددة مؤرشفة ولا يمكن استخدامها');
-      }
-    }
-
-    const finalPrice = Number(data.finalPrice || 0);
-
-    const orderResult = insertOrder.run(
-      String(data.code || '').trim(),
-      String(data.itemName || '').trim(),
-      String(data.customerName || '').trim(),
-      data.printerId ? Number(data.printerId) : null,
-      String(data.status || 'delivered').trim(),
-      Number(data.quantity || 1),
-      Number(data.printHours || 0),
-      Number(data.manualMinutes || 0),
-      String(data.notes || '').trim(),
-      String(data.date || '').trim(),
-      Number(data.materialCost || 0),
-      Number(data.wasteWeight || 0),
-      Number(data.wasteCost || 0),
-      Number(data.depreciationCost || 0),
-      Number(data.electricityCost || 0),
-      Number(data.laborCost || 0),
-      Number(data.packagingCost || 0),
-      Number(data.accessoriesCost || 0),
-      Number(data.shippingCost || 0),
-      Number(data.riskCost || 0),
-      Number(data.taxCost || 0),
-      Number(data.totalCost || 0),
-      Number(data.priceBeforeDiscount || finalPrice),
-      Number(data.discountValue || 0),
-      Number(data.priceAfterDiscount || finalPrice),
-      Number(data.minimumOrderPrice || 0),
-      Number(data.roundedAdjustment || 0),
-      finalPrice,
-      Number(data.profit || 0),
-      Number(data.unitFinalPrice || (finalPrice / Math.max(1, Number(data.quantity || 1)))),
-      Number(data.unitTotalCost || (Number(data.totalCost || 0) / Math.max(1, Number(data.quantity || 1)))),
-      Number(data.unitProfit || (Number(data.profit || 0) / Math.max(1, Number(data.quantity || 1)))),
-      'collected',
-      'cash',
-      finalPrice
+  for (const item of data.materialUsage) {
+    const result = updateMaterialStock.run(
+      Number(item.grams || 0),
+      Number(item.materialId),
+      Number(item.grams || 0)
     );
 
-    const orderId = Number(orderResult.lastInsertRowid);
-
-    for (const item of data.materialUsage) {
-      const result = updateMaterialStock.run(
-        Number(item.grams || 0),
-        Number(item.materialId),
-        Number(item.grams || 0)
-      );
-
-      if (result.changes === 0) {
-        throw new Error(`تعذر خصم المخزون من: ${item.materialName}`);
-      }
-
-      insertMaterialUsage.run(
-        orderId,
-        Number(item.materialId),
-        String(item.materialName || '').trim(),
-        Number(item.grams || 0),
-        Number(item.pricePerGram || 0),
-        Number(item.totalCost || 0)
-      );
-
-      insertStockMovement.run(
-        Number(item.materialId),
-        String(item.materialName || '').trim(),
-        'out',
-        Number(item.grams || 0),
-        'استهلاك في أوردر',
-        String(data.code || '').trim()
-      );
+    if (result.changes === 0) {
+      throw new Error(`تعذر خصم المخزون من: ${item.materialName}`);
     }
 
-    return orderId;
+    insertMaterialUsage.run(
+      orderId,
+      Number(item.materialId),
+      String(item.materialName || '').trim(),
+      Number(item.grams || 0),
+      Number(item.pricePerGram || 0),
+      Number(item.totalCost || 0)
+    );
+
+    insertStockMovement.run(
+      Number(item.materialId),
+      String(item.materialName || '').trim(),
+      'out',
+      Number(item.grams || 0),
+      'استهلاك في أوردر',
+      cleanCode
+    );
+  }
+
+  return orderId;
+}
+
+function convertQuoteToOrder(quoteCode, orderCode) {
+  const cleanQuoteCode = String(quoteCode || '').trim();
+  if (!cleanQuoteCode) throw new Error('كود عرض السعر غير صالح');
+
+  const transaction = db.transaction(() => {
+    const quote = db.prepare('SELECT * FROM quotes WHERE code = ?').get(cleanQuoteCode);
+    if (!quote) throw new Error('عرض السعر غير موجود');
+    if (String(quote.status || '') === 'converted') {
+      throw new Error(`عرض السعر اتحول قبل كده لأوردر${quote.converted_order_code ? `: ${quote.converted_order_code}` : ''}`);
+    }
+
+    let payload;
+    try { payload = JSON.parse(quote.payload_json || '{}'); }
+    catch (_) { throw new Error('بيانات عرض السعر غير صالحة'); }
+
+    payload.code = generateUniqueOrderCode(orderCode);
+    payload.date = new Date().toISOString().slice(0, 10);
+    payload.status = 'delivered';
+
+    insertOrderWithStock(payload);
+
+    const updateResult = db.prepare(`
+      UPDATE quotes
+      SET status = 'converted', converted_order_code = ?
+      WHERE code = ? AND status != 'converted'
+    `).run(payload.code, cleanQuoteCode);
+
+    if (updateResult.changes === 0) {
+      throw new Error('تعذر تحديث حالة عرض السعر بعد التحويل');
+    }
+
+    return payload.code;
   });
 
+  return transaction();
+}
+
+function createOrder(payload) {
+  const transaction = db.transaction((data) => insertOrderWithStock(data));
   return transaction(payload);
 }
 
