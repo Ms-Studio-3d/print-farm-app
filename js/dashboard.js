@@ -143,13 +143,18 @@ async function loadDashboardData() {
   renderPrinterSelects();
   renderInventory();
   renderMaterialUsageInputs();
-  renderReportsTableSafe();
-  renderStockMovementsTableSafe();
+  // لا نرسم التقارير وحركات المخزون عند بداية التشغيل لأنها قد تكون كبيرة.
+  // يتم رسمها فقط عند فتح الصفحة الخاصة بها.
+  if (isModalOpen('reportsModal')) renderReportsTable();
+  if (isModalOpen('stockMovementsModal')) renderStockMovementsTable();
 
   if (isModalOpen('pipelineModal')) renderPipeline();
   if (isModalOpen('customersModal')) renderCustomers();
   if (isModalOpen('quotesModal') && typeof renderQuotes === 'function') renderQuotes();
 
-  await setNextOrderCode();
-  calc();
+  // تحديث رقم الأوردر والحساب بعد الرسم الأساسي حتى لا يتأخر فتح الشاشة.
+  setTimeout(() => {
+    setNextOrderCode();
+    calc();
+  }, 0);
 }

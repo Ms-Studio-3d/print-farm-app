@@ -2,7 +2,7 @@ function scheduleCalc() {
   clearTimeout(window.__moo3dCalcTimer);
   window.__moo3dCalcTimer = setTimeout(() => {
     if (typeof calc === 'function') calc();
-  }, 120);
+  }, 220);
 }
 
 function bindLiveCalculationInputs() {
