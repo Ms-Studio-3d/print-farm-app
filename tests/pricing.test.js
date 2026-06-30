@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { calculateMoo3dPricing, toPositiveInteger } = require('../js/pricing-core');
+const { calculateMoo3dPricing, toPositiveInteger, toNonNegativeNumber, roundUpByStep } = require('../js/pricing-core');
 
 const sample = calculateMoo3dPricing({
   quantity: 1,
@@ -76,8 +76,88 @@ assert.equal(withShippingAndAccessories.finalPrice, 120);
 assert.equal(Number(withShippingAndAccessories.profit.toFixed(2)), 43.2);
 assert.equal(Number(withShippingAndAccessories.minimumNoLossPrice.toFixed(2)), 76.8);
 
+// تغيير وقت الطباعة لازم يغير تكلفة الماكينة والكهرباء والإجمالي.
+const oneHour = calculateMoo3dPricing({
+  materialCost: 10,
+  depreciationCost: 15,
+  electricityCost: 3,
+  laborCost: 10,
+  packagingCost: 5,
+  failurePercent: 10,
+  profitMargin: 100,
+  roundingStep: 1,
+});
+
+const twoHours = calculateMoo3dPricing({
+  materialCost: 10,
+  depreciationCost: 30,
+  electricityCost: 6,
+  laborCost: 10,
+  packagingCost: 5,
+  failurePercent: 10,
+  profitMargin: 100,
+  roundingStep: 1,
+});
+
+assert.ok(twoHours.totalCost > oneHour.totalCost);
+assert.ok(twoHours.profit > oneHour.profit);
+
+// profitMargin هنا زيادة على التكلفة Markup، وليس هامش ربح محاسبي من سعر البيع.
+const markup = calculateMoo3dPricing({
+  materialCost: 100,
+  profitMargin: 100,
+  roundingStep: 1,
+});
+assert.equal(markup.totalCost, 100);
+assert.equal(markup.priceBeforeDiscount, 200);
+assert.equal(markup.finalPrice, 200);
+assert.equal(markup.profit, 100);
+
+// الخصم لا يسمح بأن يتحول السعر لقيمة سالبة.
+const cappedDiscount = calculateMoo3dPricing({
+  materialCost: 50,
+  discountValue: 999,
+  roundingStep: 1,
+});
+assert.equal(cappedDiscount.priceAfterDiscountBeforeMinimum, 0);
+assert.equal(cappedDiscount.finalPrice, 0);
+
 assert.equal(toPositiveInteger(3.8), 3);
 assert.equal(toPositiveInteger('4'), 4);
 assert.equal(toPositiveInteger(0), 1);
+
+// حماية محرك الحساب من القيم السالبة: أي تكلفة/نسبة سالبة تتحول لصفر بدل إنتاج أسعار أو أرباح خاطئة.
+const negativeValues = calculateMoo3dPricing({
+  quantity: -5,
+  materialCost: -100,
+  wasteCost: -10,
+  depreciationCost: -20,
+  electricityCost: -5,
+  laborCost: -15,
+  packagingCost: -8,
+  accessoriesCost: -3,
+  shippingCost: -12,
+  failurePercent: -10,
+  taxPercent: -14,
+  profitMargin: -50,
+  discountValue: -999,
+  minimumOrderPrice: -1,
+  roundingStep: -5,
+});
+assert.equal(negativeValues.quantity, 1);
+assert.equal(negativeValues.materialCost, 0);
+assert.equal(negativeValues.wasteCost, 0);
+assert.equal(negativeValues.depreciationCost, 0);
+assert.equal(negativeValues.electricityCost, 0);
+assert.equal(negativeValues.laborCost, 0);
+assert.equal(negativeValues.packagingCost, 0);
+assert.equal(negativeValues.unitAccessoriesCost, 0);
+assert.equal(negativeValues.shippingCost, 0);
+assert.equal(negativeValues.totalCost, 0);
+assert.equal(negativeValues.finalPrice, 0);
+assert.equal(negativeValues.profit, 0);
+assert.equal(toNonNegativeNumber(-3), 0);
+assert.equal(toNonNegativeNumber('7'), 7);
+assert.equal(roundUpByStep(-12, 5), 0);
 
 console.log('Pricing tests passed using js/pricing-core.js');
