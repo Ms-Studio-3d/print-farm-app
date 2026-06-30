@@ -30,3 +30,28 @@ for (const file of files) {
 }
 
 console.log(`Syntax checks passed for ${files.length} JavaScript files`);
+
+const fs = require('node:fs');
+
+const databaseSource = fs.readFileSync(path.join(root, 'database.js'), 'utf8');
+const exportMatch = databaseSource.match(/module\.exports\s*=\s*\{([\s\S]*?)\};/);
+
+if (!exportMatch) {
+  throw new Error('database.js module.exports block was not found');
+}
+
+const exportedNames = exportMatch[1]
+  .split(',')
+  .map((part) => part.replace(/\/\/.*$/gm, '').trim())
+  .filter(Boolean)
+  .map((part) => part.split(':').pop().trim());
+
+for (const name of exportedNames) {
+  const declarationPattern = new RegExp(`(?:function|const|let|var|class)\\s+${name}\\b`);
+  if (!declarationPattern.test(databaseSource)) {
+    throw new Error(`database.js exports "${name}" but it is not declared`);
+  }
+}
+
+console.log(`Database export checks passed for ${exportedNames.length} exports`);
+
