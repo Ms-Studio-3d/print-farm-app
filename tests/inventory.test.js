@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.join(__dirname, '..');
-const database = fs.readFileSync(path.join(root, 'database.js'), 'utf8');
+const database = fs.readFileSync(path.join(root, 'database.js'), 'utf8').replace(/\r\n?/g, '\n');
 
 function mustInclude(source, needle, label = needle) {
   assert.ok(source.includes(needle), `${label} was not found`);
