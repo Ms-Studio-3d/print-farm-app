@@ -233,6 +233,29 @@ async function runBackupWorker(reason = 'integration') {
   database.deletePurchase(purchaseId);
   assert.equal(db.prepare('SELECT remaining FROM materials WHERE id = ?').get(materialId).remaining, materialAfterDelete);
 
+  const newMaterialPurchaseId = database.savePurchase({
+    date: '2026-06-02',
+    category: 'خامات',
+    item: 'Integration PETG New Color',
+    quantity: 2,
+    gramsPerUnit: 1000,
+    amount: 900,
+    supplier: 'new supplier',
+    notes: 'create material from purchase',
+    createMaterial: true
+  });
+  assert.ok(newMaterialPurchaseId > 0);
+  const newMaterial = db.prepare('SELECT id, name, weight, remaining, price, supplier FROM materials WHERE name = ?').get('Integration PETG New Color');
+  assert.ok(newMaterial?.id > 0, 'purchase should create a new material when requested');
+  assert.equal(newMaterial.weight, 2000);
+  assert.equal(newMaterial.remaining, 2000);
+  assert.equal(newMaterial.price, 900);
+  assert.equal(newMaterial.supplier, 'new supplier');
+  const linkedPurchase = db.prepare('SELECT material_id AS materialId FROM purchases WHERE id = ?').get(newMaterialPurchaseId);
+  assert.equal(linkedPurchase.materialId, newMaterial.id, 'created material should be linked to the purchase');
+  database.deletePurchase(newMaterialPurchaseId);
+  assert.equal(db.prepare('SELECT remaining FROM materials WHERE id = ?').get(newMaterial.id).remaining, 0, 'deleting the purchase should reverse stock for newly created material');
+
   const beforeBackupCount = db.prepare('SELECT COUNT(*) AS count FROM orders').get().count;
   const backupPromise = runBackupWorker('background');
   await new Promise((resolve) => setImmediate(resolve));

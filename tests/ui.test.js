@@ -25,8 +25,25 @@ mustInclude(purchasesAssets, 'loadMorePurchases()', 'purchases load-more control
 mustInclude(purchasesAssets, 'loadMoreAssets()', 'assets load-more control');
 mustInclude(materialsManager, 'loadMoreStockMovements()', 'stock movements load-more control');
 
+
+mustInclude(html, 'إضافة خامة جديدة باسم البند', 'purchase new material option');
+mustInclude(html, "openPurchasesModal({ returnTo: 'dashboard' })", 'dashboard purchases return target');
+mustInclude(html, "openAssetsModal({ returnTo: 'dashboard' })", 'dashboard assets return target');
+mustInclude(purchasesAssets, 'createMaterial:', 'purchase payload can request material creation');
+mustInclude(purchasesAssets, "panelReturnTargets.purchases", 'purchases panel return state');
+mustInclude(purchasesAssets, "panelReturnTargets.assets", 'assets panel return state');
+
 ['overflow-wrap: anywhere', 'min-width: 0', 'text-overflow: ellipsis', 'overscroll-behavior: contain', 'white-space: normal'].forEach((rule) => {
   mustInclude(css, rule, `CSS readability rule ${rule}`);
+});
+
+
+['getDefaultPrinterId()', "select.value = getDefaultPrinterId()"].forEach((needle) => {
+  mustInclude(fs.readFileSync(path.join(root, 'js/printers-view.js'), 'utf8') + fs.readFileSync(path.join(root, 'js/pricing-orders.js'), 'utf8'), needle, `default printer behavior ${needle}`);
+});
+
+['#94a3b8', '--text-soft: #b7c0cc', 'select option[value="__new__"]'].forEach((rule) => {
+  mustInclude(css, rule, `readability polish ${rule}`);
 });
 
 assert.ok((css.match(/@media \(max-width:/g) || []).length >= 5, 'responsive media queries should be present');
