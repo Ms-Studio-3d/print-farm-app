@@ -46,6 +46,26 @@ mustInclude(purchasesAssets, "panelReturnTargets.assets", 'assets panel return s
   mustInclude(css, rule, `readability polish ${rule}`);
 });
 
+
+
+['compact-order-grid', 'compact-pricing-grid', 'compact-material-list'].forEach((needle) => {
+  mustInclude(html, needle, `compact quote layout markup ${needle}`);
+});
+
+[
+  '--side-nav-width',
+  '.quote-workspace',
+  'overflow: hidden;',
+  'grid-template-columns: minmax(0, 1fr) 300px',
+  '.bottom-nav {',
+  'position: fixed;',
+  '.nav-btn[data-view="order"]::before',
+  '.app-topbar .topbar-actions .btn',
+  '.modal.app-panel .modal-content.modal-xl'
+].forEach((rule) => {
+  mustInclude(css, rule, `compact navigation/layout rule ${rule}`);
+});
+
 assert.ok((css.match(/@media \(max-width:/g) || []).length >= 5, 'responsive media queries should be present');
 
 console.log('UI tests passed');
