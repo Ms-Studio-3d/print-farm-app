@@ -1,9 +1,12 @@
 const { app, BrowserWindow, shell, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { Worker } = require('worker_threads');
 const {
   getDb,
   getDashboardData,
+  getDataPage,
+  getDatabasePath,
   getNextOrderCode,
   getNextQuoteCode,
   setConfig,
@@ -16,6 +19,10 @@ const {
   createOrder,
   updateOrder,
   deleteOrder,
+  savePurchase,
+  deletePurchase,
+  saveAsset,
+  deleteAsset,
   createQuote,
   deleteQuote,
   convertQuoteToOrder,
@@ -54,6 +61,7 @@ process.on('unhandledRejection', (error) => {
 
 const CHANNELS = {
   getDashboardData: 'db:getDashboardData',
+  getDataPage: 'db:getDataPage',
   getNextOrderCode: 'db:getNextOrderCode',
   getNextQuoteCode: 'db:getNextQuoteCode',
   saveConfig: 'db:saveConfig',
@@ -64,6 +72,10 @@ const CHANNELS = {
   createOrder: 'db:createOrder',
   updateOrder: 'db:updateOrder',
   deleteOrder: 'db:deleteOrder',
+  savePurchase: 'db:savePurchase',
+  deletePurchase: 'db:deletePurchase',
+  saveAsset: 'db:saveAsset',
+  deleteAsset: 'db:deleteAsset',
   createQuote: 'db:createQuote',
   deleteQuote: 'db:deleteQuote',
   convertQuoteToOrder: 'db:convertQuoteToOrder',
@@ -107,10 +119,14 @@ function asNullableId(value) {
   return Number.isFinite(num) && num > 0 ? num : null;
 }
 
-function asPositiveInteger(value, fallback = 1) {
+function asInteger(value, fallback = 0) {
   const num = Number(value);
   if (!Number.isFinite(num)) return fallback;
-  const integer = Math.floor(num);
+  return Math.floor(num);
+}
+
+function asPositiveInteger(value, fallback = 1) {
+  const integer = asInteger(value, fallback);
   return integer > 0 ? integer : fallback;
 }
 
@@ -259,7 +275,7 @@ function normalizeOrderPayload(payload) {
     customerName: asTrimmedString(data.customerName),
     printerId: asNullableId(data.printerId),
     status: normalizeStatus(data.status, 'new'),
-    quantity: asPositiveInteger(data.quantity, 1),
+    quantity: asInteger(data.quantity, 0),
     printHours: asPositiveNumber(data.printHours, 0),
     manualMinutes: asPositiveNumber(data.manualMinutes, 0),
     notes: asTrimmedString(data.notes),
@@ -289,10 +305,56 @@ function normalizeOrderPayload(payload) {
     unitFinalPrice: asPositiveNumber(data.unitFinalPrice, finalPrice / Math.max(1, asPositiveNumber(data.quantity, 1))),
     unitTotalCost: asPositiveNumber(data.unitTotalCost, asPositiveNumber(data.totalCost, 0) / Math.max(1, asPositiveNumber(data.quantity, 1))),
     unitProfit: asNumber(data.unitProfit, asNumber(data.profit, 0) / Math.max(1, asPositiveNumber(data.quantity, 1))),
+    replaceMaterialUsage: Array.isArray(data.materialUsage),
     materialUsage: Array.isArray(data.materialUsage)
       ? data.materialUsage.map(normalizeMaterialUsageItem)
       : []
   };
+}
+
+
+function normalizePurchasePayload(payload) {
+  const data = asObject(payload);
+  return {
+    id: asNullableId(data.id),
+    date: asTrimmedString(data.date),
+    category: asTrimmedString(data.category, 'أخرى'),
+    item: asTrimmedString(data.item),
+    quantity: asPositiveNumber(data.quantity, 1),
+    gramsPerUnit: asPositiveNumber(data.gramsPerUnit, 0),
+    amount: asPositiveNumber(data.amount, 0),
+    supplier: asTrimmedString(data.supplier),
+    notes: asTrimmedString(data.notes),
+    materialId: asNullableId(data.materialId)
+  };
+}
+
+function normalizeAssetPayload(payload) {
+  const data = asObject(payload);
+  return {
+    id: asNullableId(data.id),
+    date: asTrimmedString(data.date),
+    item: asTrimmedString(data.item),
+    cost: asPositiveNumber(data.cost, 0),
+    type: asTrimmedString(data.type),
+    depreciationHours: asPositiveNumber(data.depreciationHours, 0),
+    notes: asTrimmedString(data.notes)
+  };
+}
+
+function validatePurchasePayload(data) {
+  if (!data.date) throw new Error('تاريخ المشتريات مطلوب');
+  if (!data.item) throw new Error('اسم بند المشتريات مطلوب');
+  if (data.quantity <= 0) throw new Error('كمية المشتريات لازم تكون أكبر من صفر');
+  if (data.category === 'خامات' && data.materialId && data.gramsPerUnit <= 0) {
+    throw new Error('اكتب جرام للواحدة/البكرة عشان المخزون يزيد صح');
+  }
+}
+
+function validateAssetPayload(data) {
+  if (!data.date) throw new Error('تاريخ الأصل مطلوب');
+  if (!data.item) throw new Error('اسم الأصل مطلوب');
+  if (data.cost <= 0) throw new Error('تكلفة الأصل لازم تكون أكبر من صفر');
 }
 
 function validatePrinterPayload(data) {
@@ -328,7 +390,22 @@ function validateCreateOrderPayload(data) {
 function validateUpdateOrderPayload(data) {
   if (!data.code) throw new Error('كود الأوردر غير صالح');
   if (!data.itemName) throw new Error('اسم المجسم مطلوب');
+  if (!data.printerId) throw new Error('اختار الطابعة المستخدمة');
   if (!data.date) throw new Error('تاريخ الأوردر مطلوب');
+  if (!Number.isInteger(Number(data.quantity)) || Number(data.quantity) <= 0) throw new Error('عدد القطع لازم يكون رقم صحيح موجب');
+  if (data.printHours <= 0) throw new Error('وقت الطباعة لازم يكون أكبر من صفر');
+
+  if (data.replaceMaterialUsage) {
+    if (!Array.isArray(data.materialUsage) || data.materialUsage.length === 0) {
+      throw new Error('أدخل استهلاك خامة واحدة على الأقل');
+    }
+
+    for (const item of data.materialUsage) {
+      if (!item || !item.materialId) throw new Error('بيانات الخامة غير صالحة');
+      if (asPositiveNumber(item.grams, 0) <= 0) throw new Error('كمية الخامة لازم تكون أكبر من صفر');
+    }
+  }
+
   if (data.finalPrice < data.totalCost + data.accessoriesCost + data.shippingCost) throw new Error('سعر البيع أقل من التكلفة والمصاريف المباشرة');
 }
 
@@ -356,28 +433,54 @@ function ensureBackupsDir() {
 }
 
 function createAutomaticBackup(reason = 'auto') {
-  try {
-    ensureDbReady();
-    const dir = ensureBackupsDir();
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const safeReason = String(reason || 'auto').replace(/[^a-z0-9_-]/gi, '').slice(0, 20) || 'auto';
-    const filePath = path.join(dir, `moo3d-backup-${safeReason}-${stamp}.json`);
-    fs.writeFileSync(filePath, JSON.stringify(exportBackupData(), null, 2), 'utf8');
+  return new Promise((resolve) => {
+    try {
+      ensureDbReady();
+      ensureBackupsDir();
 
-    const backups = fs.readdirSync(dir)
-      .filter((name) => /^moo3d-backup-.*\.json$/i.test(name))
-      .map((name) => ({ name, fullPath: path.join(dir, name), time: fs.statSync(path.join(dir, name)).mtimeMs }))
-      .sort((a, b) => b.time - a.time);
+      const worker = new Worker(path.join(__dirname, 'backup-worker.js'), {
+        workerData: {
+          dbPath: getDatabasePath(),
+          backupsDir: getBackupsDir(),
+          reason: String(reason || 'auto')
+        }
+      });
 
-    backups.slice(10).forEach((file) => {
-      try { fs.unlinkSync(file.fullPath); } catch (_) {}
-    });
+      let settled = false;
+      const finish = (filePath = null) => {
+        if (settled) return;
+        settled = true;
+        resolve(filePath || null);
+      };
 
-    return filePath;
-  } catch (error) {
-    console.warn('[AUTO BACKUP FAILED]', error?.message || error);
-    return null;
-  }
+      worker.on('message', (message) => {
+        if (message?.success) {
+          finish(message.filePath || null);
+          return;
+        }
+
+        console.warn('[AUTO BACKUP FAILED]', message?.message || 'Unknown backup worker error');
+        finish(null);
+      });
+
+      worker.on('error', (error) => {
+        console.warn('[AUTO BACKUP FAILED]', error?.message || error);
+        finish(null);
+      });
+
+      worker.on('exit', (code) => {
+        if (!settled && code !== 0) {
+          console.warn('[AUTO BACKUP FAILED]', `worker exited with code ${code}`);
+          finish(null);
+        }
+      });
+
+      if (typeof worker.unref === 'function') worker.unref();
+    } catch (error) {
+      console.warn('[AUTO BACKUP FAILED]', error?.message || error);
+      resolve(null);
+    }
+  });
 }
 
 function scheduleAutomaticBackup(reason = 'auto', delayMs = 2000) {
@@ -394,12 +497,11 @@ function scheduleAutomaticBackup(reason = 'auto', delayMs = 2000) {
     }
 
     autoBackupRunning = true;
-
-    try {
-      createAutomaticBackup(reason);
-    } finally {
-      autoBackupRunning = false;
-    }
+    createAutomaticBackup(reason)
+      .catch((error) => console.warn('[AUTO BACKUP FAILED]', error?.message || error))
+      .finally(() => {
+        autoBackupRunning = false;
+      });
   }, Math.max(500, Number(delayMs || 2000)));
 }
 
@@ -419,7 +521,7 @@ function validateBackupPayload(payload) {
     throw new Error('ملف النسخة الاحتياطية لا يحتوي على إعدادات صحيحة');
   }
 
-  ['printers', 'materials', 'orders', 'orderMaterials', 'stockMovements'].forEach((key) => {
+  ['printers', 'materials', 'orders', 'orderMaterials', 'stockMovements', 'purchases', 'assets'].forEach((key) => {
     if (data[key] !== undefined && !Array.isArray(data[key])) {
       throw new Error(`بنية النسخة الاحتياطية غير صالحة في: ${key}`);
     }
@@ -437,6 +539,19 @@ function registerIpcHandlers() {
   ipcHandlersRegistered = true;
 
   handleIpc(CHANNELS.getDashboardData, async () => ok(getDashboardData()), 'فشل في تحميل البيانات');
+  handleIpc(
+    CHANNELS.getDataPage,
+    async (payload) => {
+      const data = asObject(payload);
+      return ok(getDataPage(data.kind, {
+        limit: data.limit,
+        offset: data.offset,
+        includeAll: Boolean(data.includeAll),
+        filters: asObject(data.filters)
+      }));
+    },
+    'فشل في تحميل صفحة البيانات'
+  );
   handleIpc(CHANNELS.getNextOrderCode, async () => ok(getNextOrderCode()), 'فشل في إنشاء كود الأوردر');
   handleIpc(CHANNELS.getNextQuoteCode, async () => ok(getNextQuoteCode()), 'فشل في إنشاء كود عرض السعر');
 
@@ -527,6 +642,54 @@ function registerIpcHandlers() {
   );
 
   handleIpc(
+    CHANNELS.savePurchase,
+    async (payload) => {
+      const data = normalizePurchasePayload(payload);
+      validatePurchasePayload(data);
+      const id = savePurchase(data);
+      scheduleAutomaticBackup('after-purchase');
+      return ok(id);
+    },
+    'فشل في حفظ المشتريات'
+  );
+
+  handleIpc(
+    CHANNELS.deletePurchase,
+    async (payload) => {
+      const id = asNullableId(asObject(payload).id);
+      if (!id) throw new Error('رقم المشتريات غير صالح');
+      deletePurchase(id);
+      scheduleAutomaticBackup('after-delete-purchase');
+      return ok();
+    },
+    'فشل في حذف المشتريات'
+  );
+
+  handleIpc(
+    CHANNELS.saveAsset,
+    async (payload) => {
+      const data = normalizeAssetPayload(payload);
+      validateAssetPayload(data);
+      const id = saveAsset(data);
+      scheduleAutomaticBackup('after-asset');
+      return ok(id);
+    },
+    'فشل في حفظ الأصل'
+  );
+
+  handleIpc(
+    CHANNELS.deleteAsset,
+    async (payload) => {
+      const id = asNullableId(asObject(payload).id);
+      if (!id) throw new Error('رقم الأصل غير صالح');
+      deleteAsset(id);
+      scheduleAutomaticBackup('after-delete-asset');
+      return ok();
+    },
+    'فشل في حذف الأصل'
+  );
+
+  handleIpc(
     CHANNELS.createQuote,
     async (payload) => {
       const data = normalizeOrderPayload(payload);
@@ -580,7 +743,7 @@ function registerIpcHandlers() {
     CHANNELS.importBackup,
     async (payload) => {
       const data = validateBackupPayload(payload);
-      createAutomaticBackup('before-import');
+      await createAutomaticBackup('before-import');
       replaceAllData(data);
       scheduleAutomaticBackup('after-import');
       return ok();

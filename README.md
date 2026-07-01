@@ -1,4 +1,4 @@
-# MOO3D PRINT FARM v1.7.4 — إصلاحات الحسابات والحماية
+# MOO3D PRINT FARM v1.8.0
 
 نسخة Desktop محلية لإدارة تسعير الطباعة ثلاثية الأبعاد، الأوردرات، الخامات، الطابعات، التقارير، وعروض الأسعار.
 
@@ -66,3 +66,11 @@
 - إصلاح تغليف better-sqlite3 على Windows باستخدام pnpm node-linker hoisted.
 - إضافة asarUnpack للملفات native.
 - workflow جديد بدون تعطيل rebuild.
+
+## v1.8.0
+
+- Added business Dashboard with cash drawer, collected amount, purchases total, stock value, asset recovery, and maintenance lamp.
+- Added Purchases module. Material purchases can increase existing material stock and appear in stock movements.
+- Added Assets module for printer/equipment investment tracking.
+- Added cash and maintenance settings: opening cash, previous machine hours, maintenance interval, last maintenance hour, maintenance cost.
+- Pricing form now accepts print time as hours + minutes while storing the total internally as hours for backward compatibility.

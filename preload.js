@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 const CHANNELS = {
   getDashboardData: 'db:getDashboardData',
+  getDataPage: 'db:getDataPage',
   getNextOrderCode: 'db:getNextOrderCode',
   getNextQuoteCode: 'db:getNextQuoteCode',
   saveConfig: 'db:saveConfig',
@@ -15,6 +16,10 @@ const CHANNELS = {
   createOrder: 'db:createOrder',
   updateOrder: 'db:updateOrder',
   deleteOrder: 'db:deleteOrder',
+  savePurchase: 'db:savePurchase',
+  deletePurchase: 'db:deletePurchase',
+  saveAsset: 'db:saveAsset',
+  deleteAsset: 'db:deleteAsset',
   createQuote: 'db:createQuote',
   deleteQuote: 'db:deleteQuote',
   convertQuoteToOrder: 'db:convertQuoteToOrder',
@@ -41,6 +46,10 @@ async function safeInvoke(channel, payload) {
 contextBridge.exposeInMainWorld('farmAPI', {
   getDashboardData() {
     return safeInvoke(CHANNELS.getDashboardData);
+  },
+
+  getDataPage(kind, options = {}) {
+    return safeInvoke(CHANNELS.getDataPage, { kind, ...(options || {}) });
   },
 
   getNextOrderCode() {
@@ -81,6 +90,22 @@ contextBridge.exposeInMainWorld('farmAPI', {
 
   deleteOrder(code) {
     return safeInvoke(CHANNELS.deleteOrder, { code });
+  },
+
+  savePurchase(purchase) {
+    return safeInvoke(CHANNELS.savePurchase, purchase);
+  },
+
+  deletePurchase(id) {
+    return safeInvoke(CHANNELS.deletePurchase, { id });
+  },
+
+  saveAsset(asset) {
+    return safeInvoke(CHANNELS.saveAsset, asset);
+  },
+
+  deleteAsset(id) {
+    return safeInvoke(CHANNELS.deleteAsset, { id });
   },
 
   createQuote(quote) {

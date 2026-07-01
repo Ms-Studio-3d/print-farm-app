@@ -1,32 +1,105 @@
 let DatabaseDriver = null;
 const path = require('path');
-const { app } = require('electron');
+let electronApp = null;
+try {
+  ({ app: electronApp } = require('electron'));
+} catch (_) {
+  electronApp = null;
+}
 
 let db = null;
 
+function createNodeSqliteCompatDriver() {
+  const { DatabaseSync } = require('node:sqlite');
+
+  return class NodeSqliteCompatDatabase {
+    constructor(filename) {
+      this.database = new DatabaseSync(filename);
+    }
+
+    prepare(sql) {
+      return this.database.prepare(sql);
+    }
+
+    exec(sql) {
+      return this.database.exec(sql);
+    }
+
+    pragma(statement) {
+      return this.database.exec(`PRAGMA ${statement}`);
+    }
+
+    transaction(callback) {
+      return (...args) => {
+        this.database.exec('BEGIN IMMEDIATE');
+        try {
+          const result = callback(...args);
+          this.database.exec('COMMIT');
+          return result;
+        } catch (error) {
+          try { this.database.exec('ROLLBACK'); } catch (_) {}
+          throw error;
+        }
+      };
+    }
+
+    close() {
+      return this.database.close();
+    }
+  };
+}
+
 function getDatabaseDriver() {
   if (!DatabaseDriver) {
-    DatabaseDriver = require('better-sqlite3');
+    try {
+      DatabaseDriver = require('better-sqlite3');
+    } catch (_) {
+      DatabaseDriver = createNodeSqliteCompatDriver();
+    }
   }
   return DatabaseDriver;
 }
 
 function getDatabasePath() {
-  const userDataPath = app.getPath('userData');
-  return path.join(userDataPath, '3d-printing-business-manager.db');
+  if (process.env.MOO3D_DB_PATH) {
+    return process.env.MOO3D_DB_PATH;
+  }
+
+  if (electronApp && typeof electronApp.getPath === 'function') {
+    const userDataPath = electronApp.getPath('userData');
+    return path.join(userDataPath, '3d-printing-business-manager.db');
+  }
+
+  return path.join(process.cwd(), '3d-printing-business-manager.db');
+}
+
+function setDatabasePathForTests(dbPath) {
+  if (db) {
+    db.close();
+    db = null;
+  }
+
+  process.env.MOO3D_DB_PATH = String(dbPath || '').trim();
 }
 
 function getDb() {
   if (db) return db;
 
-  const Database = getDatabaseDriver();
-  db = new Database(getDatabasePath());
+  let Database = getDatabaseDriver();
+  try {
+    db = new Database(getDatabasePath());
+  } catch (_) {
+    DatabaseDriver = createNodeSqliteCompatDriver();
+    Database = DatabaseDriver;
+    db = new Database(getDatabasePath());
+  }
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
   db.pragma('synchronous = NORMAL');
 
   createTables();
   runMigrations();
+  createIndexes();
   seedDefaults();
 
   return db;
@@ -143,6 +216,33 @@ function createTables() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       converted_order_code TEXT DEFAULT ''
     );
+
+
+    CREATE TABLE IF NOT EXISTS purchases (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      purchase_date TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'أخرى',
+      item TEXT NOT NULL DEFAULT '',
+      quantity REAL NOT NULL DEFAULT 1,
+      grams_per_unit REAL NOT NULL DEFAULT 0,
+      amount REAL NOT NULL DEFAULT 0,
+      supplier TEXT DEFAULT '',
+      notes TEXT DEFAULT '',
+      material_id INTEGER,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS assets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      asset_date TEXT NOT NULL,
+      item TEXT NOT NULL DEFAULT '',
+      cost REAL NOT NULL DEFAULT 0,
+      asset_type TEXT DEFAULT '',
+      depreciation_hours REAL NOT NULL DEFAULT 0,
+      notes TEXT DEFAULT '',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 }
 
@@ -187,6 +287,22 @@ function runMigrations() {
   backfillPricingBreakdown();
 }
 
+function createIndexes() {
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_orders_code ON orders(code);
+    CREATE INDEX IF NOT EXISTS idx_orders_date_id ON orders(order_date DESC, id DESC);
+    CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_name);
+    CREATE INDEX IF NOT EXISTS idx_orders_printer ON orders(printer_id);
+    CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(order_status);
+    CREATE INDEX IF NOT EXISTS idx_order_materials_order ON order_materials(order_id);
+    CREATE INDEX IF NOT EXISTS idx_order_materials_material ON order_materials(material_id);
+    CREATE INDEX IF NOT EXISTS idx_stock_movements_ref ON stock_movements(reference_code);
+    CREATE INDEX IF NOT EXISTS idx_purchases_date_id ON purchases(purchase_date DESC, id DESC);
+    CREATE INDEX IF NOT EXISTS idx_assets_date_id ON assets(asset_date DESC, id DESC);
+    CREATE INDEX IF NOT EXISTS idx_quotes_date_id ON quotes(quote_date DESC, id DESC);
+  `);
+}
+
 function ensureColumnExists(tableName, columnName, alterSql) {
   const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
   const exists = columns.some((col) => col.name === columnName);
@@ -220,6 +336,7 @@ function backfillPricingBreakdown() {
 function seedDefaults() {
   const printersCount = db.prepare('SELECT COUNT(*) AS count FROM printers').get().count;
   const materialsCount = db.prepare('SELECT COUNT(*) AS count FROM materials').get().count;
+  const assetsCount = db.prepare('SELECT COUNT(*) AS count FROM assets').get().count;
 
   const defaults = {
     farmName: 'Print Farm App',
@@ -238,7 +355,12 @@ function seedDefaults() {
     roundingStep: '5',
     defaultProfitMargin: '100',
     defaultManualMinutes: '15',
-    defaultDiscountValue: '0'
+    defaultDiscountValue: '0',
+    openingCash: '5200',
+    baseMachineHours: '150',
+    maintenanceEveryHours: '1000',
+    lastMaintenanceAtHours: '0',
+    maintenanceCost: '1500'
   };
 
   const insertConfig = db.prepare(`
@@ -284,8 +406,8 @@ function seedDefaults() {
       'Bambu Lab A1',
       'A1',
       'idle',
-      0,
-      'الطابعة الأساسية - Bambu Lab A1',
+      33.5,
+      'الطابعة الأساسية - Bambu Lab A1 — تكلفة الساعة الافتراضية تشمل تشغيل 20 + إهلاك 12 + صيانة 1.5',
       0
     );
   }
@@ -300,6 +422,20 @@ function seedDefaults() {
     insertMaterial.run('PLA White', 'PLA', 'White', 1000, 1000, 800, 150, '', 0);
     insertMaterial.run('PLA Red', 'PLA', 'Red', 1000, 1000, 800, 150, '', 0);
     insertMaterial.run('PLA Silk Gold', 'PLA Silk', 'Gold', 1000, 1000, 1200, 150, '', 0);
+  }
+
+  if (assetsCount === 0) {
+    db.prepare(`
+      INSERT INTO assets (asset_date, item, cost, asset_type, depreciation_hours, notes)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      '2026-04-12',
+      'Bambu Lab A1 Combo / الطابعة',
+      60000,
+      'طابعة',
+      5000,
+      'أصل افتتاحي لحساب استرداد تكلفة الطابعة'
+    );
   }
 }
 
@@ -322,39 +458,145 @@ function setConfig(key, value) {
   `).run(String(key), String(value));
 }
 
-function getDashboardData() {
-  const printers = db.prepare(`
-    SELECT
-      id,
-      name,
-      model,
-      status,
-      hourly_depreciation AS hourlyDepreciation,
-      notes,
-      is_archived AS isArchived
-    FROM printers
-    WHERE is_archived = 0
-    ORDER BY id DESC
-  `).all();
+const DEFAULT_LIST_LIMIT = 100;
+const MAX_LIST_LIMIT = 500;
 
-  const materials = db.prepare(`
-    SELECT
-      id,
-      name,
-      type,
-      color,
-      weight,
-      remaining,
-      price,
-      low_stock_threshold AS lowStockThreshold,
-      supplier,
-      is_archived AS isArchived
-    FROM materials
-    WHERE is_archived = 0
-    ORDER BY id DESC
-  `).all();
+function normalizePageOptions(options = {}) {
+  const opts = options && typeof options === 'object' ? options : {};
+  const includeAll = Boolean(opts.includeAll);
+  const requestedLimit = Number(opts.limit || DEFAULT_LIST_LIMIT);
+  const requestedOffset = Number(opts.offset || 0);
+  const limit = Math.min(MAX_LIST_LIMIT, Math.max(1, Number.isFinite(requestedLimit) ? Math.floor(requestedLimit) : DEFAULT_LIST_LIMIT));
+  const offset = Math.max(0, Number.isFinite(requestedOffset) ? Math.floor(requestedOffset) : 0);
+  const filters = opts.filters && typeof opts.filters === 'object' ? opts.filters : {};
 
-  const orders = db.prepare(`
+  return { includeAll, limit, offset, filters };
+}
+
+function escapeLike(value) {
+  return String(value ?? '').replace(/[\%_]/g, (char) => `\${char}`);
+}
+
+function addLikeFilter(parts, params, columns, rawValue) {
+  const value = String(rawValue ?? '').trim().toLowerCase();
+  if (!value) return;
+
+  const like = `%${value}%`;
+  parts.push(`(${columns.map((column) => `LOWER(COALESCE(${column}, '')) LIKE ?`).join(' OR ')})`);
+  columns.forEach(() => params.push(like));
+}
+
+function buildOrdersWhereClause(filters = {}) {
+  const parts = ['1 = 1'];
+  const params = [];
+  const cleanFilters = filters && typeof filters === 'object' ? filters : {};
+
+  addLikeFilter(parts, params, [
+    'o.code',
+    'o.item_name',
+    'o.customer_name',
+    'o.notes',
+    'p.name'
+  ], cleanFilters.search);
+
+  addLikeFilter(parts, params, ['o.customer_name'], cleanFilters.customer);
+
+  const printerId = Number(cleanFilters.printerId || 0);
+  if (Number.isFinite(printerId) && printerId > 0) {
+    parts.push('o.printer_id = ?');
+    params.push(Math.floor(printerId));
+  }
+
+  const from = String(cleanFilters.from || '').trim();
+  if (from) {
+    parts.push('o.order_date >= ?');
+    params.push(from);
+  }
+
+  const to = String(cleanFilters.to || '').trim();
+  if (to) {
+    parts.push('o.order_date <= ?');
+    params.push(to);
+  }
+
+  const status = String(cleanFilters.status || '').trim();
+  if (status) {
+    parts.push('o.order_status = ?');
+    params.push(status);
+  }
+
+  return { whereSql: parts.join(' AND '), params };
+}
+
+function getOrdersSummary(whereSql, params) {
+  const summary = db.prepare(`
+    SELECT
+      COUNT(*) AS count,
+      COALESCE(SUM(CASE WHEN o.order_status != 'cancelled' THEN o.final_price ELSE 0 END), 0) AS totalRevenue,
+      COALESCE(SUM(CASE WHEN o.order_status != 'cancelled' THEN o.paid_amount ELSE 0 END), 0) AS collected,
+      COALESCE(SUM(CASE WHEN o.order_status != 'cancelled' THEN o.profit ELSE 0 END), 0) AS totalProfit,
+      COALESCE(MAX(CASE WHEN o.order_status != 'cancelled' THEN o.final_price ELSE NULL END), 0) AS topSale,
+      COALESCE(AVG(CASE WHEN o.order_status != 'cancelled' THEN o.profit ELSE NULL END), 0) AS avgProfit,
+      COALESCE(SUM(CASE WHEN o.order_status = 'cancelled' THEN 1 ELSE 0 END), 0) AS cancelledCount,
+      COALESCE(SUM(CASE WHEN o.order_status != 'cancelled' THEN o.print_hours ELSE 0 END), 0) AS salesMachineHours
+    FROM orders o
+    LEFT JOIN printers p ON p.id = o.printer_id
+    WHERE ${whereSql}
+  `).get(...params);
+
+  const topCustomer = db.prepare(`
+    SELECT
+      o.customer_name AS name,
+      COUNT(*) AS count,
+      COALESCE(SUM(o.final_price), 0) AS revenue,
+      COALESCE(SUM(o.profit), 0) AS profit
+    FROM orders o
+    LEFT JOIN printers p ON p.id = o.printer_id
+    WHERE ${whereSql}
+      AND o.order_status != 'cancelled'
+      AND TRIM(COALESCE(o.customer_name, '')) != ''
+    GROUP BY o.customer_name
+    ORDER BY revenue DESC, count DESC, name ASC
+    LIMIT 1
+  `).get(...params);
+
+  return {
+    count: Number(summary.count || 0),
+    totalRevenue: Number(summary.totalRevenue || 0),
+    collected: Number(summary.collected || 0),
+    totalProfit: Number(summary.totalProfit || 0),
+    topSale: Number(summary.topSale || 0),
+    avgProfit: Number(summary.avgProfit || 0),
+    cancelledCount: Number(summary.cancelledCount || 0),
+    salesMachineHours: Number(summary.salesMachineHours || 0),
+    topCustomer: topCustomer ? {
+      name: String(topCustomer.name || ''),
+      count: Number(topCustomer.count || 0),
+      revenue: Number(topCustomer.revenue || 0),
+      profit: Number(topCustomer.profit || 0)
+    } : null
+  };
+}
+
+function buildPageMeta(total, limit, offset, includeAll) {
+  return {
+    total: Number(total || 0),
+    limit: includeAll ? Number(total || 0) : limit,
+    offset: includeAll ? 0 : offset,
+    hasMore: includeAll ? false : offset + limit < Number(total || 0)
+  };
+}
+
+function getOrdersPage(options = {}) {
+  const { includeAll, limit, offset, filters } = normalizePageOptions(options);
+  const { whereSql, params } = buildOrdersWhereClause(filters);
+  const total = Number(db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM orders o
+    LEFT JOIN printers p ON p.id = o.printer_id
+    WHERE ${whereSql}
+  `).get(...params).count || 0);
+  const sql = `
     SELECT
       o.id,
       o.code,
@@ -395,10 +637,19 @@ function getDashboardData() {
       o.paid_amount AS paidAmount
     FROM orders o
     LEFT JOIN printers p ON p.id = o.printer_id
+    WHERE ${whereSql}
     ORDER BY o.order_date DESC, o.id DESC
-  `).all();
+    ${includeAll ? '' : 'LIMIT ? OFFSET ?'}
+  `;
+  const items = includeAll ? db.prepare(sql).all(...params) : db.prepare(sql).all(...params, limit, offset);
 
-  const stockMovements = db.prepare(`
+  return { items, summary: getOrdersSummary(whereSql, params), ...buildPageMeta(total, limit, offset, includeAll) };
+}
+
+function getStockMovementsPage(options = {}) {
+  const { includeAll, limit, offset } = normalizePageOptions(options);
+  const total = Number(db.prepare('SELECT COUNT(*) AS count FROM stock_movements').get().count || 0);
+  const sql = `
     SELECT
       id,
       material_id AS materialId,
@@ -410,10 +661,17 @@ function getDashboardData() {
       created_at AS createdAt
     FROM stock_movements
     ORDER BY id DESC
-    LIMIT 1000
-  `).all();
+    ${includeAll ? '' : 'LIMIT ? OFFSET ?'}
+  `;
+  const items = includeAll ? db.prepare(sql).all() : db.prepare(sql).all(limit, offset);
 
-  const quotes = db.prepare(`
+  return { items, ...buildPageMeta(total, limit, offset, includeAll) };
+}
+
+function getQuotesPage(options = {}) {
+  const { includeAll, limit, offset } = normalizePageOptions(options);
+  const total = Number(db.prepare('SELECT COUNT(*) AS count FROM quotes').get().count || 0);
+  const sql = `
     SELECT
       id,
       code,
@@ -429,19 +687,278 @@ function getDashboardData() {
       created_at AS createdAt
     FROM quotes
     ORDER BY id DESC
-  `).all().map((quote) => {
+    ${includeAll ? '' : 'LIMIT ? OFFSET ?'}
+  `;
+  const rows = includeAll ? db.prepare(sql).all() : db.prepare(sql).all(limit, offset);
+  const items = rows.map((quote) => {
     let payload = null;
     try { payload = JSON.parse(quote.payloadJson || '{}'); } catch (_) { payload = null; }
     return { ...quote, payload };
   });
 
+  return { items, ...buildPageMeta(total, limit, offset, includeAll) };
+}
+
+function getPurchasesPage(options = {}) {
+  const { includeAll, limit, offset } = normalizePageOptions(options);
+  const total = Number(db.prepare('SELECT COUNT(*) AS count FROM purchases').get().count || 0);
+  const sql = `
+    SELECT
+      p.id,
+      p.purchase_date AS date,
+      p.category,
+      p.item,
+      p.quantity,
+      p.grams_per_unit AS gramsPerUnit,
+      p.amount,
+      p.supplier,
+      p.notes,
+      p.material_id AS materialId,
+      COALESCE(m.name, '') AS materialName,
+      p.created_at AS createdAt
+    FROM purchases p
+    LEFT JOIN materials m ON m.id = p.material_id
+    ORDER BY p.purchase_date DESC, p.id DESC
+    ${includeAll ? '' : 'LIMIT ? OFFSET ?'}
+  `;
+  const items = includeAll ? db.prepare(sql).all() : db.prepare(sql).all(limit, offset);
+
+  return { items, ...buildPageMeta(total, limit, offset, includeAll) };
+}
+
+function getAssetsPage(options = {}) {
+  const { includeAll, limit, offset } = normalizePageOptions(options);
+  const total = Number(db.prepare('SELECT COUNT(*) AS count FROM assets').get().count || 0);
+  const sql = `
+    SELECT
+      id,
+      asset_date AS date,
+      item,
+      cost,
+      asset_type AS type,
+      depreciation_hours AS depreciationHours,
+      notes,
+      created_at AS createdAt
+    FROM assets
+    ORDER BY asset_date DESC, id DESC
+    ${includeAll ? '' : 'LIMIT ? OFFSET ?'}
+  `;
+  const items = includeAll ? db.prepare(sql).all() : db.prepare(sql).all(limit, offset);
+
+  return { items, ...buildPageMeta(total, limit, offset, includeAll) };
+}
+
+function getCustomersPage(options = {}) {
+  const { includeAll, limit, offset, filters } = normalizePageOptions(options);
+  const { whereSql, params } = buildOrdersWhereClause(filters);
+  const total = Number(db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM (
+      SELECT o.customer_name
+      FROM orders o
+      LEFT JOIN printers p ON p.id = o.printer_id
+      WHERE ${whereSql}
+        AND TRIM(COALESCE(o.customer_name, '')) != ''
+      GROUP BY o.customer_name
+    ) customers
+  `).get(...params).count || 0);
+
+  const sql = `
+    SELECT
+      o.customer_name AS name,
+      COUNT(*) AS count,
+      COALESCE(SUM(CASE WHEN o.order_status != 'cancelled' THEN o.final_price ELSE 0 END), 0) AS revenue,
+      COALESCE(SUM(CASE WHEN o.order_status != 'cancelled' THEN o.profit ELSE 0 END), 0) AS profit,
+      (
+        SELECT oo.code
+        FROM orders oo
+        WHERE oo.customer_name = o.customer_name
+        ORDER BY oo.order_date DESC, oo.id DESC
+        LIMIT 1
+      ) AS lastOrderCode,
+      (
+        SELECT oo.item_name
+        FROM orders oo
+        WHERE oo.customer_name = o.customer_name
+        ORDER BY oo.order_date DESC, oo.id DESC
+        LIMIT 1
+      ) AS lastOrderItem,
+      MAX(o.order_date) AS lastOrderDate
+    FROM orders o
+    LEFT JOIN printers p ON p.id = o.printer_id
+    WHERE ${whereSql}
+      AND TRIM(COALESCE(o.customer_name, '')) != ''
+    GROUP BY o.customer_name
+    ORDER BY revenue DESC, count DESC, name ASC
+    ${includeAll ? '' : 'LIMIT ? OFFSET ?'}
+  `;
+
+  const rows = includeAll ? db.prepare(sql).all(...params) : db.prepare(sql).all(...params, limit, offset);
+  const items = rows.map((row) => ({
+    name: String(row.name || '').trim(),
+    count: Number(row.count || 0),
+    revenue: Number(row.revenue || 0),
+    profit: Number(row.profit || 0),
+    lastOrderCode: String(row.lastOrderCode || ''),
+    lastOrderItem: String(row.lastOrderItem || ''),
+    lastOrderDate: String(row.lastOrderDate || '')
+  }));
+
+  const summary = db.prepare(`
+    SELECT
+      COUNT(*) AS orderCount,
+      COALESCE(SUM(CASE WHEN o.order_status != 'cancelled' THEN o.final_price ELSE 0 END), 0) AS revenue,
+      COALESCE(SUM(CASE WHEN o.order_status != 'cancelled' THEN o.profit ELSE 0 END), 0) AS profit
+    FROM orders o
+    LEFT JOIN printers p ON p.id = o.printer_id
+    WHERE ${whereSql}
+      AND TRIM(COALESCE(o.customer_name, '')) != ''
+  `).get(...params);
+
+  return {
+    items,
+    summary: {
+      customersCount: total,
+      orderCount: Number(summary.orderCount || 0),
+      revenue: Number(summary.revenue || 0),
+      profit: Number(summary.profit || 0)
+    },
+    ...buildPageMeta(total, limit, offset, includeAll)
+  };
+}
+
+function getDashboardSummary() {
+  const orders = db.prepare(`
+    SELECT
+      COUNT(*) AS count,
+      COALESCE(SUM(CASE WHEN order_status != 'cancelled' THEN final_price ELSE 0 END), 0) AS totalSales,
+      COALESCE(SUM(CASE WHEN order_status != 'cancelled' THEN paid_amount ELSE 0 END), 0) AS collected,
+      COALESCE(SUM(CASE WHEN order_status != 'cancelled' THEN profit ELSE 0 END), 0) AS totalProfit,
+      COALESCE(SUM(CASE WHEN order_status != 'cancelled' THEN print_hours ELSE 0 END), 0) AS salesMachineHours
+    FROM orders
+  `).get();
+
+  const purchases = db.prepare(`
+    SELECT
+      COUNT(*) AS count,
+      COALESCE(SUM(amount), 0) AS totalPurchases
+    FROM purchases
+  `).get();
+
+  const assets = db.prepare(`
+    SELECT
+      COUNT(*) AS count,
+      COALESCE(SUM(cost), 0) AS totalAssets
+    FROM assets
+  `).get();
+
+  const stock = db.prepare(`
+    SELECT
+      COALESCE(SUM(CASE WHEN weight > 0 THEN remaining * (price / weight) ELSE 0 END), 0) AS value,
+      COALESCE(SUM(remaining), 0) AS grams,
+      COALESCE(SUM(CASE WHEN remaining > 0 AND remaining <= low_stock_threshold THEN 1 ELSE 0 END), 0) AS lowCount
+    FROM materials
+    WHERE is_archived = 0
+  `).get();
+
+  return {
+    ordersCount: Number(orders.count || 0),
+    purchasesCount: Number(purchases.count || 0),
+    assetsCount: Number(assets.count || 0),
+    totalSales: Number(orders.totalSales || 0),
+    collected: Number(orders.collected || 0),
+    totalProfit: Number(orders.totalProfit || 0),
+    totalPurchases: Number(purchases.totalPurchases || 0),
+    totalAssets: Number(assets.totalAssets || 0),
+    salesMachineHours: Number(orders.salesMachineHours || 0),
+    stock: {
+      value: Number(stock.value || 0),
+      grams: Number(stock.grams || 0),
+      lowCount: Number(stock.lowCount || 0)
+    }
+  };
+}
+
+function getDataPage(kind, options = {}) {
+  const pageOptions = normalizePageOptions(options);
+
+  switch (String(kind || '').trim()) {
+    case 'orders':
+      return getOrdersPage(pageOptions);
+    case 'stockMovements':
+      return getStockMovementsPage(pageOptions);
+    case 'quotes':
+      return getQuotesPage(pageOptions);
+    case 'purchases':
+      return getPurchasesPage(pageOptions);
+    case 'assets':
+      return getAssetsPage(pageOptions);
+    case 'customers':
+      return getCustomersPage(pageOptions);
+    default:
+      throw new Error('نوع البيانات غير مدعوم');
+  }
+}
+
+function getDashboardData(options = {}) {
+  const pageOptions = normalizePageOptions(options);
+  const printers = db.prepare(`
+    SELECT
+      id,
+      name,
+      model,
+      status,
+      hourly_depreciation AS hourlyDepreciation,
+      notes,
+      is_archived AS isArchived
+    FROM printers
+    WHERE is_archived = 0
+    ORDER BY id DESC
+  `).all();
+
+  const materials = db.prepare(`
+    SELECT
+      id,
+      name,
+      type,
+      color,
+      weight,
+      remaining,
+      price,
+      low_stock_threshold AS lowStockThreshold,
+      supplier,
+      is_archived AS isArchived
+    FROM materials
+    WHERE is_archived = 0
+    ORDER BY id DESC
+  `).all();
+
+  const ordersPage = getOrdersPage(pageOptions);
+  const stockMovementsPage = getStockMovementsPage(pageOptions);
+  const quotesPage = getQuotesPage(pageOptions);
+  const purchasesPage = getPurchasesPage(pageOptions);
+  const assetsPage = getAssetsPage(pageOptions);
+  const customersPage = getCustomersPage(pageOptions);
+
   return {
     config: getAllConfig(),
     printers,
     materials,
-    orders,
-    stockMovements,
-    quotes
+    orders: ordersPage.items,
+    stockMovements: stockMovementsPage.items,
+    quotes: quotesPage.items,
+    purchases: purchasesPage.items,
+    assets: assetsPage.items,
+    customers: customersPage.items,
+    meta: {
+      orders: buildPageMeta(ordersPage.total, ordersPage.limit, ordersPage.offset, pageOptions.includeAll),
+      stockMovements: buildPageMeta(stockMovementsPage.total, stockMovementsPage.limit, stockMovementsPage.offset, pageOptions.includeAll),
+      quotes: buildPageMeta(quotesPage.total, quotesPage.limit, quotesPage.offset, pageOptions.includeAll),
+      purchases: buildPageMeta(purchasesPage.total, purchasesPage.limit, purchasesPage.offset, pageOptions.includeAll),
+      assets: buildPageMeta(assetsPage.total, assetsPage.limit, assetsPage.offset, pageOptions.includeAll),
+      customers: buildPageMeta(customersPage.total, customersPage.limit, customersPage.offset, pageOptions.includeAll),
+      summary: getDashboardSummary()
+    }
   };
 }
 
@@ -826,8 +1343,27 @@ function insertOrderWithStock(data) {
     throw new Error('اسم المجسم مطلوب');
   }
 
+  if (!data.printerId) {
+    throw new Error('اختار الطابعة المستخدمة');
+  }
+
+  const requestedQuantity = Number(data.quantity);
+  if (!Number.isFinite(requestedQuantity) || requestedQuantity <= 0 || Math.floor(requestedQuantity) !== requestedQuantity) {
+    throw new Error('عدد القطع لازم يكون رقم صحيح موجب');
+  }
+
+  if (Number(data.printHours || 0) <= 0) {
+    throw new Error('وقت الطباعة لازم يكون أكبر من صفر');
+  }
+
   if (!Array.isArray(data.materialUsage) || data.materialUsage.length === 0) {
     throw new Error('لا يوجد استهلاك خامات في الأوردر');
+  }
+
+  for (const item of data.materialUsage) {
+    if (Number(item.grams || 0) <= 0) {
+      throw new Error('كمية الخامة لازم تكون أكبر من صفر');
+    }
   }
 
   const cleanCode = String(data.code || '').trim();
@@ -866,7 +1402,7 @@ function insertOrderWithStock(data) {
   }
 
   const finalPrice = Number(data.finalPrice || 0);
-  const quantity = Math.max(1, Number(data.quantity || 1));
+  const quantity = requestedQuantity;
 
   const orderResult = insertOrder.run(
     cleanCode,
@@ -1001,6 +1537,19 @@ function updateOrder(payload) {
       throw new Error('اسم المجسم مطلوب');
     }
 
+    if (!data.printerId) {
+      throw new Error('اختار الطابعة المستخدمة');
+    }
+
+    const requestedQuantity = Number(data.quantity);
+    if (!Number.isFinite(requestedQuantity) || requestedQuantity <= 0 || Math.floor(requestedQuantity) !== requestedQuantity) {
+      throw new Error('عدد القطع لازم يكون رقم صحيح موجب');
+    }
+
+    if (Number(data.printHours || 0) <= 0) {
+      throw new Error('وقت الطباعة لازم يكون أكبر من صفر');
+    }
+
     if (data.printerId) {
       const printer = db.prepare('SELECT id, is_archived FROM printers WHERE id = ?').get(Number(data.printerId));
 
@@ -1013,9 +1562,10 @@ function updateOrder(payload) {
       }
     }
 
-    const shouldReplaceMaterialUsage = Array.isArray(data.materialUsage);
+    const shouldReplaceMaterialUsage = Boolean(data.replaceMaterialUsage);
+    const replaceMaterialUsage = shouldReplaceMaterialUsage || Array.isArray(data.materialUsage);
 
-    if (shouldReplaceMaterialUsage) {
+    if (replaceMaterialUsage) {
       if (data.materialUsage.length === 0) {
         throw new Error('لا يوجد استهلاك خامات في الأوردر');
       }
@@ -1058,6 +1608,10 @@ function updateOrder(payload) {
       db.prepare('DELETE FROM order_materials WHERE order_id = ?').run(existingOrder.id);
 
       for (const item of data.materialUsage) {
+        if (Number(item.grams || 0) <= 0) {
+          throw new Error('كمية الخامة لازم تكون أكبر من صفر');
+        }
+
         const material = db.prepare('SELECT * FROM materials WHERE id = ?').get(Number(item.materialId));
 
         if (!material) {
@@ -1126,7 +1680,22 @@ function updateOrder(payload) {
       }
     }
 
+    if (!replaceMaterialUsage) {
+      const existingUsage = db.prepare(`
+        SELECT
+          COUNT(*) AS count,
+          COALESCE(SUM(CASE WHEN grams > 0 THEN 1 ELSE 0 END), 0) AS positiveCount
+        FROM order_materials
+        WHERE order_id = ?
+      `).get(existingOrder.id);
+
+      if (Number(existingUsage.count || 0) === 0 || Number(existingUsage.positiveCount || 0) !== Number(existingUsage.count || 0)) {
+        throw new Error('كمية الخامة لازم تكون أكبر من صفر');
+      }
+    }
+
     const finalPrice = Number(data.finalPrice || 0);
+    const quantity = requestedQuantity;
 
     db.prepare(`
       UPDATE orders
@@ -1171,7 +1740,7 @@ function updateOrder(payload) {
       String(data.customerName || '').trim(),
       data.printerId ? Number(data.printerId) : null,
       String(data.status || 'delivered').trim(),
-      Number(data.quantity || 1),
+      quantity,
       Number(data.printHours || 0),
       Number(data.manualMinutes || 0),
       String(data.notes || '').trim(),
@@ -1195,9 +1764,9 @@ function updateOrder(payload) {
       Number(data.roundedAdjustment || 0),
       finalPrice,
       Number(data.profit || 0),
-      Number(data.unitFinalPrice || (finalPrice / Math.max(1, Number(data.quantity || 1)))),
-      Number(data.unitTotalCost || (Number(data.totalCost || 0) / Math.max(1, Number(data.quantity || 1)))),
-      Number(data.unitProfit || (Number(data.profit || 0) / Math.max(1, Number(data.quantity || 1)))),
+      Number(data.unitFinalPrice || (finalPrice / quantity)),
+      Number(data.unitTotalCost || (Number(data.totalCost || 0) / quantity)),
+      Number(data.unitProfit || (Number(data.profit || 0) / quantity)),
       'collected',
       'cash',
       finalPrice,
@@ -1256,6 +1825,163 @@ function deleteOrder(code) {
   transaction();
 }
 
+
+function getPurchaseStockGrams(data) {
+  if (String(data?.category || '').trim() !== 'خامات') return 0;
+  if (!data?.materialId && !data?.material_id) return 0;
+  return Math.max(0, Number(data?.quantity || 0) * Number(data?.gramsPerUnit ?? data?.grams_per_unit ?? 0));
+}
+
+function getPurchaseMaterialId(data) {
+  const id = Number(data?.materialId ?? data?.material_id ?? 0);
+  return Number.isFinite(id) && id > 0 ? id : null;
+}
+
+function applyPurchaseStockDelta(data, direction, referenceCode, reason) {
+  const grams = getPurchaseStockGrams(data);
+  const materialId = getPurchaseMaterialId(data);
+  if (!grams || !materialId) return;
+
+  const material = db.prepare('SELECT id, name, remaining FROM materials WHERE id = ?').get(materialId);
+  if (!material) throw new Error('الخامة المرتبطة بالمشتريات غير موجودة');
+
+  if (direction < 0 && Number(material.remaining || 0) < grams) {
+    throw new Error(`لا يمكن حذف/تعديل المشتريات لأن المتبقي في ${material.name} أقل من الكمية المطلوب خصمها`);
+  }
+
+  db.prepare('UPDATE materials SET remaining = remaining + ? WHERE id = ?').run(Number(direction) * grams, materialId);
+
+  db.prepare(`
+    INSERT INTO stock_movements (material_id, material_name, movement_type, quantity, reason, reference_code)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(
+    materialId,
+    String(material.name || data.item || '').trim(),
+    direction > 0 ? 'in' : 'adjust_out',
+    grams,
+    reason || (direction > 0 ? 'إضافة مشتريات خامة' : 'تعديل/حذف مشتريات خامة'),
+    String(referenceCode || '').trim()
+  );
+}
+
+function savePurchase(payload) {
+  const data = payload && typeof payload === 'object' ? payload : {};
+  const id = Number(data.id || 0);
+  const materialId = getPurchaseMaterialId(data);
+  const category = String(data.category || 'أخرى').trim() || 'أخرى';
+  const clean = {
+    id: id > 0 ? id : null,
+    date: String(data.date || new Date().toISOString().slice(0, 10)).trim(),
+    category,
+    item: String(data.item || '').trim(),
+    quantity: Math.max(0, Number(data.quantity || 0)),
+    gramsPerUnit: Math.max(0, Number(data.gramsPerUnit || 0)),
+    amount: Math.max(0, Number(data.amount || 0)),
+    supplier: String(data.supplier || '').trim(),
+    notes: String(data.notes || '').trim(),
+    materialId
+  };
+
+  if (!clean.date) throw new Error('تاريخ المشتريات مطلوب');
+  if (!clean.item) throw new Error('اسم بند المشتريات مطلوب');
+  if (clean.quantity <= 0) throw new Error('كمية المشتريات لازم تكون أكبر من صفر');
+  if (clean.category === 'خامات' && clean.materialId && clean.gramsPerUnit <= 0) {
+    throw new Error('اكتب جرام للواحدة/البكرة عشان المخزون يزيد صح');
+  }
+
+  const transaction = db.transaction(() => {
+    if (clean.id) {
+      const old = db.prepare(`
+        SELECT id, purchase_date AS date, category, item, quantity, grams_per_unit AS gramsPerUnit, amount, supplier, notes, material_id AS materialId
+        FROM purchases
+        WHERE id = ?
+      `).get(clean.id);
+      if (!old) throw new Error('المشتريات غير موجودة');
+
+      applyPurchaseStockDelta(old, -1, `PUR-${clean.id}`, 'استرجاع مخزون قبل تعديل مشتريات');
+
+      db.prepare(`
+        UPDATE purchases
+        SET purchase_date = ?, category = ?, item = ?, quantity = ?, grams_per_unit = ?, amount = ?, supplier = ?, notes = ?, material_id = ?
+        WHERE id = ?
+      `).run(clean.date, clean.category, clean.item, clean.quantity, clean.gramsPerUnit, clean.amount, clean.supplier, clean.notes, clean.materialId, clean.id);
+
+      applyPurchaseStockDelta(clean, 1, `PUR-${clean.id}`, 'إضافة مخزون بعد تعديل مشتريات');
+      return clean.id;
+    }
+
+    const result = db.prepare(`
+      INSERT INTO purchases (purchase_date, category, item, quantity, grams_per_unit, amount, supplier, notes, material_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(clean.date, clean.category, clean.item, clean.quantity, clean.gramsPerUnit, clean.amount, clean.supplier, clean.notes, clean.materialId);
+
+    const newId = Number(result.lastInsertRowid);
+    applyPurchaseStockDelta({ ...clean, id: newId }, 1, `PUR-${newId}`, 'إضافة مشتريات خامة');
+    return newId;
+  });
+
+  return transaction();
+}
+
+function deletePurchase(id) {
+  const purchaseId = Number(id || 0);
+  if (!purchaseId) throw new Error('رقم المشتريات غير صالح');
+
+  const transaction = db.transaction(() => {
+    const old = db.prepare(`
+      SELECT id, purchase_date AS date, category, item, quantity, grams_per_unit AS gramsPerUnit, amount, supplier, notes, material_id AS materialId
+      FROM purchases
+      WHERE id = ?
+    `).get(purchaseId);
+    if (!old) return;
+
+    applyPurchaseStockDelta(old, -1, `PUR-${purchaseId}`, 'حذف مشتريات خامة');
+    db.prepare('DELETE FROM purchases WHERE id = ?').run(purchaseId);
+  });
+
+  transaction();
+}
+
+function saveAsset(payload) {
+  const data = payload && typeof payload === 'object' ? payload : {};
+  const id = Number(data.id || 0);
+  const clean = {
+    id: id > 0 ? id : null,
+    date: String(data.date || new Date().toISOString().slice(0, 10)).trim(),
+    item: String(data.item || '').trim(),
+    cost: Math.max(0, Number(data.cost || 0)),
+    type: String(data.type || '').trim(),
+    depreciationHours: Math.max(0, Number(data.depreciationHours || 0)),
+    notes: String(data.notes || '').trim()
+  };
+
+  if (!clean.date) throw new Error('تاريخ الأصل مطلوب');
+  if (!clean.item) throw new Error('اسم الأصل مطلوب');
+  if (clean.cost <= 0) throw new Error('تكلفة الأصل لازم تكون أكبر من صفر');
+
+  if (clean.id) {
+    db.prepare(`
+      UPDATE assets
+      SET asset_date = ?, item = ?, cost = ?, asset_type = ?, depreciation_hours = ?, notes = ?
+      WHERE id = ?
+    `).run(clean.date, clean.item, clean.cost, clean.type, clean.depreciationHours, clean.notes, clean.id);
+    return clean.id;
+  }
+
+  const result = db.prepare(`
+    INSERT INTO assets (asset_date, item, cost, asset_type, depreciation_hours, notes)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(clean.date, clean.item, clean.cost, clean.type, clean.depreciationHours, clean.notes);
+
+  return Number(result.lastInsertRowid);
+}
+
+function deleteAsset(id) {
+  const assetId = Number(id || 0);
+  if (!assetId) throw new Error('رقم الأصل غير صالح');
+  db.prepare('DELETE FROM assets WHERE id = ?').run(assetId);
+}
+
 function replaceAllData(data) {
   const payload = data && typeof data === 'object' ? data : {};
 
@@ -1264,11 +1990,13 @@ function replaceAllData(data) {
       DELETE FROM order_materials;
       DELETE FROM stock_movements;
       DELETE FROM quotes;
+      DELETE FROM purchases;
+      DELETE FROM assets;
       DELETE FROM orders;
       DELETE FROM materials;
       DELETE FROM printers;
       DELETE FROM app_config;
-      DELETE FROM sqlite_sequence WHERE name IN ('printers', 'materials', 'orders', 'order_materials', 'stock_movements', 'quotes');
+      DELETE FROM sqlite_sequence WHERE name IN ('printers', 'materials', 'orders', 'order_materials', 'stock_movements', 'quotes', 'purchases', 'assets');
     `);
 
     const insertConfig = db.prepare(`
@@ -1354,6 +2082,16 @@ function replaceAllData(data) {
     const insertQuote = db.prepare(`
       INSERT INTO quotes (code, item_name, customer_name, quote_date, final_price, profit, quantity, status, payload_json, converted_order_code)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const insertPurchase = db.prepare(`
+      INSERT INTO purchases (purchase_date, category, item, quantity, grams_per_unit, amount, supplier, notes, material_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const insertAsset = db.prepare(`
+      INSERT INTO assets (asset_date, item, cost, asset_type, depreciation_hours, notes)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
 
     Object.entries(payload.config || {}).forEach(([key, value]) => {
@@ -1488,6 +2226,35 @@ function replaceAllData(data) {
       );
     });
 
+    (payload.purchases || []).forEach((purchase) => {
+      const mappedMaterialId = purchase.materialId != null
+        ? (materialIdMap.get(Number(purchase.materialId)) ?? null)
+        : null;
+
+      insertPurchase.run(
+        String(purchase.date || new Date().toISOString().slice(0, 10)).trim(),
+        String(purchase.category || 'أخرى').trim(),
+        String(purchase.item || '').trim(),
+        Number(purchase.quantity || 0),
+        Number(purchase.gramsPerUnit || 0),
+        Number(purchase.amount || 0),
+        String(purchase.supplier || '').trim(),
+        String(purchase.notes || '').trim(),
+        mappedMaterialId
+      );
+    });
+
+    (payload.assets || []).forEach((asset) => {
+      insertAsset.run(
+        String(asset.date || new Date().toISOString().slice(0, 10)).trim(),
+        String(asset.item || '').trim(),
+        Number(asset.cost || 0),
+        String(asset.type || '').trim(),
+        Number(asset.depreciationHours || 0),
+        String(asset.notes || '').trim()
+      );
+    });
+
     (payload.quotes || []).forEach((quote) => {
       const payloadJson = quote.payload ? JSON.stringify(quote.payload) : String(quote.payloadJson || '{}');
       if (!String(quote.code || '').trim()) return;
@@ -1512,7 +2279,7 @@ function replaceAllData(data) {
 }
 
 function exportBackupData() {
-  const data = getDashboardData();
+  const data = getDashboardData({ includeAll: true });
 
   const orderMaterials = db.prepare(`
     SELECT
@@ -1575,7 +2342,7 @@ function exportBackupData() {
   return {
     exportedAt: new Date().toISOString(),
     appName: 'Print Farm App',
-    schemaVersion: 8,
+    schemaVersion: 9,
     ...data,
     printers: [...data.printers, ...archivedPrinters],
     materials: [...data.materials, ...archivedMaterials],
@@ -1586,7 +2353,10 @@ function exportBackupData() {
 
 module.exports = {
   getDb,
+  getDatabasePath,
   getDashboardData,
+  getDataPage,
+  setDatabasePathForTests,
   getNextOrderCode,
   getNextQuoteCode,
   generateUniqueOrderCode,
@@ -1600,6 +2370,10 @@ module.exports = {
   createOrder,
   updateOrder,
   deleteOrder,
+  savePurchase,
+  deletePurchase,
+  saveAsset,
+  deleteAsset,
   createQuote,
   deleteQuote,
   convertQuoteToOrder,

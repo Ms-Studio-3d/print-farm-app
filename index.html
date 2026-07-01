@@ -22,7 +22,10 @@
         </div>
 
         <div class="topbar-actions">
-          <button class="btn btn-secondary btn-small" type="button" onclick="openReports()">التقارير</button>
+          <button class="btn btn-secondary btn-small" type="button" onclick="openBusinessDashboard()">Dashboard</button>
+          <button class="btn btn-secondary btn-small" type="button" onclick="openReports()">المبيعات</button>
+          <button class="btn btn-secondary btn-small" type="button" onclick="openPurchasesModal()">المشتريات</button>
+          <button class="btn btn-secondary btn-small" type="button" onclick="openAssetsModal()">الأصول</button>
           <button class="btn btn-secondary btn-small" type="button" onclick="openPipelineModal()">الأوردرات</button>
           <button class="btn btn-secondary btn-small" type="button" onclick="openMaterialsManagerModal()">الخامات</button>
           <button class="btn btn-secondary btn-small" type="button" onclick="openPrintersManagerModal()">الطابعات</button>
@@ -71,15 +74,20 @@
                 </div>
               </div>
 
-              <div class="grid-3 section-gap-sm">
+              <div class="grid-4 section-gap-sm">
                 <div class="form-group">
                   <label for="pieceQuantity">عدد القطع</label>
                   <input type="number" id="pieceQuantity" value="1" min="1" step="1" inputmode="numeric" />
                 </div>
 
                 <div class="form-group">
-                  <label for="printHours">إجمالي وقت الطباعة للأوردر *</label>
+                  <label for="printHours">ساعات الطباعة *</label>
                   <input type="text" id="printHours" value="0" inputmode="decimal" />
+                </div>
+
+                <div class="form-group">
+                  <label for="printMinutes">دقائق الطباعة *</label>
+                  <input type="text" id="printMinutes" value="0" inputmode="decimal" />
                 </div>
 
                 <div class="form-group">
@@ -181,7 +189,7 @@
               <div class="helper-box section-gap-sm">
                 <strong>ملاحظة مهمة:</strong>
                 <span>الكهرباء، الفشل، وسعر الشغل اليدوي قيم ثابتة من الإعدادات. اتركها كما هي إلا لو الأوردر حالة خاصة.</span>
-                <span>وقت الطباعة والخامات والتغليف والشغل اليدوي يتم إدخالهم كإجمالي للأوردر كله. الإكسسوارات فقط تتضرب في عدد القطع، والشحن يضاف مرة واحدة للأوردر كله. الإكسسوارات والشحن بدون فشل وبدون مكسب.</span>
+                <span>وقت الطباعة يدخل كساعات + دقائق، والخامات والتغليف والشغل اليدوي يتم إدخالهم كإجمالي للأوردر كله. الإكسسوارات فقط تتضرب في عدد القطع، والشحن يضاف مرة واحدة للأوردر كله. الإكسسوارات والشحن بدون فشل وبدون مكسب.</span>
               </div>
             </section>
           </section>
@@ -301,6 +309,22 @@
           <span>الأوردر</span>
         </button>
 
+        <button class="nav-btn" data-view="dashboard" type="button" onclick="openBusinessDashboard()">
+          <span>Dashboard</span>
+        </button>
+
+        <button class="nav-btn" data-view="sales" type="button" onclick="openReports()">
+          <span>المبيعات</span>
+        </button>
+
+        <button class="nav-btn" data-view="purchases" type="button" onclick="openPurchasesModal()">
+          <span>المشتريات</span>
+        </button>
+
+        <button class="nav-btn" data-view="assets" type="button" onclick="openAssetsModal()">
+          <span>الأصول</span>
+        </button>
+
         <button class="nav-btn" data-view="pipeline" type="button" onclick="openPipelineModal()">
           <span>الأوردرات</span>
         </button>
@@ -311,10 +335,6 @@
 
         <button class="nav-btn" data-view="printers" type="button" onclick="openPrintersManagerModal()">
           <span>الطابعات</span>
-        </button>
-
-        <button class="nav-btn" data-view="reports" type="button" onclick="openReports()">
-          <span>التقارير</span>
         </button>
 
         <button class="nav-btn" data-view="quotes" type="button" onclick="openQuotesModal()">
@@ -332,6 +352,153 @@
     </div>
   </div>
 
+
+  <div class="modal app-panel" id="businessDashboardModal" aria-hidden="true">
+    <div class="modal-content modal-xl panel-content">
+      <div class="panel-head">
+        <button type="button" onclick="closeBusinessDashboard()" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2>Dashboard — كاش الدرج والصيانة</h2>
+        <div class="inline-actions">
+          <button type="button" class="btn btn-secondary btn-auto" onclick="openReports()">المبيعات</button>
+          <button type="button" class="btn btn-secondary btn-auto" onclick="openPurchasesModal()">المشتريات</button>
+          <button type="button" class="btn btn-secondary btn-auto" onclick="openAssetsModal()">الأصول</button>
+        </div>
+      </div>
+
+      <div class="business-summary-grid">
+        <div class="business-card highlight"><span>كاش بداية الدرج</span><strong id="dashOpeningCash">0</strong><small>الفلوس اللي بدأت بيها</small></div>
+        <div class="business-card blue"><span>كاش الدرج الحالي</span><strong id="dashCurrentCash">0</strong><small>بداية + محصل - مشتريات</small></div>
+        <div class="business-card highlight"><span>قيمة الخامة الموجودة</span><strong id="dashStockValue">0</strong><small>المخزون بسعر التكلفة</small></div>
+        <div class="business-card"><span>إجمالي المبيعات</span><strong id="dashTotalSales">0</strong><small>الأوردرات غير الملغية</small></div>
+        <div class="business-card blue"><span>المبلغ المحصل</span><strong id="dashCollected">0</strong><small>كاش داخل فعليًا</small></div>
+        <div class="business-card warn"><span>مشتريات جديدة</span><strong id="dashPurchasesTotal">0</strong><small>تخصم من الكاش</small></div>
+        <div class="business-card"><span>عدد الطلبات</span><strong id="dashOrdersCount">0</strong><small>كل الأوردرات</small></div>
+        <div class="business-card blue"><span>ساعات تشغيل الماكينة</span><strong id="dashMachineHours">0 ساعة</strong><small id="dashMachineHoursNote">تشغيل سابق + مبيعات</small></div>
+        <div class="business-card" id="dashMaintenanceCard"><span>لمبة الصيانة</span><strong id="dashMaintenanceLamp"><span class="maintenance-lamp"><span class="lamp-dot"></span> سليم</span></strong><small id="dashMaintenanceNote">الصيانة القادمة</small></div>
+        <div class="business-card danger"><span>المتبقي لاسترداد الطابعة</span><strong id="dashRecovery">0</strong><small>الأصول - ربح المبيعات</small></div>
+      </div>
+
+      <div class="dashboard-grid section-gap-md">
+        <section class="card inner-card">
+          <div class="section-head">
+            <div><h3>ملخص سريع</h3><p class="section-subtext">يتحدث تلقائيًا من البيانات المسجلة</p></div>
+          </div>
+          <div class="quick-list">
+            <div class="quick-row"><span>ربح الطلبات</span><strong id="quickProfit">0</strong></div>
+            <div class="quick-row"><span>جرامات خامة متاحة</span><strong id="quickStockGrams">0 جم</strong></div>
+            <div class="quick-row"><span>الكاش + قيمة الخامة</span><strong id="quickCashPlusStock">0</strong></div>
+            <div class="quick-row"><span>إجمالي الأصول</span><strong id="quickAssets">0</strong></div>
+            <div class="quick-row"><span>الصيانة القادمة عند ساعة</span><strong id="quickNextMaintenance">0 ساعة</strong></div>
+            <div class="quick-row"><span>خامات قربت تخلص</span><strong id="quickLowStock">0</strong></div>
+          </div>
+        </section>
+
+        <section class="card inner-card">
+          <div class="section-head">
+            <div><h3>آخر حركة</h3><p class="section-subtext">آخر مبيعات ومشتريات</p></div>
+          </div>
+          <div id="dashboardRecentActivity" class="stack-list"></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal app-panel" id="purchasesModal" aria-hidden="true">
+    <div class="modal-content modal-xl panel-content">
+      <div class="panel-head">
+        <button type="button" onclick="closePurchasesModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2>المشتريات</h2>
+        <div class="inline-actions">
+          <button type="button" class="btn btn-primary btn-auto" onclick="openPurchaseModal()">إضافة مشتريات</button>
+        </div>
+      </div>
+      <div class="kpi-grid kpi-grid-3">
+        <div class="mini-kpi"><span>إجمالي المشتريات</span><strong id="purchasesTotalAmount">0</strong></div>
+        <div class="mini-kpi"><span>مشتريات خامات / جرام</span><strong id="purchasesTotalGrams">0 جم</strong></div>
+        <div class="mini-kpi"><span>عدد القيود</span><strong id="purchasesCount">0</strong></div>
+      </div>
+      <div class="table-wrap section-gap-md">
+        <table>
+          <thead><tr><th>التاريخ</th><th>التصنيف</th><th>البند</th><th>الكمية</th><th>إجمالي جم</th><th>الإجمالي</th><th>المورد</th><th>الخامة</th><th>ملاحظات</th><th>إجراء</th></tr></thead>
+          <tbody id="purchasesTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal app-panel" id="purchaseModal" aria-hidden="true">
+    <div class="modal-content modal-md panel-content">
+      <div class="panel-head">
+        <button type="button" onclick="closePurchaseModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2 id="purchaseModalTitle">إضافة مشتريات</h2>
+      </div>
+      <input type="hidden" id="purchaseId" />
+      <div class="grid-2">
+        <div class="form-group"><label for="purchaseDate">التاريخ</label><input type="date" id="purchaseDate" /></div>
+        <div class="form-group"><label for="purchaseCategory">التصنيف</label><select id="purchaseCategory"><option>خامات</option><option>إكسسوارات</option><option>تغليف</option><option>أدوات</option><option>صيانة</option><option>دعاية</option><option>شحن</option><option>أخرى</option></select></div>
+      </div>
+      <div class="grid-2 section-gap-sm">
+        <div class="form-group"><label for="purchaseItem">البند</label><input type="text" id="purchaseItem" placeholder="مثال: PLA أبيض / كراتين" /></div>
+        <div class="form-group"><label for="purchaseMaterialId">تزود خامة موجودة</label><select id="purchaseMaterialId"></select></div>
+      </div>
+      <div class="grid-3 section-gap-sm">
+        <div class="form-group"><label for="purchaseQty">الكمية</label><input type="text" id="purchaseQty" value="1" inputmode="decimal" /></div>
+        <div class="form-group"><label for="purchaseGramsPerUnit">جرام للواحدة/البكرة</label><input type="text" id="purchaseGramsPerUnit" value="1000" inputmode="decimal" /></div>
+        <div class="form-group"><label for="purchaseAmount">إجمالي السعر</label><input type="text" id="purchaseAmount" value="0" inputmode="decimal" /></div>
+      </div>
+      <div class="grid-2 section-gap-sm">
+        <div class="form-group"><label for="purchaseSupplier">المورد / المكان</label><input type="text" id="purchaseSupplier" /></div>
+        <div class="form-group"><label for="purchaseNotes">ملاحظات</label><input type="text" id="purchaseNotes" /></div>
+      </div>
+      <div class="helper-box section-gap-sm"><strong>ملاحظة:</strong><span>لو اخترت خامة موجودة والتصنيف خامات، الكمية هتزود المخزون وتتسجل في حركة المخزون.</span></div>
+      <button type="button" class="btn btn-primary section-gap-sm" onclick="savePurchaseAction()">حفظ المشتريات</button>
+    </div>
+  </div>
+
+  <div class="modal app-panel" id="assetsModal" aria-hidden="true">
+    <div class="modal-content modal-xl panel-content">
+      <div class="panel-head">
+        <button type="button" onclick="closeAssetsModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2>الأصول والاستثمار</h2>
+        <button type="button" class="btn btn-primary btn-auto" onclick="openAssetModal()">إضافة أصل</button>
+      </div>
+      <div class="kpi-grid kpi-grid-3">
+        <div class="mini-kpi"><span>إجمالي الأصول</span><strong id="assetsTotalCost">0</strong></div>
+        <div class="mini-kpi"><span>عدد الأصول</span><strong id="assetsCount">0</strong></div>
+        <div class="mini-kpi"><span>متوسط إهلاك الساعة</span><strong id="assetsAvgDepHour">0</strong></div>
+      </div>
+      <div class="table-wrap section-gap-md">
+        <table>
+          <thead><tr><th>التاريخ</th><th>الأصل</th><th>التكلفة</th><th>النوع</th><th>ساعات الإهلاك</th><th>إهلاك الساعة</th><th>ملاحظات</th><th>إجراء</th></tr></thead>
+          <tbody id="assetsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal app-panel" id="assetModal" aria-hidden="true">
+    <div class="modal-content modal-md panel-content">
+      <div class="panel-head">
+        <button type="button" onclick="closeAssetModal()" class="btn btn-secondary btn-auto">رجوع</button>
+        <h2 id="assetModalTitle">إضافة أصل</h2>
+      </div>
+      <input type="hidden" id="assetId" />
+      <div class="grid-2">
+        <div class="form-group"><label for="assetDate">التاريخ</label><input type="date" id="assetDate" /></div>
+        <div class="form-group"><label for="assetType">النوع</label><input type="text" id="assetType" placeholder="طابعة / ماكينة" /></div>
+      </div>
+      <div class="grid-2 section-gap-sm">
+        <div class="form-group"><label for="assetItem">الأصل / المعدة</label><input type="text" id="assetItem" /></div>
+        <div class="form-group"><label for="assetCost">التكلفة</label><input type="text" id="assetCost" value="0" inputmode="decimal" /></div>
+      </div>
+      <div class="grid-2 section-gap-sm">
+        <div class="form-group"><label for="assetDepreciationHours">ساعات الإهلاك</label><input type="text" id="assetDepreciationHours" value="5000" inputmode="decimal" /></div>
+        <div class="form-group"><label for="assetNotes">ملاحظات</label><input type="text" id="assetNotes" /></div>
+      </div>
+      <button type="button" class="btn btn-primary section-gap-sm" onclick="saveAssetAction()">حفظ الأصل</button>
+    </div>
+  </div>
+
   <div class="modal app-panel" id="pipelineModal" aria-hidden="true">
     <div class="modal-content modal-xl panel-content">
       <div class="panel-head">
@@ -343,24 +510,24 @@
       <div class="toolbar toolbar-wrap">
         <div class="form-group">
           <label for="pipelineSearch">بحث</label>
-          <input type="text" id="pipelineSearch" placeholder="الكود / المجسم / العميل" oninput="renderPipeline()" />
+          <input type="text" id="pipelineSearch" placeholder="الكود / المجسم / العميل" oninput="renderPipelineDebounced()" />
         </div>
 
         <div class="form-group">
           <label for="pipelinePrinterFilter">الطابعة</label>
-          <select id="pipelinePrinterFilter" oninput="renderPipeline()">
+          <select id="pipelinePrinterFilter" oninput="renderPipelineDebounced()">
             <option value="">كل الطابعات</option>
           </select>
         </div>
 
         <div class="form-group">
           <label for="pipelineFrom">من</label>
-          <input type="date" id="pipelineFrom" oninput="renderPipeline()" />
+          <input type="date" id="pipelineFrom" oninput="renderPipelineDebounced()" />
         </div>
 
         <div class="form-group">
           <label for="pipelineTo">إلى</label>
-          <input type="date" id="pipelineTo" oninput="renderPipeline()" />
+          <input type="date" id="pipelineTo" oninput="renderPipelineDebounced()" />
         </div>
       </div>
 
@@ -377,7 +544,7 @@
     <div class="modal-content modal-xl panel-content">
       <div class="panel-head">
         <button type="button" onclick="closeReports()" class="btn btn-secondary btn-auto">رجوع</button>
-        <h2>التقارير والمبيعات</h2>
+        <h2>المبيعات والتقارير</h2>
         <div class="inline-actions">
           <button type="button" class="btn btn-secondary btn-auto" onclick="exportSalesCSV()">مبيعات CSV</button>
           <button type="button" class="btn btn-secondary btn-auto" onclick="exportStockCSV()">مخزون CSV</button>
@@ -397,29 +564,29 @@
       <div class="toolbar toolbar-wrap">
         <div class="form-group">
           <label for="salesSearch">بحث</label>
-          <input type="text" id="salesSearch" placeholder="الكود / المجسم / العميل" oninput="renderReportsTable()" />
+          <input type="text" id="salesSearch" placeholder="الكود / المجسم / العميل" oninput="renderReportsTableDebounced()" />
         </div>
 
         <div class="form-group">
           <label for="filterPrinter">الطابعة</label>
-          <select id="filterPrinter" oninput="renderReportsTable()">
+          <select id="filterPrinter" oninput="renderReportsTableDebounced()">
             <option value="">كل الطابعات</option>
           </select>
         </div>
 
         <div class="form-group">
           <label for="filterCustomer">العميل</label>
-          <input type="text" id="filterCustomer" placeholder="اسم العميل" oninput="renderReportsTable()" list="customersDatalist" />
+          <input type="text" id="filterCustomer" placeholder="اسم العميل" oninput="renderReportsTableDebounced()" list="customersDatalist" />
         </div>
 
         <div class="form-group">
           <label for="filterFrom">من</label>
-          <input type="date" id="filterFrom" oninput="renderReportsTable()" />
+          <input type="date" id="filterFrom" oninput="renderReportsTableDebounced()" />
         </div>
 
         <div class="form-group">
           <label for="filterTo">إلى</label>
-          <input type="date" id="filterTo" oninput="renderReportsTable()" />
+          <input type="date" id="filterTo" oninput="renderReportsTableDebounced()" />
         </div>
       </div>
 
@@ -435,6 +602,8 @@
               <th>عدد القطع</th>
               <th>التكلفة</th>
               <th>البيع</th>
+              <th>محصل</th>
+              <th>ساعات</th>
               <th>الربح</th>
               <th>إجراء</th>
             </tr>
@@ -517,10 +686,15 @@
         </div>
       </div>
 
-      <div class="grid-3 section-gap-sm">
+      <div class="grid-4 section-gap-sm">
         <div class="form-group">
-          <label for="editPrintHours">إجمالي وقت الطباعة للأوردر / ساعة</label>
+          <label for="editPrintHours">ساعات الطباعة</label>
           <input type="text" id="editPrintHours" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="editPrintMinutes">دقائق الطباعة</label>
+          <input type="text" id="editPrintMinutes" inputmode="decimal" />
         </div>
 
         <div class="form-group">
@@ -815,6 +989,40 @@
         </div>
       </div>
 
+      <div class="grid-3 section-gap-sm">
+        <div class="form-group">
+          <label for="settingsOpeningCash">كاش بداية الدرج</label>
+          <input type="text" id="settingsOpeningCash" value="5200" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="settingsBaseMachineHours">ساعات تشغيل سابقة</label>
+          <input type="text" id="settingsBaseMachineHours" value="150" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="settingsMaintenanceEveryHours">الصيانة كل كام ساعة</label>
+          <input type="text" id="settingsMaintenanceEveryHours" value="1000" inputmode="decimal" />
+        </div>
+      </div>
+
+      <div class="grid-2 section-gap-sm">
+        <div class="form-group">
+          <label for="settingsLastMaintenanceAtHours">آخر صيانة تمت عند ساعة</label>
+          <input type="text" id="settingsLastMaintenanceAtHours" value="0" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="settingsMaintenanceCost">تكلفة الصيانة الدورية</label>
+          <input type="text" id="settingsMaintenanceCost" value="1500" inputmode="decimal" />
+        </div>
+      </div>
+
+      <div class="helper-box section-gap-sm">
+        <strong>كاش الدرج والصيانة:</strong>
+        <span>Dashboard يحسب كاش الدرج من كاش البداية + المحصل من المبيعات - المشتريات، ويحسب لمبة الصيانة من ساعات التشغيل السابقة + ساعات الأوردرات.</span>
+      </div>
+
       <div class="helper-box section-gap-sm">
         <strong>فكرة الإعدادات الافتراضية:</strong>
         <span>كل أوردر جديد سيبدأ بهذه القيم تلقائيًا، لكن يمكنك تعديلها أو تصفيرها داخل الأوردر نفسه.</span>
@@ -853,6 +1061,8 @@
   <script src="js/materials-manager.js"></script>
   <script src="js/printers-manager.js"></script>
   <script src="js/settings-export.js"></script>
+  <script src="js/business-dashboard.js"></script>
+  <script src="js/purchases-assets.js"></script>
   <script src="js/bootstrap.js"></script>
 </body>
 </html>
