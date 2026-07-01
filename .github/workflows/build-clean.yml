@@ -48,7 +48,7 @@ jobs:
 
       - name: Install dependencies
         shell: powershell
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Rebuild native dependencies for Electron
         shell: powershell
