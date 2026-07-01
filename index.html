@@ -111,8 +111,8 @@
             <section class="card material-usage-card compact-card">
               <div class="section-head compact-section-head">
                 <div>
-                  <h3>استهلاك الخامات</h3>
-                  <p class="section-subtext">اكتب إجمالي الجرامات المستخدمة لكل خامة في الأوردر كله</p>
+                  <h3>خامات الأوردر</h3>
+                  <p class="section-subtext">أضف فقط الألوان المستخدمة في الطبعة الحالية، حتى لو المخزن فيه ألوان كثيرة</p>
                 </div>
 
                 <button class="btn btn-secondary btn-small" type="button" onclick="openMaterialsManagerModal()">إدارة الخامات</button>
@@ -192,95 +192,63 @@
                 </div>
               </div>
 
-              <div class="summary-main">
-                <div class="summary-stat">
-                  <span class="summary-label">عدد القطع</span>
-                  <strong id="resPieces" class="summary-value">1 قطعة</strong>
+              <div class="summary-main summary-redesign">
+                <div class="summary-quick-grid">
+                  <div class="summary-tile">
+                    <span class="summary-label">عدد القطع</span>
+                    <strong id="resPieces" class="summary-value">1 قطعة</strong>
+                  </div>
+
+                  <div class="summary-tile">
+                    <span class="summary-label">سعر القطعة تقريبيًا</span>
+                    <strong id="resUnitFinal" class="summary-value">0 جنيه</strong>
+                  </div>
                 </div>
 
-                <div class="summary-stat">
-                  <span class="summary-label">سعر القطعة تقريبيًا</span>
-                  <strong id="resUnitFinal" class="summary-value">0 جنيه</strong>
+                <div class="summary-section-block">
+                  <div class="summary-section-title">
+                    <strong>التكلفة الأساسية</strong>
+                    <span>لكل الأوردر</span>
+                  </div>
+
+                  <div class="summary-section-rows">
+                    <div class="summary-stat"><span class="summary-label">تكلفة الخامة</span><strong id="resMat" class="summary-value">0 جنيه</strong></div>
+                    <div class="summary-stat"><span class="summary-label">هالك وزن إضافي</span><strong id="resWaste" class="summary-value">0 جنيه</strong></div>
+                    <div class="summary-stat"><span class="summary-label">تكلفة الماكينة</span><strong id="resDep" class="summary-value">0 جنيه</strong></div>
+                    <div class="summary-stat"><span class="summary-label">الكهرباء</span><strong id="resElectricity" class="summary-value">0 جنيه</strong></div>
+                    <div class="summary-stat"><span class="summary-label">الشغل اليدوي</span><strong id="resLabor" class="summary-value">0 جنيه</strong></div>
+                    <div class="summary-stat"><span class="summary-label">التغليف</span><strong id="resPackaging" class="summary-value">0 جنيه</strong></div>
+                    <div class="summary-stat"><span class="summary-label">إضافات مباشرة</span><strong id="resShipping" class="summary-value">0 جنيه</strong></div>
+                    <div class="summary-stat"><span class="summary-label">نسبة الفشل / المخاطرة</span><strong id="resRisk" class="summary-value">0 جنيه</strong></div>
+                  </div>
                 </div>
 
-                <div class="summary-stat">
-                  <span class="summary-label">تكلفة الخامة</span>
-                  <strong id="resMat" class="summary-value">0 جنيه</strong>
+                <div class="summary-section-block summary-section-compact">
+                  <div class="summary-section-title">
+                    <strong>التعديلات والربح</strong>
+                    <span>قبل التسجيل</span>
+                  </div>
+
+                  <div class="summary-section-rows">
+                    <div class="summary-stat"><span class="summary-label">الضريبة</span><strong id="resTax" class="summary-value">0 جنيه</strong></div>
+                    <div class="summary-stat"><span class="summary-label">فرق التقريب</span><strong id="resRoundedAdjustment" class="summary-value">0 جنيه</strong></div>
+                    <div class="summary-stat"><span class="summary-label">السعر قبل الخصم</span><strong id="resBeforeDiscount" class="summary-value">0 جنيه</strong></div>
+                    <div class="summary-stat"><span class="summary-label">الخصم</span><strong id="resDiscount" class="summary-value">0 جنيه</strong></div>
+                    <div class="summary-stat"><span class="summary-label">الحد الأدنى</span><strong id="resMinimum" class="summary-value">0 جنيه</strong></div>
+                    <div class="summary-stat total-stat"><span class="summary-label">إجمالي التكلفة</span><strong id="resTotal" class="summary-value">0 جنيه</strong></div>
+                  </div>
                 </div>
 
-                <div class="summary-stat">
-                  <span class="summary-label">هالك وزن إضافي</span>
-                  <strong id="resWaste" class="summary-value">0 جنيه</strong>
-                </div>
+                <div class="summary-finals">
+                  <div class="summary-stat final-stat">
+                    <span class="summary-label">سعر البيع النهائي</span>
+                    <strong id="resFinal" class="summary-value">0 جنيه</strong>
+                  </div>
 
-                <div class="summary-stat">
-                  <span class="summary-label">تكلفة الماكينة</span>
-                  <strong id="resDep" class="summary-value">0 جنيه</strong>
-                </div>
-
-                <div class="summary-stat">
-                  <span class="summary-label">الكهرباء</span>
-                  <strong id="resElectricity" class="summary-value">0 جنيه</strong>
-                </div>
-
-                <div class="summary-stat">
-                  <span class="summary-label">الشغل اليدوي</span>
-                  <strong id="resLabor" class="summary-value">0 جنيه</strong>
-                </div>
-
-                <div class="summary-stat">
-                  <span class="summary-label">التغليف</span>
-                  <strong id="resPackaging" class="summary-value">0 جنيه</strong>
-                </div>
-
-                <div class="summary-stat">
-                  <span class="summary-label">إضافات مباشرة</span>
-                  <strong id="resShipping" class="summary-value">0 جنيه</strong>
-                </div>
-
-                <div class="summary-stat">
-                  <span class="summary-label">نسبة الفشل / المخاطرة</span>
-                  <strong id="resRisk" class="summary-value">0 جنيه</strong>
-                </div>
-
-                <div class="summary-stat">
-                  <span class="summary-label">الضريبة</span>
-                  <strong id="resTax" class="summary-value">0 جنيه</strong>
-                </div>
-
-                <div class="summary-stat">
-                  <span class="summary-label">فرق التقريب</span>
-                  <strong id="resRoundedAdjustment" class="summary-value">0 جنيه</strong>
-                </div>
-
-                <div class="summary-stat">
-                  <span class="summary-label">السعر قبل الخصم</span>
-                  <strong id="resBeforeDiscount" class="summary-value">0 جنيه</strong>
-                </div>
-
-                <div class="summary-stat">
-                  <span class="summary-label">الخصم</span>
-                  <strong id="resDiscount" class="summary-value">0 جنيه</strong>
-                </div>
-
-                <div class="summary-stat">
-                  <span class="summary-label">الحد الأدنى</span>
-                  <strong id="resMinimum" class="summary-value">0 جنيه</strong>
-                </div>
-
-                <div class="summary-stat total-stat">
-                  <span class="summary-label">إجمالي التكلفة</span>
-                  <strong id="resTotal" class="summary-value">0 جنيه</strong>
-                </div>
-
-                <div class="summary-stat final-stat">
-                  <span class="summary-label">سعر البيع النهائي</span>
-                  <strong id="resFinal" class="summary-value">0 جنيه</strong>
-                </div>
-
-                <div class="summary-stat profit-stat">
-                  <span class="summary-label">صافي الربح</span>
-                  <strong id="resProfit" class="summary-value">0 جنيه</strong>
+                  <div class="summary-stat profit-stat">
+                    <span class="summary-label">صافي الربح</span>
+                    <strong id="resProfit" class="summary-value">0 جنيه</strong>
+                  </div>
                 </div>
               </div>
 
