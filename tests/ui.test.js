@@ -38,7 +38,7 @@ mustInclude(purchasesAssets, "panelReturnTargets.assets", 'assets panel return s
 });
 
 
-['getDefaultPrinterId()', "select.value = getDefaultPrinterId()"].forEach((needle) => {
+['getDefaultPrinterId()', "select.value = hasOldValue ? oldValue : getDefaultPrinterId()", "else if (!printers.length)"].forEach((needle) => {
   mustInclude(fs.readFileSync(path.join(root, 'js/printers-view.js'), 'utf8') + fs.readFileSync(path.join(root, 'js/pricing-orders.js'), 'utf8'), needle, `default printer behavior ${needle}`);
 });
 
