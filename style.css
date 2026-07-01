@@ -1787,3 +1787,56 @@ tbody td:last-child {
   background: rgba(239, 68, 68, .14);
   color: #fecaca;
 }
+
+/* Readability polish v1.8.1 */
+:root {
+  --text-soft: #b7c0cc;
+  --text-muted: #8b96a6;
+  --shadow: 0 8px 22px rgba(0, 0, 0, .14);
+}
+
+.card,
+.modal-content,
+.toast {
+  box-shadow: var(--shadow);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8;
+  opacity: 1;
+}
+
+select:invalid,
+select option[value=""],
+select option[value="__new__"] {
+  color: #c0cad7;
+}
+
+select option {
+  background: #0c1016;
+  color: var(--text);
+}
+
+.form-group label,
+.section-subtext,
+.material-row-meta,
+.list-card-body,
+.stock-details,
+.pipeline-meta,
+.summary-label {
+  color: var(--text-soft);
+}
+
+.mini-kpi span,
+.stat-box h4,
+.empty-state {
+  color: var(--text-soft);
+}
+
+.business-card.highlight,
+.final-stat,
+.nav-btn-active,
+.order-code-chip {
+  background: rgba(32, 196, 107, .08);
+}

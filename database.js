@@ -1837,6 +1837,32 @@ function getPurchaseMaterialId(data) {
   return Number.isFinite(id) && id > 0 ? id : null;
 }
 
+function createMaterialFromPurchase(data) {
+  const totalGrams = Math.max(0, Number(data.quantity || 0) * Number(data.gramsPerUnit || 0));
+  if (String(data.category || '').trim() !== 'خامات') return null;
+  if (!String(data.item || '').trim()) throw new Error('اسم الخامة الجديدة مطلوب');
+  if (totalGrams <= 0) throw new Error('اكتب جرام للواحدة/البكرة عشان الخامة الجديدة تتسجل في المخزون');
+
+  const name = String(data.item || '').trim();
+  const type = name.split(/\s+/)[0] || '';
+  const result = db.prepare(`
+    INSERT INTO materials (name, type, color, weight, remaining, price, low_stock_threshold, supplier, is_archived)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    name,
+    type,
+    '',
+    totalGrams,
+    0,
+    Number(data.amount || 0),
+    150,
+    String(data.supplier || '').trim(),
+    0
+  );
+
+  return Number(result.lastInsertRowid);
+}
+
 function applyPurchaseStockDelta(data, direction, referenceCode, reason) {
   const grams = getPurchaseStockGrams(data);
   const materialId = getPurchaseMaterialId(data);
@@ -1867,8 +1893,9 @@ function applyPurchaseStockDelta(data, direction, referenceCode, reason) {
 function savePurchase(payload) {
   const data = payload && typeof payload === 'object' ? payload : {};
   const id = Number(data.id || 0);
-  const materialId = getPurchaseMaterialId(data);
+  let materialId = getPurchaseMaterialId(data);
   const category = String(data.category || 'أخرى').trim() || 'أخرى';
+  const shouldCreateMaterial = category === 'خامات' && Boolean(data.createMaterial) && !materialId;
   const clean = {
     id: id > 0 ? id : null,
     date: String(data.date || new Date().toISOString().slice(0, 10)).trim(),
@@ -1879,13 +1906,14 @@ function savePurchase(payload) {
     amount: Math.max(0, Number(data.amount || 0)),
     supplier: String(data.supplier || '').trim(),
     notes: String(data.notes || '').trim(),
-    materialId
+    materialId,
+    createMaterial: shouldCreateMaterial
   };
 
   if (!clean.date) throw new Error('تاريخ المشتريات مطلوب');
   if (!clean.item) throw new Error('اسم بند المشتريات مطلوب');
   if (clean.quantity <= 0) throw new Error('كمية المشتريات لازم تكون أكبر من صفر');
-  if (clean.category === 'خامات' && clean.materialId && clean.gramsPerUnit <= 0) {
+  if (clean.category === 'خامات' && (clean.materialId || clean.createMaterial) && clean.gramsPerUnit <= 0) {
     throw new Error('اكتب جرام للواحدة/البكرة عشان المخزون يزيد صح');
   }
 
@@ -1900,6 +1928,10 @@ function savePurchase(payload) {
 
       applyPurchaseStockDelta(old, -1, `PUR-${clean.id}`, 'استرجاع مخزون قبل تعديل مشتريات');
 
+      if (clean.createMaterial) {
+        clean.materialId = createMaterialFromPurchase(clean);
+      }
+
       db.prepare(`
         UPDATE purchases
         SET purchase_date = ?, category = ?, item = ?, quantity = ?, grams_per_unit = ?, amount = ?, supplier = ?, notes = ?, material_id = ?
@@ -1908,6 +1940,10 @@ function savePurchase(payload) {
 
       applyPurchaseStockDelta(clean, 1, `PUR-${clean.id}`, 'إضافة مخزون بعد تعديل مشتريات');
       return clean.id;
+    }
+
+    if (clean.createMaterial) {
+      clean.materialId = createMaterialFromPurchase(clean);
     }
 
     const result = db.prepare(`
