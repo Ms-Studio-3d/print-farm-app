@@ -14,7 +14,12 @@ async function saveSettings() {
     shippingCost: String(toPositiveNumber(getValue('settingsShippingCost'), DEFAULT_CONFIG.shippingCost)),
     defaultTaxPercent: String(toPositiveNumber(getValue('settingsDefaultTaxPercent'), DEFAULT_CONFIG.defaultTaxPercent)),
     defaultDiscountValue: String(toPositiveNumber(getValue('settingsDefaultDiscountValue'), DEFAULT_CONFIG.defaultDiscountValue)),
-    roundingStep: String(toPositiveNumber(getValue('settingsRoundingStep'), DEFAULT_CONFIG.roundingStep))
+    roundingStep: String(toPositiveNumber(getValue('settingsRoundingStep'), DEFAULT_CONFIG.roundingStep)),
+    openingCash: String(toPositiveNumber(getValue('settingsOpeningCash'), DEFAULT_CONFIG.openingCash)),
+    baseMachineHours: String(toPositiveNumber(getValue('settingsBaseMachineHours'), DEFAULT_CONFIG.baseMachineHours)),
+    maintenanceEveryHours: String(toPositiveNumber(getValue('settingsMaintenanceEveryHours'), DEFAULT_CONFIG.maintenanceEveryHours)),
+    lastMaintenanceAtHours: String(toPositiveNumber(getValue('settingsLastMaintenanceAtHours'), DEFAULT_CONFIG.lastMaintenanceAtHours)),
+    maintenanceCost: String(toPositiveNumber(getValue('settingsMaintenanceCost'), DEFAULT_CONFIG.maintenanceCost))
   };
 
   const response = await window.farmAPI.saveConfig(config);
@@ -75,6 +80,7 @@ function exportSalesCSV() {
     'العميل',
     'الطابعة',
     'عدد القطع',
+    'وقت الطباعة',
     'إجمالي ساعات الطباعة للأوردر',
     'إجمالي دقائق يدوي للأوردر',
     'تكلفة الخامة',
@@ -95,6 +101,7 @@ function exportSalesCSV() {
     'الحد الأدنى',
     'فرق التقريب',
     'سعر البيع',
+    'المحصل',
     'الربح',
     'ملاحظات'
   ];
@@ -106,6 +113,7 @@ function exportSalesCSV() {
     order.customerName,
     order.printerName,
     formatNumber(order.quantity || 1),
+    formatHoursMinutes(order.printHours || 0),
     formatNumber(order.printHours),
     formatNumber(order.manualMinutes),
     formatNumber(order.materialCost),
@@ -126,6 +134,7 @@ function exportSalesCSV() {
     formatNumber(order.minimumOrderPrice),
     formatNumber(order.roundedAdjustment),
     formatNumber(order.finalPrice),
+    formatNumber(getOrderPaidAmount(order)),
     formatNumber(order.profit),
     order.notes || ''
   ]);

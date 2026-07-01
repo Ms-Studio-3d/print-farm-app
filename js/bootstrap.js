@@ -9,6 +9,7 @@ function bindLiveCalculationInputs() {
   [
     'pieceQuantity',
     'printHours',
+    'printMinutes',
     'manualMins',
     'profitMargin',
     'discountValue',
@@ -50,7 +51,12 @@ function bindSettingsLiveInputs() {
     'settingsShippingCost',
     'settingsDefaultTaxPercent',
     'settingsDefaultDiscountValue',
-    'settingsRoundingStep'
+    'settingsRoundingStep',
+    'settingsOpeningCash',
+    'settingsBaseMachineHours',
+    'settingsMaintenanceEveryHours',
+    'settingsLastMaintenanceAtHours',
+    'settingsMaintenanceCost'
   ].forEach((id) => {
     const el = $(id);
     if (!el) return;
@@ -101,6 +107,14 @@ function initializeDates() {
 
   if ($('pipelineTo') && !getValue('pipelineTo')) {
     setValue('pipelineTo', today);
+  }
+
+  if ($('purchaseDate') && !getValue('purchaseDate')) {
+    setValue('purchaseDate', today);
+  }
+
+  if ($('assetDate') && !getValue('assetDate')) {
+    setValue('assetDate', today);
   }
 }
 

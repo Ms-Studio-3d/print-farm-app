@@ -63,6 +63,39 @@ function formatDateTime(value) {
   return String(value).replace('T', ' ').slice(0, 19);
 }
 
+
+function formatHoursMinutes(value) {
+  const totalMinutes = Math.max(0, Math.round(Number(value || 0) * 60));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours && minutes) return `${hours} ساعة ${minutes} دقيقة`;
+  if (hours) return `${hours} ساعة`;
+  return `${minutes} دقيقة`;
+}
+
+function splitHoursToParts(value) {
+  const totalMinutes = Math.max(0, Math.round(Number(value || 0) * 60));
+  return {
+    hours: Math.floor(totalMinutes / 60),
+    minutes: totalMinutes % 60
+  };
+}
+
+function combineHoursMinutes(hoursValue, minutesValue) {
+  const hours = toPositiveNumber(hoursValue, 0);
+  const minutes = toPositiveNumber(minutesValue, 0);
+  // نحفظ وقت الطباعة بدقة 4 أرقام عشرية حتى لا تضيع الدقائق القصيرة.
+  // مثال: 1 دقيقة = 0.0167 ساعة تقريبًا، بدل تقريبها لـ 0.02 ساعة.
+  return Number((hours + (minutes / 60)).toFixed(4));
+}
+
+function getPrintHoursFromInputs(prefix = '') {
+  const hoursId = prefix ? `${prefix}PrintHours` : 'printHours';
+  const minutesId = prefix ? `${prefix}PrintMinutes` : 'printMinutes';
+  return combineHoursMinutes(getValue(hoursId), getValue(minutesId));
+}
+
 function setText(id, value) {
   const el = $(id);
   if (el) el.innerText = value;
@@ -94,7 +127,21 @@ function getMaterialById(id) {
 }
 
 function getOrderByCode(code) {
-  return dashboardData.orders.find((item) => String(item.code) === String(code));
+  const cleanCode = String(code || '');
+  const sources = [dashboardData.orders || []];
+
+  if (typeof orderQueryViews === 'object' && orderQueryViews) {
+    Object.values(orderQueryViews).forEach((view) => {
+      if (Array.isArray(view?.items)) sources.push(view.items);
+    });
+  }
+
+  for (const source of sources) {
+    const match = source.find((item) => String(item.code) === cleanCode);
+    if (match) return match;
+  }
+
+  return null;
 }
 
 function isCancelled(order) {
@@ -175,17 +222,23 @@ function getPaymentMethodText() {
 }
 
 
-function getPaidAmountFromStatus(_status, finalPrice) {
-  return Math.max(0, Number(finalPrice || 0));
+function getPaidAmountFromStatus(status, finalPrice, paidAmount) {
+  if (String(status || '') === 'cancelled') return 0;
+  const final = Math.max(0, Number(finalPrice || 0));
+  const paid = paidAmount === undefined || paidAmount === null || paidAmount === ''
+    ? final
+    : Math.max(0, Number(paidAmount || 0));
+  return Math.min(final, paid);
 }
 
 function getOrderPaidAmount(order) {
   if (isCancelled(order)) return 0;
-  return Math.max(0, Number(order?.finalPrice || 0));
+  return getPaidAmountFromStatus(order?.status, order?.finalPrice, order?.paidAmount);
 }
 
-function getOrderDueAmount() {
-  return 0;
+function getOrderDueAmount(order) {
+  if (isCancelled(order)) return 0;
+  return Math.max(0, Number(order?.finalPrice || 0) - getOrderPaidAmount(order));
 }
 
 function getMovementTypeText(type) {

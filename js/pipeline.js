@@ -1,48 +1,48 @@
-function getPipelineFilteredOrders() {
-  const search = getTrimmedValue('pipelineSearch').toLowerCase();
-  const printerId = getValue('pipelinePrinterFilter');
-  const from = getValue('pipelineFrom');
-  const to = getValue('pipelineTo');
-
-  return getSortedOrders().filter((order) => {
-    const haystack = [
-      order.code,
-      order.itemName,
-      order.customerName,
-      order.printerName,
-      order.notes,
-    ].join(' ').toLowerCase();
-
-    const matchesSearch = !search || haystack.includes(search);
-    const matchesPrinter = !printerId || String(order.printerId || '') === String(printerId);
-    const matchesFrom = !from || (order.date && order.date >= from);
-    const matchesTo = !to || (order.date && order.date <= to);
-
-    return matchesSearch && matchesPrinter && matchesFrom && matchesTo;
-  });
+function getPipelineFilters() {
+  return {
+    search: getTrimmedValue('pipelineSearch'),
+    printerId: getValue('pipelinePrinterFilter'),
+    from: getValue('pipelineFrom'),
+    to: getValue('pipelineTo')
+  };
 }
 
-function renderPipeline() {
+function getPipelineFilteredOrders() {
+  const state = getViewOrderState('pipeline');
+  return Array.isArray(state.items) && state.items.length ? state.items : getSortedOrders();
+}
+
+async function renderPipeline() {
   const target = $('pipelineAll');
   const count = $('pipelineCountAll');
   if (!target) return;
 
-  const allOrders = getPipelineFilteredOrders();
+  const state = await loadOrdersForView('pipeline', getPipelineFilters(), pipelineVisibleCount);
+  const allOrders = Array.isArray(state.items) ? state.items : [];
   const visibleOrders = allOrders.slice(0, pipelineVisibleCount);
-  if (count) count.innerText = String(allOrders.length);
+  const matchedTotal = Number(state.meta?.total || state.summary?.count || allOrders.length);
+  if (count) count.innerText = String(matchedTotal);
 
-  const moreButton = allOrders.length > visibleOrders.length
-    ? `<div class="inline-actions"><button class="btn btn-secondary btn-small" type="button" onclick="showMorePipeline()">عرض المزيد (${allOrders.length - visibleOrders.length})</button></div>`
+  if (state.loading && !visibleOrders.length) {
+    target.innerHTML = `<div class="empty-state">جاري تحميل النتائج من قاعدة البيانات...</div>`;
+    return;
+  }
+
+  const hasMoreLoaded = allOrders.length > visibleOrders.length;
+  const hasMoreRemote = Boolean(state.meta?.hasMore);
+  const remainingOrders = Math.max(0, matchedTotal - visibleOrders.length);
+  const moreButton = (hasMoreLoaded || hasMoreRemote)
+    ? `<div class="inline-actions"><button class="btn btn-secondary btn-small" type="button" onclick="showMorePipeline()">عرض المزيد (${remainingOrders})</button></div>`
     : '';
 
-  target.innerHTML = allOrders.length
+  target.innerHTML = visibleOrders.length
     ? visibleOrders.map((order) => renderPipelineCard(order)).join('') + moreButton
-    : `<div class="empty-state">لا يوجد أوردرات</div>`;
+    : (moreButton || `<div class="empty-state">لا يوجد أوردرات</div>`);
 }
 
-function showMorePipeline() {
+async function showMorePipeline() {
   pipelineVisibleCount += LIST_PAGE_SIZE;
-  renderPipeline();
+  await renderPipeline();
 }
 
 function renderPipelineCard(order) {
@@ -62,6 +62,7 @@ function renderPipelineCard(order) {
         <div>الطابعة: ${escapeHtml(order.printerName || '-')}</div>
         <div>التاريخ: ${escapeHtml(order.date || '-')}</div>
         <div>عدد القطع: ${formatNumber(order.quantity || 1)}</div>
+        <div>وقت الطباعة: ${formatHoursMinutes(order.printHours || 0)}</div>
       </div>
 
       <div class="pipeline-price">
@@ -81,6 +82,8 @@ function renderPipelineCard(order) {
 
 function openPipelineModal() {
   pipelineVisibleCount = LIST_PAGE_SIZE;
+  const state = getViewOrderState('pipeline');
+  state.filtersKey = '';
   setActiveNav('pipeline');
   closeMainPanels();
   renderPrinterSelects();

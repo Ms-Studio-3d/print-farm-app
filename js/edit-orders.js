@@ -95,7 +95,9 @@ function openEditSale(code) {
   setValue('editItemName', order.itemName || '');
   setValue('editCustomerName', order.customerName || '');
   setValue('editPrinter', order.printerId || '');
-  setValue('editPrintHours', order.printHours || 0);
+  const printParts = splitHoursToParts(order.printHours || 0);
+  setValue('editPrintHours', printParts.hours);
+  setValue('editPrintMinutes', printParts.minutes);
   setValue('editManualMinutes', order.manualMinutes || 0);
   setValue('editFinalPrice', order.finalPrice || 0);
   setValue('editNotes', order.notes || '');
@@ -133,8 +135,20 @@ async function saveEditSale() {
 
   const finalPrice = toPositiveNumber(getValue('editFinalPrice'), Number(oldOrder.finalPrice || 0));
   const printerId = getValue('editPrinter') ? Number(getValue('editPrinter')) : null;
-  const printHours = toPositiveNumber(getValue('editPrintHours'), Number(oldOrder.printHours || 0));
+  const printHours = getPrintHoursFromInputs('edit');
   const manualMinutes = toPositiveNumber(getValue('editManualMinutes'), Number(oldOrder.manualMinutes || 0));
+
+  if (!printerId) {
+    showToast('اختار الطابعة المستخدمة', 'error');
+    $('editPrinter')?.focus();
+    return;
+  }
+
+  if (printHours <= 0) {
+    showToast('وقت الطباعة لازم يكون أكبر من صفر', 'error');
+    $('editPrintHours')?.focus();
+    return;
+  }
   const recalculated = recalculateEditedOrderCosts(oldOrder, printHours, manualMinutes, printerId);
   const minimumNoLossPrice = recalculated.totalCost + recalculated.directAddOnsCost;
 

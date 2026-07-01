@@ -17,7 +17,7 @@ function renderQuotes() {
     return;
   }
 
-  target.innerHTML = quotes.map((quote) => {
+  const cardsHtml = quotes.map((quote) => {
     const code = escapeHtml(quote.code || '');
     const converted = String(quote.status || 'open') === 'converted';
     return `
@@ -49,6 +49,16 @@ function renderQuotes() {
       </article>
     `;
   }).join('');
+
+  const moreButton = dashboardData.meta?.quotes?.hasMore
+    ? `<button class="btn btn-secondary btn-small" type="button" onclick="loadMoreQuotes()">عرض المزيد (${Math.max(0, Number(dashboardData.meta?.quotes?.total || quotes.length) - quotes.length)})</button>`
+    : '';
+
+  target.innerHTML = cardsHtml + moreButton;
+}
+
+async function loadMoreQuotes() {
+  await loadMoreDataPage('quotes', renderQuotes);
 }
 
 function openQuotesModal() {

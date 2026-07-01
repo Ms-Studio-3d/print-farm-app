@@ -1,7 +1,7 @@
 function calc() {
   const materialUsage = getMaterialUsageFromInputs();
   const quantity = MOO3DPricing.toPositiveInteger(getValue('pieceQuantity'), 1);
-  const printHours = toPositiveNumber(getValue('printHours'), 0);
+  const printHours = getPrintHoursFromInputs();
   const manualMinutes = toPositiveNumber(getValue('manualMins'), 0);
 
   const profitMargin = toPositiveNumber(getValue('profitMargin'), getConfigNumber('defaultProfitMargin'));
@@ -147,6 +147,7 @@ function resetOrderForm() {
   setValue('selectedPrinter', '');
   setValue('pieceQuantity', '1');
   setValue('printHours', '0');
+  setValue('printMinutes', '0');
   setValue('opDate', new Date().toISOString().slice(0, 10));
   setValue('orderNotes', '');
   document.querySelectorAll('.ams-weight').forEach((input) => {
@@ -164,7 +165,7 @@ function validateOrderBeforeSave(options = {}) {
   const itemName = getTrimmedValue('itemName');
   const rawQuantity = Number(getValue('pieceQuantity'));
   const quantity = MOO3DPricing.toPositiveInteger(rawQuantity, 1);
-  const printHours = toPositiveNumber(getValue('printHours'), 0);
+  const printHours = getPrintHoursFromInputs();
   const printerId = getValue('selectedPrinter');
   const materialUsage = getMaterialUsageFromInputs();
 
@@ -290,6 +291,7 @@ function applySavedOrderLocally(payload) {
   renderReportsTableSafe();
   renderStockMovementsTableSafe();
   if (isModalOpen('pipelineModal')) renderPipeline();
+  if (typeof renderBusinessDashboardSafe === 'function') renderBusinessDashboardSafe();
   setNextOrderCode();
 }
 
@@ -304,7 +306,7 @@ function buildCurrentOrderPayload(code) {
     printerId: Number(getValue('selectedPrinter')),
     status: 'delivered',
     quantity: currentCalc.quantity || 1,
-    printHours: toPositiveNumber(getValue('printHours'), 0),
+    printHours: getPrintHoursFromInputs(),
     manualMinutes: toPositiveNumber(getValue('manualMins'), 0),
     notes: getTrimmedValue('orderNotes'),
     date: getValue('opDate') || new Date().toISOString().slice(0, 10),

@@ -1,60 +1,31 @@
-function getFilteredOrders() {
-  const search = getTrimmedValue('salesSearch').toLowerCase();
-  const from = getValue('filterFrom');
-  const to = getValue('filterTo');
-  const filterPrinter = getValue('filterPrinter');
-  const filterCustomer = getTrimmedValue('filterCustomer').toLowerCase();
-
-  return getSortedOrders().filter((order) => {
-    const code = String(order.code || '').toLowerCase();
-    const itemName = String(order.itemName || '').toLowerCase();
-    const customerName = String(order.customerName || '').toLowerCase();
-    const notes = String(order.notes || '').toLowerCase();
-    const printerId = String(order.printerId || '');
-
-    const matchesSearch =
-      !search ||
-      code.includes(search) ||
-      itemName.includes(search) ||
-      customerName.includes(search) ||
-      notes.includes(search);
-
-    const matchesFrom = !from || (order.date && order.date >= from);
-    const matchesTo = !to || (order.date && order.date <= to);
-    const matchesPrinter = !filterPrinter || printerId === String(filterPrinter);
-    const matchesCustomer = !filterCustomer || customerName.includes(filterCustomer);
-
-    return matchesSearch && matchesFrom && matchesTo && matchesPrinter && matchesCustomer;
-  });
+function getReportsFilters() {
+  return {
+    search: getTrimmedValue('salesSearch'),
+    from: getValue('filterFrom'),
+    to: getValue('filterTo'),
+    printerId: getValue('filterPrinter'),
+    customer: getTrimmedValue('filterCustomer')
+  };
 }
 
-function renderReportsTable() {
+function getFilteredOrders() {
+  const state = getViewOrderState('reports');
+  return Array.isArray(state.items) && state.items.length ? state.items : getSortedOrders();
+}
+
+async function renderReportsTable() {
   const salesTableBody = $('salesTableBody');
   if (!salesTableBody) return;
 
-  const allOrders = getFilteredOrders();
+  const state = await loadOrdersForView('reports', getReportsFilters(), reportsVisibleCount);
+  const allOrders = Array.isArray(state.items) ? state.items : [];
   const visibleOrders = allOrders.slice(0, reportsVisibleCount);
+  const summary = state.summary || {};
 
-  let totalRevenue = 0;
-  let totalProfit = 0;
-  let topSale = 0;
-  let cancelledCount = 0;
-  const customerMap = new Map();
-
-  allOrders.forEach((order) => {
-    if (!isCancelled(order)) {
-      totalRevenue += Number(order.finalPrice || 0);
-      totalProfit += Number(order.profit || 0);
-      topSale = Math.max(topSale, Number(order.finalPrice || 0));
-
-      const customer = String(order.customerName || '').trim();
-      if (customer) {
-        customerMap.set(customer, (customerMap.get(customer) || 0) + Number(order.finalPrice || 0));
-      }
-    }
-
-    if (String(order.status || '') === 'cancelled') cancelledCount += 1;
-  });
+  if (state.loading && !visibleOrders.length) {
+    salesTableBody.innerHTML = `<tr><td colspan="12"><div class="empty-state">جاري تحميل النتائج من قاعدة البيانات...</div></td></tr>`;
+    return;
+  }
 
   const rowsHtml = visibleOrders.map((order) => {
     const safeCode = escapeHtml(order.code || '');
@@ -69,6 +40,8 @@ function renderReportsTable() {
         <td>${formatNumber(order.quantity || 1)}</td>
         <td>${formatMoney(order.totalCost || 0)}</td>
         <td>${formatMoney(order.finalPrice || 0)}</td>
+        <td>${formatMoney(getOrderPaidAmount(order))}</td>
+        <td>${formatHoursMinutes(order.printHours || 0)}</td>
         <td>${formatMoney(order.profit || 0)}</td>
         <td>
           <button class="action-btn edit" type="button" onclick="openEditSale('${safeCode}')">تعديل</button>
@@ -79,28 +52,28 @@ function renderReportsTable() {
     `;
   }).join('');
 
-  const moreRow = allOrders.length > visibleOrders.length
-    ? `<tr><td colspan="10"><button class="btn btn-secondary btn-small" type="button" onclick="showMoreReports()">عرض المزيد (${allOrders.length - visibleOrders.length})</button></td></tr>`
+  const matchedTotal = Number(state.meta?.total || summary.count || allOrders.length);
+  const hasMoreLoaded = allOrders.length > visibleOrders.length;
+  const hasMoreRemote = Boolean(state.meta?.hasMore);
+  const remainingOrders = Math.max(0, matchedTotal - visibleOrders.length);
+  const moreRow = (hasMoreLoaded || hasMoreRemote)
+    ? `<tr><td colspan="12"><button class="btn btn-secondary btn-small" type="button" onclick="showMoreReports()">عرض المزيد (${remainingOrders})</button></td></tr>`
     : '';
 
-  salesTableBody.innerHTML = allOrders.length
+  salesTableBody.innerHTML = visibleOrders.length
     ? rowsHtml + moreRow
-    : `<tr><td colspan="10"><div class="empty-state">لا توجد نتائج مطابقة.</div></td></tr>`;
+    : (moreRow || `<tr><td colspan="12"><div class="empty-state">لا توجد نتائج مطابقة.</div></td></tr>`);
 
-  const validOrders = allOrders.filter((order) => !isCancelled(order));
-  const avgProfit = validOrders.length ? totalProfit / validOrders.length : 0;
-
-  const topCustomer = [...customerMap.entries()].sort((a, b) => b[1] - a[1])[0];
-
+  const topCustomer = summary.topCustomer;
   const lowestStockMaterial = [...dashboardData.materials]
     .sort((a, b) => Number(a.remaining || 0) - Number(b.remaining || 0))[0];
 
-  setText('statRev', formatMoney(totalRevenue));
-  setText('statProfit', formatMoney(totalProfit));
-  setText('statCount', String(allOrders.length));
-  setText('statTop', formatMoney(topSale));
-  setText('statAvgProfit', formatMoney(avgProfit));
-  setText('statTopCustomer', topCustomer ? `${topCustomer[0]} (${formatMoney(topCustomer[1])})` : '-');
+  setText('statRev', formatMoney(summary.totalRevenue || 0));
+  setText('statProfit', formatMoney(summary.totalProfit || 0));
+  setText('statCount', String(matchedTotal));
+  setText('statTop', formatMoney(summary.topSale || 0));
+  setText('statAvgProfit', formatMoney(summary.avgProfit || 0));
+  setText('statTopCustomer', topCustomer ? `${topCustomer.name} (${formatMoney(topCustomer.revenue)})` : '-');
   setText(
     'statLowestStock',
     lowestStockMaterial
@@ -109,9 +82,9 @@ function renderReportsTable() {
   );
 }
 
-function showMoreReports() {
+async function showMoreReports() {
   reportsVisibleCount += LIST_PAGE_SIZE;
-  renderReportsTable();
+  await renderReportsTable();
 }
 
 function renderReportsTableSafe() {
@@ -120,7 +93,9 @@ function renderReportsTableSafe() {
 
 function openReports() {
   reportsVisibleCount = LIST_PAGE_SIZE;
-  setActiveNav('reports');
+  const state = getViewOrderState('reports');
+  state.filtersKey = '';
+  setActiveNav('sales');
   closeMainPanels();
   renderPrinterSelects();
   renderReportsTable();

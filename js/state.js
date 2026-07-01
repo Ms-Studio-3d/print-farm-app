@@ -4,7 +4,11 @@ let dashboardData = {
   materials: [],
   orders: [],
   stockMovements: [],
-  quotes: []
+  quotes: [],
+  purchases: [],
+  assets: [],
+  customers: [],
+  meta: {}
 };
 
 let currentCalc = createEmptyCalc();
@@ -12,11 +16,25 @@ let editingOrderCode = null;
 let currentInvoiceOrderCode = null;
 let reportsVisibleCount = 100;
 let pipelineVisibleCount = 100;
+let customersVisibleCount = 100;
 let savingOrder = false;
 let savingQuote = false;
 let savingEdit = false;
 let convertingQuote = false;
 let deletingQuote = false;
+let loadingDataPage = false;
+let reportsLoading = false;
+let pipelineLoading = false;
+let customersLoading = false;
+let orderQueryViews = {
+  reports: { filtersKey: '', items: [], meta: {}, summary: null, loading: false, requestId: 0 },
+  pipeline: { filtersKey: '', items: [], meta: {}, summary: null, loading: false, requestId: 0 }
+};
+let customersQueryView = { filtersKey: '', items: [], meta: {}, summary: null, loading: false, requestId: 0 };
+let savingPurchase = false;
+let savingAsset = false;
+let editingPurchaseId = null;
+let editingAssetId = null;
 const LIST_PAGE_SIZE = 100;
 
 const DEFAULT_CONFIG = {
@@ -34,21 +52,30 @@ const DEFAULT_CONFIG = {
   shippingCost: 0,
   defaultTaxPercent: 0,
   defaultDiscountValue: 0,
-  roundingStep: 5
+  roundingStep: 5,
+  openingCash: 5200,
+  baseMachineHours: 150,
+  maintenanceEveryHours: 1000,
+  lastMaintenanceAtHours: 0,
+  maintenanceCost: 1500
 };
 
 
 const MAIN_PANEL_IDS = [
+  'businessDashboardModal',
   'reportsModal',
   'materialsManagerModal',
   'printersManagerModal',
   'customersModal',
   'pipelineModal',
   'settingsModal',
-  'quotesModal'
+  'quotesModal',
+  'purchasesModal',
+  'assetsModal'
 ];
 
 const MODAL_IDS = [
+  'businessDashboardModal',
   'reportsModal',
   'editModal',
   'invoiceModal',
@@ -60,7 +87,11 @@ const MODAL_IDS = [
   'customersModal',
   'pipelineModal',
   'settingsModal',
-  'quotesModal'
+  'quotesModal',
+  'purchasesModal',
+  'purchaseModal',
+  'assetsModal',
+  'assetModal'
 ];
 
 function createEmptyCalc() {
