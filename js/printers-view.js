@@ -4,7 +4,8 @@ function renderPrinterSelects() {
     if (!select) return;
 
     const oldValue = select.value;
-    const firstOption = (id === 'filterPrinter' || id === 'pipelinePrinterFilter')
+    const isFilter = id === 'filterPrinter' || id === 'pipelinePrinterFilter';
+    const firstOption = isFilter
       ? `<option value="">كل الطابعات</option>`
       : `<option value="">اختر طابعة</option>`;
 
@@ -17,6 +18,11 @@ function renderPrinterSelects() {
 
     if ([...select.options].some((opt) => opt.value === oldValue)) {
       select.value = oldValue;
+      return;
+    }
+
+    if (id === 'selectedPrinter') {
+      select.value = getDefaultPrinterId();
     }
   });
 }

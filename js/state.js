@@ -31,6 +31,7 @@ let orderQueryViews = {
   pipeline: { filtersKey: '', items: [], meta: {}, summary: null, loading: false, requestId: 0 }
 };
 let customersQueryView = { filtersKey: '', items: [], meta: {}, summary: null, loading: false, requestId: 0 };
+let panelReturnTargets = { reports: '', purchases: '', assets: '' };
 let savingPurchase = false;
 let savingAsset = false;
 let editingPurchaseId = null;

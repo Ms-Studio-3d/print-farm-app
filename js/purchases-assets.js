@@ -10,6 +10,7 @@ function fillPurchaseMaterialSelect(selectedId = '') {
 
   select.innerHTML = [
     '<option value="">لا يزود مخزون</option>',
+    '<option value="__new__">إضافة خامة جديدة باسم البند</option>',
     ...(dashboardData.materials || []).map((material) => (
       `<option value="${material.id}">${escapeHtml(material.name)} — متبقي ${formatNumber(material.remaining || 0)} جم</option>`
     ))
@@ -68,7 +69,14 @@ function renderPurchasesTableSafe() {
   if (isModalOpen('purchasesModal')) renderPurchasesTable();
 }
 
-function openPurchasesModal() {
+function getPanelReturnTarget(options = {}) {
+  if (typeof options === 'string') return options;
+  if (options && typeof options === 'object' && options.returnTo) return String(options.returnTo);
+  return isModalOpen('businessDashboardModal') ? 'dashboard' : '';
+}
+
+function openPurchasesModal(options = {}) {
+  panelReturnTargets.purchases = getPanelReturnTarget(options);
   setActiveNav('purchases');
   closeMainPanels();
   renderPurchasesTable();
@@ -76,7 +84,15 @@ function openPurchasesModal() {
 }
 
 function closePurchasesModal() {
+  const returnTarget = panelReturnTargets.purchases;
+  panelReturnTargets.purchases = '';
   closeModal('purchasesModal');
+
+  if (returnTarget === 'dashboard') {
+    openBusinessDashboard();
+    return;
+  }
+
   returnToOrderNav();
 }
 
@@ -91,7 +107,7 @@ function openPurchaseModal(id = null) {
   setValue('purchaseDate', purchase?.date || new Date().toISOString().slice(0, 10));
   setValue('purchaseCategory', purchase?.category || 'خامات');
   setValue('purchaseItem', purchase?.item || '');
-  fillPurchaseMaterialSelect(purchase?.materialId || '');
+  fillPurchaseMaterialSelect(purchase?.materialId || (purchase ? '' : '__new__'));
   setValue('purchaseQty', purchase?.quantity ?? 1);
   setValue('purchaseGramsPerUnit', purchase?.gramsPerUnit ?? 1000);
   setValue('purchaseAmount', purchase?.amount ?? 0);
@@ -116,7 +132,8 @@ async function savePurchaseAction() {
       date: getValue('purchaseDate'),
       category: getValue('purchaseCategory') || 'أخرى',
       item: getTrimmedValue('purchaseItem'),
-      materialId: getValue('purchaseMaterialId') ? Number(getValue('purchaseMaterialId')) : null,
+      materialId: getValue('purchaseMaterialId') && getValue('purchaseMaterialId') !== '__new__' ? Number(getValue('purchaseMaterialId')) : null,
+      createMaterial: getValue('purchaseMaterialId') === '__new__',
       quantity: toPositiveNumber(getValue('purchaseQty'), 1),
       gramsPerUnit: toPositiveNumber(getValue('purchaseGramsPerUnit'), 0),
       amount: toPositiveNumber(getValue('purchaseAmount'), 0),
@@ -127,6 +144,12 @@ async function savePurchaseAction() {
     if (!payload.item) {
       const material = payload.materialId ? getMaterialById(payload.materialId) : null;
       payload.item = material ? material.name : '';
+    }
+
+    if (payload.category === 'خامات' && payload.createMaterial && !payload.item) {
+      showToast('اكتب اسم الخامة الجديدة في خانة البند', 'error');
+      $('purchaseItem')?.focus();
+      return;
     }
 
     const response = await window.farmAPI.savePurchase(payload);
@@ -215,7 +238,8 @@ function renderAssetsTableSafe() {
   if (isModalOpen('assetsModal')) renderAssetsTable();
 }
 
-function openAssetsModal() {
+function openAssetsModal(options = {}) {
+  panelReturnTargets.assets = getPanelReturnTarget(options);
   setActiveNav('assets');
   closeMainPanels();
   renderAssetsTable();
@@ -223,7 +247,15 @@ function openAssetsModal() {
 }
 
 function closeAssetsModal() {
+  const returnTarget = panelReturnTargets.assets;
+  panelReturnTargets.assets = '';
   closeModal('assetsModal');
+
+  if (returnTarget === 'dashboard') {
+    openBusinessDashboard();
+    return;
+  }
+
   returnToOrderNav();
 }
 

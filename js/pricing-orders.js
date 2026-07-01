@@ -144,7 +144,7 @@ function resetResultsPanel() {
 function resetOrderForm() {
   setValue('itemName', '');
   setValue('customerName', '');
-  setValue('selectedPrinter', '');
+  setValue('selectedPrinter', getDefaultPrinterId());
   setValue('pieceQuantity', '1');
   setValue('printHours', '0');
   setValue('printMinutes', '0');

@@ -122,6 +122,13 @@ function getPrinterById(id) {
   return dashboardData.printers.find((printer) => String(printer.id) === String(id));
 }
 
+function getDefaultPrinterId() {
+  const printers = Array.isArray(dashboardData.printers) ? dashboardData.printers : [];
+  const availablePrinter = printers.find((printer) => String(printer.status || 'idle') !== 'offline');
+  const printer = availablePrinter || printers[0];
+  return printer ? String(printer.id) : '';
+}
+
 function getMaterialById(id) {
   return dashboardData.materials.find((material) => String(material.id) === String(id));
 }
