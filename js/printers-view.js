@@ -5,25 +5,36 @@ function renderPrinterSelects() {
 
     const oldValue = select.value;
     const isFilter = id === 'filterPrinter' || id === 'pipelinePrinterFilter';
-    const firstOption = isFilter
-      ? `<option value="">كل الطابعات</option>`
-      : `<option value="">اختر طابعة</option>`;
+    const printers = Array.isArray(dashboardData.printers) ? dashboardData.printers : [];
+    const printerOptions = printers.map((printer) => {
+      return `<option value="${Number(printer.id)}">${escapeHtml(printer.name)}</option>`;
+    });
 
-    select.innerHTML = [
-      firstOption,
-      ...dashboardData.printers.map((printer) => {
-        return `<option value="${Number(printer.id)}">${escapeHtml(printer.name)}</option>`;
-      })
-    ].join('');
+    let firstOption = '';
+    if (isFilter) {
+      firstOption = `<option value="">كل الطابعات</option>`;
+    } else if (id === 'editPrinter') {
+      firstOption = `<option value="">اختر طابعة</option>`;
+    } else if (!printers.length) {
+      firstOption = `<option value="">لا توجد طابعات مضافة</option>`;
+    }
 
-    if ([...select.options].some((opt) => opt.value === oldValue)) {
-      select.value = oldValue;
+    select.innerHTML = [firstOption, ...printerOptions].filter(Boolean).join('');
+
+    const hasOldValue = oldValue && [...select.options].some((opt) => opt.value === oldValue);
+
+    if (isFilter) {
+      select.value = hasOldValue ? oldValue : '';
       return;
     }
 
     if (id === 'selectedPrinter') {
-      select.value = getDefaultPrinterId();
+      select.value = hasOldValue ? oldValue : getDefaultPrinterId();
+      if (!select.value && select.options.length) select.selectedIndex = 0;
+      return;
     }
+
+    select.value = hasOldValue ? oldValue : '';
   });
 }
 
