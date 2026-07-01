@@ -37,32 +37,30 @@
       </header>
 
       <main class="app-content">
-        <section class="main-layout">
-          <section class="left-column">
-            <section class="card">
-              <div class="section-head">
+        <section class="main-layout quote-workspace">
+          <section class="left-column quote-inputs-column">
+            <section class="card order-details-card compact-card">
+              <div class="section-head compact-section-head">
                 <div>
                   <h3>أوردر جديد</h3>
-                  <p class="section-subtext">اكتب بيانات القطعة واحسب السعر فورًا</p>
+                  <p class="section-subtext">بيانات الأوردر الأساسية في صفوف مضغوطة بدون مساحة فاضية</p>
                 </div>
 
                 <button class="btn btn-secondary btn-small" type="button" onclick="resetOrderForm()">تفريغ</button>
               </div>
 
-              <div class="grid-2">
-                <div class="form-group">
+              <div class="compact-order-grid">
+                <div class="form-group span-2">
                   <label for="itemName">اسم المجسم *</label>
                   <input type="text" id="itemName" placeholder="مثال: حامل موبايل" />
                 </div>
 
-                <div class="form-group">
+                <div class="form-group span-2">
                   <label for="customerName">اسم العميل</label>
                   <input type="text" id="customerName" placeholder="اختياري" list="customersDatalist" />
                   <datalist id="customersDatalist"></datalist>
                 </div>
-              </div>
 
-              <div class="grid-2 section-gap-sm">
                 <div class="form-group">
                   <label for="selectedPrinter">الطابعة *</label>
                   <select id="selectedPrinter"></select>
@@ -72,12 +70,15 @@
                   <label for="opDate">التاريخ</label>
                   <input type="date" id="opDate" />
                 </div>
-              </div>
 
-              <div class="grid-4 section-gap-sm">
                 <div class="form-group">
                   <label for="pieceQuantity">عدد القطع</label>
                   <input type="number" id="pieceQuantity" value="1" min="1" step="1" inputmode="numeric" />
+                </div>
+
+                <div class="form-group">
+                  <label for="profitMargin">زيادة التكلفة %</label>
+                  <input type="text" id="profitMargin" value="100" inputmode="decimal" />
                 </div>
 
                 <div class="form-group">
@@ -91,15 +92,8 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="manualMins">إجمالي دقائق خدمة / شغل يدوي للأوردر</label>
+                  <label for="manualMins">شغل يدوي / دقيقة</label>
                   <input type="text" id="manualMins" value="15" inputmode="decimal" />
-                </div>
-              </div>
-
-              <div class="grid-3 section-gap-sm">
-                <div class="form-group">
-                  <label for="profitMargin">زيادة على التكلفة %</label>
-                  <input type="text" id="profitMargin" value="100" inputmode="decimal" />
                 </div>
 
                 <div class="form-group">
@@ -107,15 +101,15 @@
                   <input type="text" id="discountValue" value="0" inputmode="decimal" />
                 </div>
 
-                <div class="form-group">
+                <div class="form-group span-4">
                   <label for="orderNotes">ملاحظات</label>
                   <input type="text" id="orderNotes" placeholder="اختياري" />
                 </div>
               </div>
             </section>
 
-            <section class="card section-gap-md">
-              <div class="section-head">
+            <section class="card material-usage-card compact-card">
+              <div class="section-head compact-section-head">
                 <div>
                   <h3>استهلاك الخامات</h3>
                   <p class="section-subtext">اكتب إجمالي الجرامات المستخدمة لكل خامة في الأوردر كله</p>
@@ -124,20 +118,20 @@
                 <button class="btn btn-secondary btn-small" type="button" onclick="openMaterialsManagerModal()">إدارة الخامات</button>
               </div>
 
-              <div id="amsInputs" class="material-usage-list"></div>
+              <div id="amsInputs" class="material-usage-list compact-material-list"></div>
             </section>
 
-            <section class="card section-gap-md">
-              <div class="section-head">
+            <section class="card pricing-details-card compact-card">
+              <div class="section-head compact-section-head">
                 <div>
                   <h3>تفاصيل التسعير</h3>
-                  <p class="section-subtext">القيم التي تدخل في الحساب، والإضافات اختيارية</p>
+                  <p class="section-subtext">القيم الاختيارية للحساب والإضافات</p>
                 </div>
               </div>
 
-              <div class="grid-3">
+              <div class="compact-pricing-grid">
                 <div class="form-group">
-                  <label for="laborRate">سعر ساعة الشغل اليدوي</label>
+                  <label for="laborRate">ساعة الشغل اليدوي</label>
                   <input type="text" id="laborRate" value="50" inputmode="decimal" />
                 </div>
 
@@ -147,54 +141,49 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="packagingCost">تغليف الأوردر كله</label>
+                  <label for="packagingCost">تغليف الأوردر</label>
                   <input type="text" id="packagingCost" value="10" inputmode="decimal" />
                 </div>
-              </div>
 
-              <div class="grid-3 section-gap-sm">
                 <div class="form-group">
-                  <label for="failurePercent">نسبة فشل / مخاطرة %</label>
+                  <label for="failurePercent">فشل / مخاطرة %</label>
                   <input type="text" id="failurePercent" value="10" inputmode="decimal" />
                 </div>
 
                 <div class="form-group">
-                  <label for="wasteWeight">إجمالي وزن هالك إضافي / جرام</label>
+                  <label for="wasteWeight">هالك إضافي / جرام</label>
                   <input type="text" id="wasteWeight" value="0" inputmode="decimal" />
                 </div>
 
                 <div class="form-group">
-                  <label for="minimumOrderPrice">الحد الأدنى لسعر الأوردر</label>
+                  <label for="minimumOrderPrice">الحد الأدنى</label>
                   <input type="text" id="minimumOrderPrice" value="0" inputmode="decimal" />
                 </div>
-              </div>
 
-              <div class="grid-3 section-gap-sm">
                 <div class="form-group">
-                  <label for="accessoriesCost">إكسسوارات / تكلفة إضافية للقطعة</label>
+                  <label for="accessoriesCost">إكسسوارات / قطعة</label>
                   <input type="text" id="accessoriesCost" value="0" inputmode="decimal" />
                 </div>
 
                 <div class="form-group">
-                  <label for="shippingCost">شحن الأوردر كله</label>
+                  <label for="shippingCost">شحن الأوردر</label>
                   <input type="text" id="shippingCost" value="0" inputmode="decimal" />
                 </div>
 
                 <div class="form-group">
-                  <label for="defaultTaxPercent">ضريبة / نسبة إضافية %</label>
+                  <label for="defaultTaxPercent">ضريبة / نسبة %</label>
                   <input type="text" id="defaultTaxPercent" value="0" inputmode="decimal" />
                 </div>
               </div>
 
-              <div class="helper-box section-gap-sm">
-                <strong>ملاحظة مهمة:</strong>
-                <span>الكهرباء، الفشل، وسعر الشغل اليدوي قيم ثابتة من الإعدادات. اتركها كما هي إلا لو الأوردر حالة خاصة.</span>
-                <span>وقت الطباعة يدخل كساعات + دقائق، والخامات والتغليف والشغل اليدوي يتم إدخالهم كإجمالي للأوردر كله. الإكسسوارات فقط تتضرب في عدد القطع، والشحن يضاف مرة واحدة للأوردر كله. الإكسسوارات والشحن بدون فشل وبدون مكسب.</span>
+              <div class="helper-box compact-helper section-gap-sm">
+                <strong>ملاحظة:</strong>
+                <span>وقت الطباعة والخامات والتغليف والشغل اليدوي إجمالي للأوردر كله. الإكسسوارات فقط تتضرب في عدد القطع، والشحن يضاف مرة واحدة.</span>
               </div>
             </section>
           </section>
 
-          <aside class="right-column">
+          <aside class="right-column quote-summary-column">
             <section class="card result-card">
               <div class="section-head section-head-light">
                 <div>
