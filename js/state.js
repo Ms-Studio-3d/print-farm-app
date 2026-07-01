@@ -14,6 +14,7 @@ let dashboardData = {
 let currentCalc = createEmptyCalc();
 let editingOrderCode = null;
 let currentInvoiceOrderCode = null;
+let selectedOrderMaterialIds = [];
 let reportsVisibleCount = 100;
 let pipelineVisibleCount = 100;
 let customersVisibleCount = 100;

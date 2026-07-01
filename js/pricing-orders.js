@@ -150,10 +150,12 @@ function resetOrderForm() {
   setValue('printMinutes', '0');
   setValue('opDate', new Date().toISOString().slice(0, 10));
   setValue('orderNotes', '');
+  selectedOrderMaterialIds = [];
   document.querySelectorAll('.ams-weight').forEach((input) => {
     input.value = '';
   });
   applyConfigToInputs();
+  renderMaterialUsageInputs();
   currentCalc = createEmptyCalc();
   resetResultsPanel();
   setNextOrderCode();
