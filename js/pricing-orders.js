@@ -88,8 +88,22 @@ function calc() {
   const weightedGramPrice = totalMaterialGrams > 0 ? materialCost / totalMaterialGrams : 0;
   const wasteCost = wasteWeight * weightedGramPrice;
 
-  const selectedPrinterId = getValue('selectedPrinter');
-  const printer = selectedPrinterId ? getPrinterById(selectedPrinterId) : null;
+  const selectedPrinterId = getValue('selectedPrinter') || getDefaultPrinterId();
+  let printer = selectedPrinterId ? getPrinterById(selectedPrinterId) : null;
+
+  // حماية إضافية من أي بيانات قديمة أو select متخزن بطريقة مختلفة:
+  // لو لم نستطع إيجاد الطابعة بالـ id، نستخدم اسم الاختيار الظاهر بدل ما تكلفة الماكينة تطلع صفر.
+  if (!printer) {
+    const selectedOptionText = $('selectedPrinter')?.selectedOptions?.[0]?.textContent || '';
+    if (selectedOptionText) {
+      printer = { id: selectedPrinterId || '', name: selectedOptionText, hourlyDepreciation: 0 };
+    }
+  }
+
+  if (!printer && Array.isArray(dashboardData.printers) && dashboardData.printers.length === 1) {
+    printer = dashboardData.printers[0];
+  }
+
   // منطق التسعير النهائي:
   // تكلفة ساعة الطابعة هنا = تشغيل فقط.
   // إهلاك الأصول ونصيب الصيانة يتحسبوا كبنود منفصلة مرة واحدة فقط.

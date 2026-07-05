@@ -156,10 +156,17 @@ function renderMaterialUsageInputs() {
 
   const picker = $('materialUsagePicker');
   if (picker) {
+    picker.addEventListener('change', () => {
+      if (!picker.value) return;
+      addMaterialUsageRow(picker.value);
+      picker.value = '';
+    });
+
     picker.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
         addMaterialUsageRow();
+        picker.value = '';
       }
     });
   }
