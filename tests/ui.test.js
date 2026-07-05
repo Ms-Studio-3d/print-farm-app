@@ -56,7 +56,7 @@ mustInclude(purchasesAssets, "panelReturnTargets.assets", 'assets panel return s
   '--side-nav-width',
   '.quote-workspace',
   'overflow: hidden;',
-  'grid-template-columns: var(--summary-width) minmax(0, 1fr)',
+  'grid-template-columns: minmax(0, 1fr) 300px',
   '.bottom-nav {',
   'position: fixed;',
   '.nav-btn[data-view="order"]::before',
