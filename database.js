@@ -474,15 +474,15 @@ function normalizePageOptions(options = {}) {
 }
 
 function escapeLike(value) {
-  return String(value ?? '').replace(/[\%_]/g, (char) => `\${char}`);
+  return String(value ?? '').replace(/[\%_]/g, (char) => `\\${char}`);
 }
 
 function addLikeFilter(parts, params, columns, rawValue) {
   const value = String(rawValue ?? '').trim().toLowerCase();
   if (!value) return;
 
-  const like = `%${value}%`;
-  parts.push(`(${columns.map((column) => `LOWER(COALESCE(${column}, '')) LIKE ?`).join(' OR ')})`);
+  const like = `%${escapeLike(value)}%`;
+  parts.push(`(${columns.map((column) => `LOWER(COALESCE(${column}, '')) LIKE ? ESCAPE '\\'`).join(' OR ')})`);
   columns.forEach(() => params.push(like));
 }
 
@@ -2184,11 +2184,6 @@ function replaceAllData(data) {
         : null;
 
       const finalPrice = Number(order.finalPrice || 0);
-      const paymentStatus = String(order.paymentStatus || 'collected').trim();
-      const paymentMethod = String(order.paymentMethod || 'cash').trim();
-      const paidAmount = order.paidAmount === undefined || order.paidAmount === null
-        ? finalPrice
-        : Math.min(finalPrice, Math.max(0, Number(order.paidAmount) || 0));
 
       const result = insertOrder.run(
         String(order.code || '').trim(),
@@ -2223,9 +2218,9 @@ function replaceAllData(data) {
         Number(order.unitFinalPrice || (finalPrice / Math.max(1, Number(order.quantity || 1)))),
         Number(order.unitTotalCost || (Number(order.totalCost || 0) / Math.max(1, Number(order.quantity || 1)))),
         Number(order.unitProfit || (Number(order.profit || 0) / Math.max(1, Number(order.quantity || 1)))),
-        paymentStatus,
-        paymentMethod,
-        paidAmount
+        'collected',
+        'cash',
+        finalPrice
       );
 
       if (order.id != null) {

@@ -31,17 +31,6 @@
   box-sizing: border-box;
 }
 
-body,
-button,
-input,
-select,
-textarea,
-table,
-.list-card,
-.invoice-sheet {
-  overflow-wrap: anywhere;
-}
-
 html,
 body {
   margin: 0;
@@ -51,12 +40,6 @@ body {
   background: var(--bg);
   color: var(--text);
   overflow: hidden;
-  overscroll-behavior: contain;
-}
-
-select option[value="__new__"] {
-  color: var(--primary);
-  font-weight: 700;
 }
 
 button,
@@ -163,7 +146,7 @@ button {
 
 .main-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: minmax(0, 1fr) 300px;
   gap: 16px;
   align-items: start;
 }
@@ -1484,13 +1467,6 @@ textarea {
     white-space: normal !important;
   }
 
-  .nav-btn[data-view="order"]::before {
-    content: "⌂";
-    display: block;
-    font-size: 18px;
-    line-height: 1;
-  }
-
   .app-content {
     flex: 1 1 auto !important;
     height: calc(100vh - var(--topbar-height)) !important;
@@ -2128,4 +2104,37 @@ textarea {
     min-height: 42px !important;
     font-size: 14px !important;
   }
+}
+
+
+/* Robust readability and compact layout safeguards */
+.app-content,
+.modal-content,
+.table-wrap,
+.stack-list,
+.pipeline-card,
+.stock-item,
+.card,
+.stat-card,
+.invoice-paper {
+  overflow-wrap: anywhere;
+}
+
+.app-content,
+.modal-content,
+.table-wrap,
+.material-usage-rows,
+.summary-main {
+  overscroll-behavior: contain;
+}
+
+select option[value="__new__"] {
+  color: #94a3b8;
+  font-weight: 800;
+}
+
+.nav-btn[data-view="order"]::before {
+  content: "⌂";
+  font-size: 14px;
+  line-height: 1;
 }

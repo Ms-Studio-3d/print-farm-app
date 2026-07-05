@@ -1,4 +1,4 @@
-# MOO3D PRINT FARM v1.8.0
+# MOO3D PRINT FARM v1.8.1
 
 نسخة Desktop محلية لإدارة تسعير الطباعة ثلاثية الأبعاد، الأوردرات، الخامات، الطابعات، التقارير، وعروض الأسعار.
 
@@ -25,9 +25,11 @@
 
 الـ workflow يستخدم:
 
-- `npm ci`
-- `npm test`
-- `electron-builder`
+- `corepack enable`
+- `corepack prepare pnpm@9.15.9 --activate`
+- `pnpm install --frozen-lockfile`
+- `pnpm test`
+- `pnpm exec electron-builder --win nsis --publish never`
 
 ## ملاحظات مهمة
 
@@ -74,3 +76,13 @@
 - Added Assets module for printer/equipment investment tracking.
 - Added cash and maintenance settings: opening cash, previous machine hours, maintenance interval, last maintenance hour, maintenance cost.
 - Pricing form now accepts print time as hours + minutes while storing the total internally as hours for backward compatibility.
+
+
+## v1.8.1 إصلاحات الاستقرار والتسعير
+
+- تثبيت معادلة التسعير لتظل متوافقة مع تطبيق الموبايل: تكلفة الإنتاج تشمل الخامة، الهالك، الماكينة/الإهلاك، الكهرباء، الشغل اليدوي، والتغليف فقط.
+- المخاطرة/الفشل والضريبة والربح تُحسب على تكلفة الإنتاج، بينما الإكسسوارات تُحسب للقطعة والشحن يضاف مرة واحدة للأوردر ولا يدخل في هامش الربح.
+- إصلاح قواعد CSS الناقصة التي كانت توقف اختبارات الواجهة.
+- تأمين الأكواد المستخدمة داخل أزرار التقارير والـ pipeline وعروض الأسعار.
+- تقوية فحص استيراد النسخ الاحتياطية قبل استبدال قاعدة البيانات.
+- انتظار نسخة الإغلاق الاحتياطية قبل إغلاق التطبيق النهائي.

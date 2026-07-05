@@ -34,7 +34,7 @@ let mainWindow = null;
 let ipcHandlersRegistered = false;
 let autoBackupTimer = null;
 let autoBackupRunning = false;
-let finalQuitStarted = false;
+let shutdownBackupDone = false;
 
 function writeStartupError(error) {
   try {
@@ -326,8 +326,7 @@ function normalizePurchasePayload(payload) {
     amount: asPositiveNumber(data.amount, 0),
     supplier: asTrimmedString(data.supplier),
     notes: asTrimmedString(data.notes),
-    materialId: asNullableId(data.materialId),
-    createMaterial: Boolean(data.createMaterial)
+    materialId: asNullableId(data.materialId)
   };
 }
 
@@ -421,6 +420,12 @@ function validateCreateQuotePayload(data) {
   if (!Array.isArray(data.materialUsage) || data.materialUsage.length === 0) {
     throw new Error('أدخل استهلاك خامة واحدة على الأقل');
   }
+
+  for (const item of data.materialUsage) {
+    if (!item || !item.materialId) throw new Error('بيانات الخامة غير صالحة');
+    if (asPositiveNumber(item.grams, 0) <= 0) throw new Error('كمية الخامة لازم تكون أكبر من صفر');
+  }
+
   if (data.finalPrice < data.totalCost + data.accessoriesCost + data.shippingCost) throw new Error('سعر البيع أقل من التكلفة والمصاريف المباشرة');
 }
 
@@ -510,7 +515,6 @@ function scheduleAutomaticBackup(reason = 'auto', delayMs = 2000) {
 function validateBackupPayload(payload) {
   const data = asObject(payload);
   const schemaVersion = Number(data.schemaVersion || 0);
-  const collectionKeys = ['printers', 'materials', 'orders', 'orderMaterials', 'stockMovements', 'purchases', 'assets', 'quotes'];
 
   if (!data.appName || !String(data.appName).toLowerCase().includes('print farm')) {
     throw new Error('ملف النسخة الاحتياطية لا يبدو أنه خاص بالبرنامج');
@@ -520,44 +524,86 @@ function validateBackupPayload(payload) {
     throw new Error('إصدار النسخة الاحتياطية قديم أو غير صالح');
   }
 
-  if (!data.config || typeof data.config !== 'object') {
+  if (!data.config || typeof data.config !== 'object' || Array.isArray(data.config)) {
     throw new Error('ملف النسخة الاحتياطية لا يحتوي على إعدادات صحيحة');
   }
 
-  collectionKeys.forEach((key) => {
+  ['printers', 'materials', 'orders', 'orderMaterials', 'stockMovements', 'purchases', 'assets'].forEach((key) => {
     if (data[key] !== undefined && !Array.isArray(data[key])) {
       throw new Error(`بنية النسخة الاحتياطية غير صالحة في: ${key}`);
     }
-
-    if (Array.isArray(data[key])) {
-      if (data[key].length > 100000) {
-        throw new Error(`حجم بيانات النسخة الاحتياطية أكبر من المسموح في: ${key}`);
-      }
-
-      if (data[key].some((item) => !item || typeof item !== 'object' || Array.isArray(item))) {
-        throw new Error(`يوجد سجل غير صالح في النسخة الاحتياطية داخل: ${key}`);
-      }
-    }
   });
 
-  const seenOrderCodes = new Set();
-  for (const order of data.orders || []) {
-    const code = asTrimmedString(order.code);
-    const quantity = Number(order.quantity);
-    const finalPrice = Number(order.finalPrice);
-
-    if (!code || seenOrderCodes.has(code)) {
-      throw new Error('النسخة الاحتياطية تحتوي على كود أوردر فارغ أو مكرر');
-    }
-    if (!Number.isInteger(quantity) || quantity <= 0) {
-      throw new Error(`عدد القطع غير صالح في الأوردر: ${code}`);
-    }
-    if (!Number.isFinite(finalPrice) || finalPrice < 0) {
-      throw new Error(`سعر البيع غير صالح في الأوردر: ${code}`);
-    }
-
-    seenOrderCodes.add(code);
+  if (data.quotes !== undefined && !Array.isArray(data.quotes)) {
+    throw new Error('بنية عروض الأسعار في النسخة الاحتياطية غير صالحة');
   }
+
+  const printers = Array.isArray(data.printers) ? data.printers : [];
+  const materials = Array.isArray(data.materials) ? data.materials : [];
+  const orders = Array.isArray(data.orders) ? data.orders : [];
+  const orderMaterials = Array.isArray(data.orderMaterials) ? data.orderMaterials : [];
+  const stockMovements = Array.isArray(data.stockMovements) ? data.stockMovements : [];
+  const purchases = Array.isArray(data.purchases) ? data.purchases : [];
+  const assets = Array.isArray(data.assets) ? data.assets : [];
+  const quotes = Array.isArray(data.quotes) ? data.quotes : [];
+
+  const allowedPrinterStatuses = new Set(['idle', 'printing', 'maintenance', 'offline']);
+  const allowedOrderStatuses = new Set(['new', 'printing', 'finished', 'delivered', 'cancelled']);
+  const allowedQuoteStatuses = new Set(['open', 'converted']);
+  const allowedStockMovements = new Set(['in', 'out', 'purchase', 'sale', 'adjust_in', 'adjust_out', 'manual', 'correction']);
+
+  printers.forEach((printer, index) => {
+    if (!asTrimmedString(printer.name)) throw new Error(`طابعة بدون اسم في النسخة الاحتياطية رقم ${index + 1}`);
+    if (asPositiveNumber(printer.hourlyDepreciation, 0) !== asNumber(printer.hourlyDepreciation, 0)) throw new Error('تكلفة إهلاك طابعة غير صالحة');
+    const status = asTrimmedString(printer.status, 'idle');
+    if (!allowedPrinterStatuses.has(status)) throw new Error(`حالة طابعة غير صالحة: ${status}`);
+  });
+
+  materials.forEach((material, index) => {
+    if (!asTrimmedString(material.name)) throw new Error(`خامة بدون اسم في النسخة الاحتياطية رقم ${index + 1}`);
+    if (asPositiveNumber(material.weight, 0) !== asNumber(material.weight, 0)) throw new Error('وزن خامة غير صالح');
+    if (asPositiveNumber(material.remaining, 0) !== asNumber(material.remaining, 0)) throw new Error('كمية خامة متبقية غير صالحة');
+    if (asPositiveNumber(material.price, 0) !== asNumber(material.price, 0)) throw new Error('سعر خامة غير صالح');
+    if (Number(material.remaining || 0) > Number(material.weight || 0)) throw new Error(`المتبقي أكبر من وزن الخامة: ${asTrimmedString(material.name)}`);
+  });
+
+  orders.forEach((order, index) => {
+    if (!asTrimmedString(order.code)) throw new Error(`أوردر بدون كود في النسخة الاحتياطية رقم ${index + 1}`);
+    if (!asTrimmedString(order.itemName)) throw new Error(`أوردر بدون اسم مجسم: ${asTrimmedString(order.code)}`);
+    const status = asTrimmedString(order.status, 'new');
+    if (!allowedOrderStatuses.has(status)) throw new Error(`حالة أوردر غير صالحة: ${status}`);
+    if (asPositiveInteger(order.quantity, 0) <= 0) throw new Error(`عدد قطع غير صالح في الأوردر: ${asTrimmedString(order.code)}`);
+    if (asPositiveNumber(order.finalPrice, 0) <= 0) throw new Error(`سعر بيع غير صالح في الأوردر: ${asTrimmedString(order.code)}`);
+  });
+
+  orderMaterials.forEach((item) => {
+    if (asPositiveNumber(item.grams, 0) <= 0) throw new Error('استهلاك خامة غير صالح في النسخة الاحتياطية');
+    if (asPositiveNumber(item.totalCost, 0) !== asNumber(item.totalCost, 0)) throw new Error('تكلفة خامة غير صالحة في النسخة الاحتياطية');
+  });
+
+  stockMovements.forEach((movement) => {
+    const type = asTrimmedString(movement.movementType, 'manual');
+    if (!allowedStockMovements.has(type)) throw new Error(`نوع حركة مخزون غير صالح: ${type}`);
+    if (asNumber(movement.quantity, 0) === 0) throw new Error('حركة مخزون بكمية صفر غير صالحة');
+  });
+
+  purchases.forEach((purchase) => {
+    if (!asTrimmedString(purchase.item)) throw new Error('بند مشتريات بدون اسم في النسخة الاحتياطية');
+    if (asPositiveNumber(purchase.quantity, 0) <= 0) throw new Error('كمية مشتريات غير صالحة في النسخة الاحتياطية');
+    if (asPositiveNumber(purchase.amount, 0) !== asNumber(purchase.amount, 0)) throw new Error('قيمة مشتريات غير صالحة في النسخة الاحتياطية');
+  });
+
+  assets.forEach((asset) => {
+    if (!asTrimmedString(asset.item)) throw new Error('أصل بدون اسم في النسخة الاحتياطية');
+    if (asPositiveNumber(asset.cost, 0) <= 0) throw new Error('تكلفة أصل غير صالحة في النسخة الاحتياطية');
+  });
+
+  quotes.forEach((quote) => {
+    if (!asTrimmedString(quote.code)) throw new Error('عرض سعر بدون كود في النسخة الاحتياطية');
+    const status = asTrimmedString(quote.status, 'open');
+    if (!allowedQuoteStatuses.has(status)) throw new Error(`حالة عرض سعر غير صالحة: ${status}`);
+    if (asPositiveNumber(quote.finalPrice, 0) <= 0) throw new Error(`سعر عرض غير صالح: ${asTrimmedString(quote.code)}`);
+  });
 
   return data;
 }
@@ -825,20 +871,19 @@ app.on('web-contents-created', (_event, contents) => {
 });
 
 app.on('before-quit', (event) => {
-  if (finalQuitStarted) return;
+  if (shutdownBackupDone) return;
 
   event.preventDefault();
-  finalQuitStarted = true;
+  shutdownBackupDone = true;
 
   if (autoBackupTimer) {
     clearTimeout(autoBackupTimer);
     autoBackupTimer = null;
   }
 
-  Promise.race([
-    createAutomaticBackup('shutdown'),
-    new Promise((resolve) => setTimeout(() => resolve(null), 5000))
-  ]).finally(() => app.exit(0));
+  createAutomaticBackup('shutdown')
+    .catch((error) => console.warn('[SHUTDOWN BACKUP FAILED]', error?.message || error))
+    .finally(() => app.quit());
 });
 
 app.on('window-all-closed', () => {
