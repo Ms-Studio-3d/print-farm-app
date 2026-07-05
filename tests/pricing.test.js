@@ -160,4 +160,30 @@ assert.equal(toNonNegativeNumber(-3), 0);
 assert.equal(toNonNegativeNumber('7'), 7);
 assert.equal(roundUpByStep(-12, 5), 0);
 
+// مثال مرجعي متزن يحسب التشغيل والإهلاك والصيانة مرة واحدة:
+// 143 جم، 5.5 ساعة، تشغيل ماكينة 6.5/ساعة + إهلاك أصل 12/ساعة + صيانة 1.5/ساعة،
+// كهرباء 3 جنيه/kWh × 0.25kW، 15 دقيقة شغل يدوي، تغليف 10، فشل 10%، ربح 100%، وتقريب لأقرب 5.
+const balancedMobileReference = calculateMoo3dPricing({
+  quantity: 1,
+  materialCost: 143 * 800 / 1000,
+  wasteCost: 0,
+  depreciationCost: 5.5 * (6.5 + 12 + 1.5),
+  electricityCost: 5.5 * 3 * 0.25,
+  laborCost: 0.25 * 50,
+  packagingCost: 10,
+  accessoriesCost: 0,
+  shippingCost: 0,
+  failurePercent: 10,
+  taxPercent: 0,
+  profitMargin: 100,
+  discountValue: 0,
+  minimumOrderPrice: 0,
+  roundingStep: 5,
+});
+
+assert.equal(Number(balancedMobileReference.totalCost.toFixed(2)), 276.13);
+assert.equal(balancedMobileReference.finalPrice, 555);
+assert.equal(Number(balancedMobileReference.profit.toFixed(2)), 278.87);
+assert.ok(balancedMobileReference.finalPrice < 715, 'balanced pricing should count assets and maintenance once, not twice');
+
 console.log('Pricing tests passed using js/pricing-core.js');

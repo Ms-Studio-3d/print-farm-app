@@ -68,4 +68,16 @@ mustInclude(purchasesAssets, "panelReturnTargets.assets", 'assets panel return s
 
 assert.ok((css.match(/@media \(max-width:/g) || []).length >= 5, 'responsive media queries should be present');
 
+
+[
+  '.business-summary-grid',
+  '.business-card',
+  '.dashboard-grid',
+  '.quick-row',
+  '.maintenance-lamp',
+  '.lamp-dot'
+].forEach((rule) => {
+  mustInclude(css, rule, `business dashboard layout rule ${rule}`);
+});
+
 console.log('UI tests passed');
