@@ -1,8 +1,10 @@
 (function (root, factory) {
   const api = factory();
+
   if (typeof module === 'object' && module.exports) {
     module.exports = api;
   }
+
   root.MOO3DPricing = api;
   root.roundUpByStep = api.roundUpByStep;
   root.calculateMoo3dPricing = api.calculateMoo3dPricing;
@@ -17,26 +19,29 @@
     return n >= 0 ? n : Math.max(0, fallback);
   }
 
-  function roundUpByStep(value, step) {
-    const safeValue = toNonNegativeNumber(value, 0);
-    const safeStep = toNonNegativeNumber(step, 5);
-    if (!Number.isFinite(safeStep) || safeStep <= 0) return safeValue;
-    return Math.ceil(safeValue / safeStep) * safeStep;
-  }
-
   function toPositiveInteger(value, fallback = 1) {
     const n = Number(value);
     if (!Number.isFinite(n)) return fallback;
+
     const integer = Math.floor(n);
     return integer > 0 ? integer : fallback;
+  }
+
+  function roundUpByStep(value, step) {
+    const safeValue = toNonNegativeNumber(value, 0);
+    const safeStep = toNonNegativeNumber(step, 5);
+
+    if (!Number.isFinite(safeStep) || safeStep <= 0) return safeValue;
+    return Math.ceil(safeValue / safeStep) * safeStep;
   }
 
   function calculateMoo3dPricing(input = {}) {
     const quantity = toPositiveInteger(input.quantity, 1);
 
-    // في نظام MOO3D الحالي: وزن الخامة، وقت الطباعة، الشغل اليدوي، التغليف، والهالك
-    // يتم إدخالهم كإجماليات للأوردر كله، حتى لو عدد القطع أكبر من 1.
-    // الإكسسوارات فقط هي تكلفة للقطعة الواحدة وتُضرب في عدد القطع.
+    // نظام MOO3D القديم/الصحيح:
+    // الخامة، الهالك، إهلاك الماكينة، الكهرباء، الشغل اليدوي، والتغليف
+    // كلهم إجمالي للأوردر كله، ولا يتم ضربهم في عدد القطع.
+    // الإكسسوارات فقط تكلفة للقطعة الواحدة وتُضرب في عدد القطع.
     // الشحن يضاف مرة واحدة للأوردر كله.
     const materialCost = toNonNegativeNumber(input.materialCost, 0);
     const wasteCost = toNonNegativeNumber(input.wasteCost, 0);
@@ -56,21 +61,30 @@
     const minimumOrderPrice = toNonNegativeNumber(input.minimumOrderPrice, 0);
     const roundingStep = toNonNegativeNumber(input.roundingStep, 5);
 
-    const productionSubtotal = materialCost + wasteCost + depreciationCost + electricityCost + laborCost + packagingCost;
+    const productionSubtotal = materialCost
+      + wasteCost
+      + depreciationCost
+      + electricityCost
+      + laborCost
+      + packagingCost;
+
     const riskCost = productionSubtotal * (failurePercent / 100);
     const productionCostAfterRisk = productionSubtotal + riskCost;
     const taxCost = productionCostAfterRisk * (taxPercent / 100);
     const totalCost = productionCostAfterRisk + taxCost;
+
     const directAddOnsCost = accessoriesCost + shippingCost;
 
+    // profitMargin هنا Markup على تكلفة الإنتاج، مثل النسخة القديمة.
+    // مثال: تكلفة 100 وزيادة 100% = سعر قبل الإضافات 200.
     const sellBeforeAddOns = totalCost * (1 + profitMargin / 100);
     const priceBeforeDiscount = sellBeforeAddOns + directAddOnsCost;
+
     const safeDiscountValue = Math.min(Math.max(discountValue, 0), priceBeforeDiscount);
     const priceAfterDiscountBeforeMinimum = Math.max(0, priceBeforeDiscount - safeDiscountValue);
     const priceAfterDiscount = Math.max(priceAfterDiscountBeforeMinimum, minimumOrderPrice);
     const finalPrice = roundUpByStep(priceAfterDiscount, roundingStep);
     const roundedAdjustment = finalPrice - priceAfterDiscount;
-
     const profit = finalPrice - totalCost - directAddOnsCost;
     const minimumNoLossPrice = totalCost + directAddOnsCost;
 
@@ -107,5 +121,11 @@
     };
   }
 
-  return { roundUpByStep, toNumber, toNonNegativeNumber, toPositiveInteger, calculateMoo3dPricing };
+  return {
+    roundUpByStep,
+    toNumber,
+    toNonNegativeNumber,
+    toPositiveInteger,
+    calculateMoo3dPricing,
+  };
 });

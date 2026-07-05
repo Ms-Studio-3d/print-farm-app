@@ -81,14 +81,6 @@ function renderMaterialUsageInputs() {
     previousValues[String(row.id)] = row.value;
   });
 
-  if (previousRows.length) {
-    selectedOrderMaterialIds = previousRows.map((row) => String(row.id));
-  }
-
-  selectedOrderMaterialIds = (selectedOrderMaterialIds || [])
-    .map(String)
-    .filter((id, index, list) => id && list.indexOf(id) === index && getMaterialById(id));
-
   const materials = dashboardData.materials || [];
 
   if (!materials.length) {
@@ -96,6 +88,16 @@ function renderMaterialUsageInputs() {
     amsInputs.innerHTML = `<div class="empty-state">أضف خامة أولًا لكي يظهر إدخال الاستهلاك.</div>`;
     return;
   }
+
+  // مهم: لا نستبدل selectedOrderMaterialIds بالصفوف الموجودة في الـ DOM فقط.
+  // عند الضغط على زر إضافة خامة، الخامة الجديدة تكون لسه مش مرسومة في الـ DOM،
+  // ولو اعتمدنا على الـ DOM فقط الزر يبدو كأنه لا يعمل، خصوصًا عند إضافة خامة ثانية.
+  const idsFromDom = previousRows.map((row) => String(row.id));
+  const idsFromState = (selectedOrderMaterialIds || []).map(String);
+
+  selectedOrderMaterialIds = [...idsFromDom, ...idsFromState]
+    .map((id) => String(id || '').trim())
+    .filter((id, index, list) => id && list.indexOf(id) === index && getMaterialById(id));
 
   const unusedMaterials = getUnusedOrderMaterials();
   const optionsHtml = unusedMaterials.map((material) => {
@@ -151,6 +153,16 @@ function renderMaterialUsageInputs() {
       ${rowsHtml || `<div class="empty-state material-empty-state">اختار خامة من المخزن واضغط إضافة خامة. الأوردر يعرض الألوان المستخدمة فقط.</div>`}
     </div>
   `;
+
+  const picker = $('materialUsagePicker');
+  if (picker) {
+    picker.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        addMaterialUsageRow();
+      }
+    });
+  }
 
   document.querySelectorAll('.ams-weight').forEach((input) => {
     const updateUsedChip = () => {
