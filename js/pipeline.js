@@ -47,6 +47,7 @@ async function showMorePipeline() {
 
 function renderPipelineCard(order) {
   const code = escapeHtml(order.code || '');
+  const codeArg = jsStringArg(order.code || '');
 
   return `
     <article class="pipeline-card">
@@ -72,9 +73,9 @@ function renderPipelineCard(order) {
       </div>
 
       <div class="pipeline-actions">
-        <button class="action-btn edit" type="button" onclick="openEditSale('${code}')">تعديل</button>
-        <button class="action-btn" type="button" onclick="openInvoice('${code}')">فاتورة</button>
-        <button class="action-btn delete" type="button" onclick="deleteSale('${code}')">حذف</button>
+        <button class="action-btn edit" type="button" onclick="openEditSale(${codeArg})">تعديل</button>
+        <button class="action-btn" type="button" onclick="openInvoice(${codeArg})">فاتورة</button>
+        <button class="action-btn delete" type="button" onclick="deleteSale(${codeArg})">حذف</button>
       </div>
     </article>
   `;

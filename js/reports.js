@@ -29,6 +29,7 @@ async function renderReportsTable() {
 
   const rowsHtml = visibleOrders.map((order) => {
     const safeCode = escapeHtml(order.code || '');
+    const codeArg = jsStringArg(order.code || '');
 
     return `
       <tr>
@@ -44,9 +45,9 @@ async function renderReportsTable() {
         <td>${formatHoursMinutes(order.printHours || 0)}</td>
         <td>${formatMoney(order.profit || 0)}</td>
         <td>
-          <button class="action-btn edit" type="button" onclick="openEditSale('${safeCode}')">تعديل</button>
-          <button class="action-btn" type="button" onclick="openInvoice('${safeCode}')">فاتورة</button>
-          <button class="action-btn delete" type="button" onclick="deleteSale('${safeCode}')">حذف</button>
+          <button class="action-btn edit" type="button" onclick="openEditSale(${codeArg})">تعديل</button>
+          <button class="action-btn" type="button" onclick="openInvoice(${codeArg})">فاتورة</button>
+          <button class="action-btn delete" type="button" onclick="deleteSale(${codeArg})">حذف</button>
         </td>
       </tr>
     `;

@@ -19,6 +19,7 @@ function renderQuotes() {
 
   const cardsHtml = quotes.map((quote) => {
     const code = escapeHtml(quote.code || '');
+    const codeArg = jsStringArg(quote.code || '');
     const converted = String(quote.status || 'open') === 'converted';
     return `
       <article class="pipeline-card">
@@ -43,8 +44,8 @@ function renderQuotes() {
         </div>
 
         <div class="pipeline-actions">
-          ${converted ? '' : `<button class="action-btn edit" type="button" onclick="convertQuoteToOrder('${code}')">تحويل لأوردر</button>`}
-          <button class="action-btn delete" type="button" onclick="deleteQuoteAction('${code}')">حذف</button>
+          ${converted ? '' : `<button class="action-btn edit" type="button" onclick="convertQuoteToOrder(${codeArg})">تحويل لأوردر</button>`}
+          <button class="action-btn delete" type="button" onclick="deleteQuoteAction(${codeArg})">حذف</button>
         </div>
       </article>
     `;

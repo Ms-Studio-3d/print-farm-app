@@ -40,6 +40,10 @@ function escapeHtml(value) {
   return div.innerHTML;
 }
 
+function jsStringArg(value) {
+  return escapeHtml(JSON.stringify(String(value ?? '')));
+}
+
 function getCurrency() {
   const rawCurrency = String(dashboardData.config.currencyName || DEFAULT_CONFIG.currencyName || 'جنيه').trim();
 
