@@ -1,20 +1,64 @@
 
-function getAssetsHourlyDepreciation() {
+function getAssetsHourlyDepreciation(options = {}) {
   const assets = Array.isArray(dashboardData.assets) ? dashboardData.assets : [];
-  const fromAssets = assets.reduce((sum, asset) => {
+  const printer = options.printer || null;
+
+  let totalHourlyDepreciation = 0;
+  let printerAssetHourlyDepreciation = 0;
+
+  assets.forEach((asset) => {
     const cost = toPositiveNumber(asset.cost, 0);
     const hours = toPositiveNumber(asset.depreciationHours, 0);
-    return hours > 0 ? sum + (cost / hours) : sum;
-  }, 0);
+    if (hours <= 0) return;
 
-  return fromAssets;
+    const hourly = cost / hours;
+    totalHourlyDepreciation += hourly;
+
+    const text = `${asset.item || ''} ${asset.type || ''} ${asset.assetType || ''}`.toLowerCase();
+    const looksLikePrinterAsset = cost >= 10000 && (
+      text.includes('bambu') ||
+      text.includes('طابعة') ||
+      text.includes('printer') ||
+      text.includes('ماكينة')
+    );
+
+    if (looksLikePrinterAsset) printerAssetHourlyDepreciation += hourly;
+  });
+
+  // حماية لقاعدة بيانات قديمة أو ناقصة: لو الطابعة الافتراضية موجودة لكن أصل الطابعة غير متسجل،
+  // نضيف إهلاكها الافتراضي مرة واحدة فقط: 60000 ÷ 5000 = 12 جنيه/ساعة.
+  // لا يتم استخدام هذا fallback إذا كان أصل طابعة حقيقي موجود بالفعل.
+  if (isDefaultBambuPrinter(printer) && printerAssetHourlyDepreciation <= 0) {
+    totalHourlyDepreciation += 12;
+  }
+
+  return totalHourlyDepreciation;
 }
 
 function getMaintenanceCostPerHour() {
-  const everyHours = getConfigNumber('maintenanceEveryHours');
-  const maintenanceCost = getConfigNumber('maintenanceCost');
+  const everyHours = getConfigNumber('maintenanceEveryHours') || 1000;
+  const maintenanceCost = getConfigNumber('maintenanceCost') || 1500;
   if (everyHours <= 0) return 0;
   return maintenanceCost / everyHours;
+}
+
+
+function isDefaultBambuPrinter(printer) {
+  const name = String(printer?.name || '').toLowerCase();
+  return name.includes('bambu lab a1') || name.includes('bambu a1');
+}
+
+function getPrinterOperatingCostPerHour(printer) {
+  const raw = toPositiveNumber(printer?.hourlyDepreciation, 0);
+
+  // قواعد حماية للبيانات القديمة: بعض النسخ خزنت في حقل الطابعة رقمًا شاملًا أو رقم إهلاك أصل.
+  // في المنطق النهائي هذا الحقل = تشغيل الطابعة فقط، أما الإهلاك والصيانة فيتحسبوا من الأصول والإعدادات.
+  if (isDefaultBambuPrinter(printer)) {
+    const legacyOrMissing = [0, 12, 20, 33.5].some((value) => Math.abs(raw - value) < 0.0001);
+    if (legacyOrMissing) return 6.5;
+  }
+
+  return raw;
 }
 
 function calc() {
@@ -50,8 +94,9 @@ function calc() {
   // تكلفة ساعة الطابعة هنا = تشغيل فقط.
   // إهلاك الأصول ونصيب الصيانة يتحسبوا كبنود منفصلة مرة واحدة فقط.
   // كده لا نظلم العميل بتضخيم السعر، ولا نظلم الشغل بإهمال هلاك الأصل والصيانة.
-  const machineRunCost = printHours * toPositiveNumber(printer?.hourlyDepreciation, 0);
-  const assetsHourlyDepreciation = getAssetsHourlyDepreciation();
+  const machineOperatingHourCost = getPrinterOperatingCostPerHour(printer);
+  const machineRunCost = printHours * machineOperatingHourCost;
+  const assetsHourlyDepreciation = getAssetsHourlyDepreciation({ printer });
   const assetDepreciationCost = printHours * assetsHourlyDepreciation;
   const maintenanceCostPerHour = getMaintenanceCostPerHour();
   const maintenanceShareCost = printHours * maintenanceCostPerHour;
@@ -129,6 +174,7 @@ function calc() {
     machineRunCost: roundMoney(machineRunCost),
     assetDepreciationCost: roundMoney(assetDepreciationCost),
     maintenanceShareCost: roundMoney(maintenanceShareCost),
+    machineOperatingHourCost: roundMoney(machineOperatingHourCost),
     electricityPricePerKwh: roundMoney(electricityPricePerKwh),
     printerPowerKw: roundMoney(printerPowerKw),
     electricityCost: roundMoney(totalElectricityCost),
