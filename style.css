@@ -5,8 +5,8 @@
   --panel-3: #0f1319;
 
   --text: #f3f4f6;
-  --text-soft: #9ca3af;
-  --text-muted: #6b7280;
+  --text-soft: #b7c0cc;
+  --text-muted: #94a3b8;
 
   --primary: #20c46b;
   --primary-soft: rgba(32, 196, 107, .12);
@@ -31,6 +31,17 @@
   box-sizing: border-box;
 }
 
+body,
+button,
+input,
+select,
+textarea,
+table,
+.list-card,
+.invoice-sheet {
+  overflow-wrap: anywhere;
+}
+
 html,
 body {
   margin: 0;
@@ -40,6 +51,12 @@ body {
   background: var(--bg);
   color: var(--text);
   overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+select option[value="__new__"] {
+  color: var(--primary);
+  font-weight: 700;
 }
 
 button,
@@ -1465,6 +1482,13 @@ textarea {
     line-height: 1.15 !important;
     border-radius: 13px !important;
     white-space: normal !important;
+  }
+
+  .nav-btn[data-view="order"]::before {
+    content: "⌂";
+    display: block;
+    font-size: 18px;
+    line-height: 1;
   }
 
   .app-content {

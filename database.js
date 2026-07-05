@@ -2184,6 +2184,11 @@ function replaceAllData(data) {
         : null;
 
       const finalPrice = Number(order.finalPrice || 0);
+      const paymentStatus = String(order.paymentStatus || 'collected').trim();
+      const paymentMethod = String(order.paymentMethod || 'cash').trim();
+      const paidAmount = order.paidAmount === undefined || order.paidAmount === null
+        ? finalPrice
+        : Math.min(finalPrice, Math.max(0, Number(order.paidAmount) || 0));
 
       const result = insertOrder.run(
         String(order.code || '').trim(),
@@ -2218,9 +2223,9 @@ function replaceAllData(data) {
         Number(order.unitFinalPrice || (finalPrice / Math.max(1, Number(order.quantity || 1)))),
         Number(order.unitTotalCost || (Number(order.totalCost || 0) / Math.max(1, Number(order.quantity || 1)))),
         Number(order.unitProfit || (Number(order.profit || 0) / Math.max(1, Number(order.quantity || 1)))),
-        'collected',
-        'cash',
-        finalPrice
+        paymentStatus,
+        paymentMethod,
+        paidAmount
       );
 
       if (order.id != null) {

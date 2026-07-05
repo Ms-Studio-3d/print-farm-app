@@ -34,6 +34,7 @@ let mainWindow = null;
 let ipcHandlersRegistered = false;
 let autoBackupTimer = null;
 let autoBackupRunning = false;
+let finalQuitStarted = false;
 
 function writeStartupError(error) {
   try {
@@ -325,7 +326,8 @@ function normalizePurchasePayload(payload) {
     amount: asPositiveNumber(data.amount, 0),
     supplier: asTrimmedString(data.supplier),
     notes: asTrimmedString(data.notes),
-    materialId: asNullableId(data.materialId)
+    materialId: asNullableId(data.materialId),
+    createMaterial: Boolean(data.createMaterial)
   };
 }
 
@@ -508,6 +510,7 @@ function scheduleAutomaticBackup(reason = 'auto', delayMs = 2000) {
 function validateBackupPayload(payload) {
   const data = asObject(payload);
   const schemaVersion = Number(data.schemaVersion || 0);
+  const collectionKeys = ['printers', 'materials', 'orders', 'orderMaterials', 'stockMovements', 'purchases', 'assets', 'quotes'];
 
   if (!data.appName || !String(data.appName).toLowerCase().includes('print farm')) {
     throw new Error('ملف النسخة الاحتياطية لا يبدو أنه خاص بالبرنامج');
@@ -521,14 +524,39 @@ function validateBackupPayload(payload) {
     throw new Error('ملف النسخة الاحتياطية لا يحتوي على إعدادات صحيحة');
   }
 
-  ['printers', 'materials', 'orders', 'orderMaterials', 'stockMovements', 'purchases', 'assets'].forEach((key) => {
+  collectionKeys.forEach((key) => {
     if (data[key] !== undefined && !Array.isArray(data[key])) {
       throw new Error(`بنية النسخة الاحتياطية غير صالحة في: ${key}`);
     }
+
+    if (Array.isArray(data[key])) {
+      if (data[key].length > 100000) {
+        throw new Error(`حجم بيانات النسخة الاحتياطية أكبر من المسموح في: ${key}`);
+      }
+
+      if (data[key].some((item) => !item || typeof item !== 'object' || Array.isArray(item))) {
+        throw new Error(`يوجد سجل غير صالح في النسخة الاحتياطية داخل: ${key}`);
+      }
+    }
   });
 
-  if (data.quotes !== undefined && !Array.isArray(data.quotes)) {
-    throw new Error('بنية عروض الأسعار في النسخة الاحتياطية غير صالحة');
+  const seenOrderCodes = new Set();
+  for (const order of data.orders || []) {
+    const code = asTrimmedString(order.code);
+    const quantity = Number(order.quantity);
+    const finalPrice = Number(order.finalPrice);
+
+    if (!code || seenOrderCodes.has(code)) {
+      throw new Error('النسخة الاحتياطية تحتوي على كود أوردر فارغ أو مكرر');
+    }
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      throw new Error(`عدد القطع غير صالح في الأوردر: ${code}`);
+    }
+    if (!Number.isFinite(finalPrice) || finalPrice < 0) {
+      throw new Error(`سعر البيع غير صالح في الأوردر: ${code}`);
+    }
+
+    seenOrderCodes.add(code);
   }
 
   return data;
@@ -796,8 +824,21 @@ app.on('web-contents-created', (_event, contents) => {
   });
 });
 
-app.on('before-quit', () => {
-  createAutomaticBackup('shutdown');
+app.on('before-quit', (event) => {
+  if (finalQuitStarted) return;
+
+  event.preventDefault();
+  finalQuitStarted = true;
+
+  if (autoBackupTimer) {
+    clearTimeout(autoBackupTimer);
+    autoBackupTimer = null;
+  }
+
+  Promise.race([
+    createAutomaticBackup('shutdown'),
+    new Promise((resolve) => setTimeout(() => resolve(null), 5000))
+  ]).finally(() => app.exit(0));
 });
 
 app.on('window-all-closed', () => {
