@@ -1,6 +1,6 @@
 {
   "name": "printing-business-manager",
-  "version": "1.8.1",
+  "version": "1.8.6",
   "description": "MOO3D desktop app for 3D printing pricing, orders, inventory, and local data management",
   "main": "main.js",
   "author": "Ms-Studio-3d",

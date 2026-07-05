@@ -343,6 +343,7 @@ function seedDefaults() {
     currencyName: 'جنيه',
     laborRate: '50',
     electricityCostPerHour: '3',
+    printerPowerKw: '0.25',
     packagingCost: '10',
     failurePercent: '10',
     defaultWasteWeight: '0',
@@ -396,6 +397,40 @@ function seedDefaults() {
     `).run(defaults.currencyName);
   }
 
+  // رفع متوسط استهلاك الطابعة الافتراضي إلى 0.25kW لمطابقة نتيجة التسعير السريع في الموبايل.
+  // لو المستخدم كان معدلها لقيمة مختلفة لن يتم لمسها.
+  db.prepare(`
+    UPDATE app_config
+    SET value = '0.25'
+    WHERE key = 'printerPowerKw'
+      AND ABS(CAST(COALESCE(value, '0') AS REAL) - 0.15) < 0.0001
+  `).run();
+
+  // من v1.8.6 تكلفة ساعة الطابعة تعني تشغيل فقط.
+  // إهلاك الأصول ونصيب الصيانة يتحسبوا كبنود مستقلة مرة واحدة داخل التسعير.
+  // لو قاعدة البيانات جاية من v1.8.5 وفيها الرقم الافتراضي 20 كرقم شامل،
+  // نحوله إلى 6.5 تشغيل فقط بحيث يظل إجمالي العبء بالساعة الافتراضي 20:
+  // تشغيل 6.5 + إهلاك أصل 12 + صيانة 1.5 = 20.
+  db.prepare(`
+    UPDATE printers
+    SET hourly_depreciation = 6.5,
+        notes = 'الطابعة الأساسية - Bambu Lab A1 — تكلفة تشغيل الطابعة فقط. التسعير يضيف إهلاك الأصول ونصيب الصيانة مرة واحدة تلقائيًا.'
+    WHERE name = 'Bambu Lab A1'
+      AND ABS(COALESCE(hourly_depreciation, 0) - 20) < 0.0001
+      AND notes LIKE '%تكلفة تشغيل/إهلاك الساعة الشاملة%'
+  `).run();
+
+  // لو قاعدة أقدم كانت مخزنة 33.5 = تشغيل 20 + إهلاك 12 + صيانة 1.5،
+  // نحافظ على تشغيل 20 فقط ونترك الإهلاك والصيانة يتحسبوا من الأصول والإعدادات.
+  db.prepare(`
+    UPDATE printers
+    SET hourly_depreciation = 20,
+        notes = 'الطابعة الأساسية - Bambu Lab A1 — تكلفة تشغيل الطابعة فقط. التسعير يضيف إهلاك الأصول ونصيب الصيانة مرة واحدة تلقائيًا.'
+    WHERE name = 'Bambu Lab A1'
+      AND ABS(COALESCE(hourly_depreciation, 0) - 33.5) < 0.0001
+      AND notes LIKE '%تشمل تشغيل 20 + إهلاك 12 + صيانة 1.5%'
+  `).run();
+
   if (printersCount === 0) {
     const insertPrinter = db.prepare(`
       INSERT INTO printers (name, model, status, hourly_depreciation, notes, is_archived)
@@ -406,8 +441,8 @@ function seedDefaults() {
       'Bambu Lab A1',
       'A1',
       'idle',
-      33.5,
-      'الطابعة الأساسية - Bambu Lab A1 — تكلفة الساعة الافتراضية تشمل تشغيل 20 + إهلاك 12 + صيانة 1.5',
+      6.5,
+      'الطابعة الأساسية - Bambu Lab A1 — تكلفة تشغيل الطابعة فقط. التسعير يضيف إهلاك الأصول ونصيب الصيانة مرة واحدة تلقائيًا.',
       0
     );
   }

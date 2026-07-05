@@ -77,7 +77,7 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="profitMargin">زيادة التكلفة %</label>
+                  <label for="profitMargin">نسبة المكسب على التكلفة %</label>
                   <input type="text" id="profitMargin" value="100" inputmode="decimal" />
                 </div>
 
@@ -136,8 +136,13 @@
                 </div>
 
                 <div class="form-group">
-                  <label for="electricityCostPerHour">كهرباء / ساعة</label>
+                  <label for="electricityCostPerHour">سعر الكهرباء / kWh</label>
                   <input type="text" id="electricityCostPerHour" value="3" inputmode="decimal" />
+                </div>
+
+                <div class="form-group">
+                  <label for="printerPowerKw">استهلاك الطابعة kW</label>
+                  <input type="text" id="printerPowerKw" value="0.25" inputmode="decimal" />
                 </div>
 
                 <div class="form-group">
@@ -178,7 +183,7 @@
 
               <div class="helper-box compact-helper section-gap-sm">
                 <strong>ملاحظة:</strong>
-                <span>وقت الطباعة والخامات والتغليف والشغل اليدوي إجمالي للأوردر كله. الإكسسوارات فقط تتضرب في عدد القطع، والشحن يضاف مرة واحدة.</span>
+                <span>الحساب النهائي يحسب كل التكلفة مرة واحدة: الخامة + الهالك + تشغيل الطابعة فقط + إهلاك الأصول + نصيب الصيانة + الكهرباء + الشغل اليدوي + التغليف. الإكسسوارات للقطعة، والشحن مرة واحدة ولا يدخلوا في نسبة المكسب.</span>
               </div>
             </section>
           </section>
@@ -214,7 +219,10 @@
                   <div class="summary-section-rows">
                     <div class="summary-stat"><span class="summary-label">تكلفة الخامة</span><strong id="resMat" class="summary-value">0 جنيه</strong></div>
                     <div class="summary-stat"><span class="summary-label">هالك وزن إضافي</span><strong id="resWaste" class="summary-value">0 جنيه</strong></div>
-                    <div class="summary-stat"><span class="summary-label">تكلفة الماكينة</span><strong id="resDep" class="summary-value">0 جنيه</strong></div>
+                    <div class="summary-stat"><span class="summary-label">تشغيل الطابعة فقط</span><strong id="resMachineRun" class="summary-value">0 جنيه</strong></div>
+                    <div class="summary-stat"><span class="summary-label">إهلاك الأصول</span><strong id="resAssetDep" class="summary-value">0 جنيه</strong></div>
+                    <div class="summary-stat"><span class="summary-label">نصيب الصيانة</span><strong id="resMaintenance" class="summary-value">0 جنيه</strong></div>
+                    <div class="summary-stat"><span class="summary-label">إجمالي تشغيل/إهلاك/صيانة</span><strong id="resDep" class="summary-value">0 جنيه</strong></div>
                     <div class="summary-stat"><span class="summary-label">الكهرباء</span><strong id="resElectricity" class="summary-value">0 جنيه</strong></div>
                     <div class="summary-stat"><span class="summary-label">الشغل اليدوي</span><strong id="resLabor" class="summary-value">0 جنيه</strong></div>
                     <div class="summary-stat"><span class="summary-label">التغليف</span><strong id="resPackaging" class="summary-value">0 جنيه</strong></div>
@@ -840,7 +848,7 @@
         </div>
 
         <div class="form-group">
-          <label for="printerHourlyDepreciation">تكلفة الماكينة / ساعة</label>
+          <label for="printerHourlyDepreciation">تكلفة تشغيل الطابعة فقط / ساعة</label>
           <input type="text" id="printerHourlyDepreciation" inputmode="decimal" />
         </div>
       </div>
@@ -897,8 +905,13 @@
 
       <div class="grid-3 section-gap-sm">
         <div class="form-group">
-          <label for="settingsElectricityCostPerHour">كهرباء / ساعة</label>
+          <label for="settingsElectricityCostPerHour">سعر الكهرباء / kWh</label>
           <input type="text" id="settingsElectricityCostPerHour" value="3" inputmode="decimal" />
+        </div>
+
+        <div class="form-group">
+          <label for="settingsPrinterPowerKw">استهلاك الطابعة kW</label>
+          <input type="text" id="settingsPrinterPowerKw" value="0.25" inputmode="decimal" />
         </div>
 
         <div class="form-group">
@@ -982,14 +995,14 @@
 
       <div class="helper-box section-gap-sm">
         <strong>فكرة الإعدادات الافتراضية:</strong>
-        <span>كل أوردر جديد سيبدأ بهذه القيم تلقائيًا، لكن يمكنك تعديلها أو تصفيرها داخل الأوردر نفسه.</span>
+        <span>كل أوردر جديد سيبدأ بهذه القيم تلقائيًا. الكهرباء = سعر kWh × استهلاك الطابعة kW × عدد ساعات الطباعة.</span>
         <span>دقائق الخدمة الافتراضية تمثل وقت التجهيز، مراجعة الملف، فك القطعة، التنظيف البسيط، والتواصل مع العميل.</span>
       </div>
 
       <div class="helper-box section-gap-sm">
         <strong>توافق الحساب:</strong>
-        <span>طريقة الحساب هنا أصبحت متوافقة مع MOO3D: الإضافات المباشرة لا يدخل عليها فشل أو مكسب.</span>
-        <span>أي قيمة تدخل في السعر ستكون ظاهرة هنا وليست مخفية.</span>
+        <span>طريقة الحساب هنا متزنة: تكلفة ساعة الطابعة تعني تشغيل فقط، وإهلاك الأصول ونصيب الصيانة يتحسبوا مرة واحدة تلقائيًا داخل سعر الطلب.</span>
+        <span>لو غيرت تكلفة الأصل أو ساعات الإهلاك أو تكلفة الصيانة، التسعير هيتحدث بناءً على الأرقام الجديدة.</span>
       </div>
 
       <div class="inline-actions section-gap-md">

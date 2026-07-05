@@ -2138,3 +2138,200 @@ select option[value="__new__"] {
   font-size: 14px;
   line-height: 1;
 }
+
+/* =========================================================
+   Business dashboard visual layout fix
+   يعالج ظهور الداشبورد كنصوص مضغوطة على اليمين بدون كروت/Grid.
+   ========================================================= */
+#businessDashboardModal .modal-content.panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  direction: rtl;
+}
+
+#businessDashboardModal .panel-head {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.business-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
+.business-card {
+  min-width: 0;
+  min-height: 116px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 16px;
+  background: linear-gradient(180deg, #111827, #0d1117);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .22);
+}
+
+.business-card span {
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.business-card strong {
+  color: var(--text);
+  font-size: 24px;
+  font-weight: 950;
+  line-height: 1.15;
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.business-card small {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.business-card.highlight {
+  border-color: rgba(32, 196, 107, .30);
+  background: linear-gradient(180deg, rgba(32, 196, 107, .15), #0d1117);
+}
+
+.business-card.blue {
+  border-color: rgba(59, 130, 246, .32);
+  background: linear-gradient(180deg, rgba(37, 99, 235, .17), #0d1117);
+}
+
+.business-card.warn {
+  border-color: rgba(245, 158, 11, .36);
+  background: linear-gradient(180deg, rgba(245, 158, 11, .15), #0d1117);
+}
+
+.business-card.danger {
+  border-color: rgba(239, 68, 68, .36);
+  background: linear-gradient(180deg, rgba(239, 68, 68, .15), #0d1117);
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+.dashboard-grid .inner-card {
+  min-width: 0;
+  min-height: 0;
+  background: #0d1117;
+  box-shadow: none;
+}
+
+.quick-list {
+  display: grid;
+  gap: 10px;
+}
+
+.quick-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 12px;
+  background: #0b1017;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text-soft);
+}
+
+.quick-row span {
+  min-width: 0;
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.45;
+  white-space: normal;
+}
+
+.quick-row strong {
+  flex: 0 0 auto;
+  max-width: 48%;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 950;
+  line-height: 1.25;
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.maintenance-lamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  direction: rtl;
+}
+
+.lamp-dot {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 11px;
+  border-radius: 999px;
+  background: var(--success);
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, .12), 0 0 18px rgba(34, 197, 94, .35);
+}
+
+.lamp-dot.warn {
+  background: var(--warning);
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, .12), 0 0 18px rgba(245, 158, 11, .35);
+}
+
+.lamp-dot.danger {
+  background: var(--danger);
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, .12), 0 0 18px rgba(239, 68, 68, .35);
+}
+
+#dashboardRecentActivity.stack-list {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+#businessDashboardModal .empty-state {
+  padding: 18px;
+  background: #0b1017;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text-soft);
+  text-align: center;
+}
+
+@media (min-width: 1181px) {
+  #businessDashboardModal .modal-content.panel-content {
+    overflow: auto !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .business-summary-grid {
+    grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .business-card strong {
+    font-size: 20px;
+  }
+}
+
