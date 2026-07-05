@@ -406,6 +406,23 @@ function seedDefaults() {
       AND ABS(CAST(COALESCE(value, '0') AS REAL) - 0.15) < 0.0001
   `).run();
 
+  // v1.8.7: تصحيح بيانات الطابعة الافتراضية القديمة.
+  // الحقل hourly_depreciation أصبح "تشغيل الطابعة فقط / ساعة".
+  // أرقام 0 أو 12 أو 20 أو 33.5 في قواعد قديمة كانت إما ناقصة أو شاملة أو إهلاك أصل،
+  // لذلك نعيد طابعة Bambu الافتراضية إلى 6.5 تشغيل فقط، والإهلاك والصيانة يتحسبان من الأصول والإعدادات.
+  db.prepare(`
+    UPDATE printers
+    SET hourly_depreciation = 6.5,
+        notes = 'الطابعة الأساسية - Bambu Lab A1 — تشغيل فقط 6.5/ساعة. البرنامج يضيف إهلاك الأصول ونصيب الصيانة مرة واحدة تلقائيًا.'
+    WHERE name = 'Bambu Lab A1'
+      AND (
+        ABS(COALESCE(hourly_depreciation, 0) - 0) < 0.0001
+        OR ABS(COALESCE(hourly_depreciation, 0) - 12) < 0.0001
+        OR ABS(COALESCE(hourly_depreciation, 0) - 20) < 0.0001
+        OR ABS(COALESCE(hourly_depreciation, 0) - 33.5) < 0.0001
+      )
+  `).run();
+
   // من v1.8.6 تكلفة ساعة الطابعة تعني تشغيل فقط.
   // إهلاك الأصول ونصيب الصيانة يتحسبوا كبنود مستقلة مرة واحدة داخل التسعير.
   // لو قاعدة البيانات جاية من v1.8.5 وفيها الرقم الافتراضي 20 كرقم شامل،
@@ -470,6 +487,29 @@ function seedDefaults() {
       'طابعة',
       5000,
       'أصل افتتاحي لحساب استرداد تكلفة الطابعة'
+    );
+  }
+
+
+  const hasLargePrinterAsset = db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM assets
+    WHERE cost >= 10000
+      AND depreciation_hours > 0
+      AND (item LIKE '%Bambu%' OR item LIKE '%طابعة%' OR asset_type LIKE '%طابعة%')
+  `).get().count;
+
+  if (Number(hasLargePrinterAsset || 0) === 0) {
+    db.prepare(`
+      INSERT INTO assets (asset_date, item, cost, asset_type, depreciation_hours, notes)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      '2026-04-12',
+      'Bambu Lab A1 Combo / الطابعة',
+      60000,
+      'طابعة',
+      5000,
+      'أصل افتراضي أضيف لضمان حساب إهلاك الطابعة مرة واحدة داخل التسعير'
     );
   }
 }
