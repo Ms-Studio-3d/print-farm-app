@@ -2336,350 +2336,98 @@ select option[value="__new__"] {
 }
 
 
-/* v1.8.7 — no-scroll pricing workspace fixes */
-.order-notes-field {
+/* =========================================================
+   v1.8.10 — restore right icon navigation + stable order screen
+   - keeps the original right toolbar/navigation
+   - removes optional quote-save action from the visible order screen
+   - hides notes field to prevent hidden/cut fields
+   - uses single-count pricing labels: run + asset depreciation + maintenance
+   ========================================================= */
+#saveQuoteBtn,
+button[onclick="saveQuote()"] {
   display: none !important;
 }
 
 @media (min-width: 1181px) {
-  .quote-inputs-column {
-    grid-template-rows: 246px minmax(0, 1fr) !important;
-  }
-
-  .order-details-card {
-    overflow: hidden !important;
-  }
-
-  .compact-order-grid {
-    align-content: start !important;
-  }
-
-  .result-card .summary-main,
-  .result-card .summary-main.summary-redesign {
-    overflow: hidden !important;
-    padding-inline-end: 0 !important;
-    gap: 7px !important;
-  }
-
-  .summary-quick-grid {
-    gap: 7px !important;
-  }
-
-  .summary-tile {
-    min-height: 48px !important;
-    padding: 7px 9px !important;
-  }
-
-  .summary-tile .summary-label {
-    margin-bottom: 4px !important;
-    font-size: 11.5px !important;
-    line-height: 1.15 !important;
-  }
-
-  .summary-tile .summary-value {
-    font-size: 14.5px !important;
-    line-height: 1.1 !important;
-  }
-
-  .summary-section-block {
-    border-radius: 11px !important;
-  }
-
-  .summary-section-title {
-    min-height: 28px !important;
-    padding: 5px 9px !important;
-  }
-
-  .summary-section-title strong {
-    font-size: 12.5px !important;
-  }
-
-  .summary-section-title span {
-    font-size: 10.5px !important;
-  }
-
-  .summary-section-rows {
-    display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 0 10px !important;
-    padding: 3px 9px 4px !important;
-  }
-
-  .result-card .summary-stat,
-  .summary-redesign .summary-stat {
-    min-height: 23px !important;
-    padding: 2px 0 !important;
-    gap: 6px !important;
-    grid-template-columns: minmax(0, 1fr) max-content !important;
-  }
-
-  .summary-redesign .summary-label,
-  .result-card .summary-label {
-    font-size: 10.8px !important;
-    line-height: 1.15 !important;
-  }
-
-  .summary-redesign .summary-value,
-  .result-card .summary-value {
-    font-size: 11.8px !important;
-    line-height: 1.1 !important;
-  }
-
-  .summary-finals {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 7px !important;
-  }
-
-  .summary-redesign .final-stat,
-  .summary-redesign .profit-stat,
-  .result-card .final-stat,
-  .result-card .profit-stat {
-    min-height: 46px !important;
-    padding: 8px 9px !important;
-  }
-
-  .summary-redesign .final-stat .summary-value,
-  .result-card .final-stat .summary-value {
-    font-size: 17.5px !important;
-  }
-
-  .summary-redesign .profit-stat .summary-value,
-  .result-card .profit-stat .summary-value {
-    font-size: 16px !important;
-  }
-
-  .result-card .inline-actions {
-    margin-top: 7px !important;
-    gap: 7px !important;
-  }
-
-  .result-card .inline-actions .btn {
-    min-height: 34px !important;
-    padding: 7px 10px !important;
-    font-size: 13px !important;
-  }
-
-  .result-card .inline-actions .btn-save {
-    min-height: 40px !important;
-    font-size: 14px !important;
-  }
-}
-
-@media (min-width: 1181px) and (max-height: 820px) {
-  .quote-inputs-column {
-    grid-template-rows: 232px minmax(0, 1fr) !important;
-  }
-
-  .result-card {
-    padding: 11px 12px !important;
-  }
-
-  .result-card .section-head {
-    padding-bottom: 8px !important;
-    margin-bottom: 8px !important;
-  }
-
-  .result-card .summary-main,
-  .result-card .summary-main.summary-redesign {
-    gap: 5px !important;
-  }
-
-  .summary-tile {
-    min-height: 42px !important;
-    padding: 6px 8px !important;
-  }
-
-  .summary-section-title {
-    min-height: 25px !important;
-    padding: 4px 8px !important;
-  }
-
-  .result-card .summary-stat,
-  .summary-redesign .summary-stat {
-    min-height: 20px !important;
-    padding: 1.5px 0 !important;
-  }
-
-  .summary-redesign .summary-label,
-  .result-card .summary-label {
-    font-size: 10.2px !important;
-  }
-
-  .summary-redesign .summary-value,
-  .result-card .summary-value {
-    font-size: 11px !important;
-  }
-
-  .summary-redesign .final-stat,
-  .summary-redesign .profit-stat,
-  .result-card .final-stat,
-  .result-card .profit-stat {
-    min-height: 40px !important;
-    padding: 7px 8px !important;
-  }
-}
-
-/* v1.8.8 — final no-scroll order workspace + remove optional quote save UI */
-@media (min-width: 1181px) {
-  html,
-  body {
-    height: 100% !important;
-    max-height: 100% !important;
-    overflow: hidden !important;
-  }
-
-  .app-shell,
-  .app-frame {
-    height: 100vh !important;
-    max-height: 100vh !important;
-    overflow: hidden !important;
-  }
-
-  .app-content {
-    overflow: hidden !important;
-    scrollbar-width: none !important;
-  }
-
-  .app-content::-webkit-scrollbar,
-  .quote-summary-column::-webkit-scrollbar,
-  .result-card::-webkit-scrollbar,
-  .result-card .summary-main::-webkit-scrollbar,
-  .summary-main::-webkit-scrollbar {
-    width: 0 !important;
-    height: 0 !important;
-    display: none !important;
-  }
-
-  .quote-summary-column,
-  .result-card,
-  .result-card .summary-main,
-  .result-card .summary-main.summary-redesign {
-    overflow: hidden !important;
-    scrollbar-width: none !important;
-  }
-
-  .order-notes-field {
-    display: none !important;
-  }
-
-  .result-card .inline-actions {
-    display: grid !important;
-    grid-template-columns: 1fr !important;
-  }
-
-  .result-card .inline-actions .btn-save {
-    width: 100% !important;
-  }
-}
-
-/* =========================================================
-   v1.8.9 — restore stable desktop workspace
-   - no hidden order fields on desktop
-   - no side navigation squeezing the main form
-   - summary fits without internal scrollbar on normal desktop screens
-   ========================================================= */
-@media (min-width: 1181px) {
   :root {
-    --topbar-height: 64px;
+    --side-nav-width: 76px;
+    --topbar-height: 72px;
     --workspace-gap: 12px;
-    --summary-width: 350px;
+    --summary-width: 380px;
   }
 
   html,
   body,
   .app-shell,
   .app-frame {
-    width: 100% !important;
-    height: 100% !important;
-    max-height: 100% !important;
     overflow: hidden !important;
-  }
-
-  .app-frame {
-    display: flex !important;
-    flex-direction: column !important;
   }
 
   .app-topbar {
     height: var(--topbar-height) !important;
     min-height: var(--topbar-height) !important;
-    flex: 0 0 var(--topbar-height) !important;
-    padding: 8px 14px !important;
-    direction: rtl !important;
-  }
-
-  .app-title {
-    font-size: 23px !important;
-    line-height: 1.05 !important;
-  }
-
-  .app-subtitle {
-    font-size: 12px !important;
-    margin-top: 4px !important;
-  }
-
-  .topbar-actions {
-    display: flex !important;
-    flex-wrap: wrap !important;
-    gap: 7px !important;
-    justify-content: flex-end !important;
+    padding: 10px calc(var(--side-nav-width) + 30px) 10px 18px !important;
   }
 
   .app-topbar .topbar-actions .btn {
-    display: inline-flex !important;
-    min-height: 34px !important;
-    padding: 7px 11px !important;
-    font-size: 12px !important;
-  }
-
-  .order-code-chip {
-    min-height: 34px !important;
-    padding: 7px 12px !important;
-  }
-
-  .bottom-nav {
     display: none !important;
   }
 
-  .app-content {
-    flex: 1 1 auto !important;
-    height: calc(100vh - var(--topbar-height)) !important;
-    padding: 10px !important;
+  .bottom-nav {
+    position: fixed !important;
+    top: calc(var(--topbar-height) + 10px) !important;
+    right: 10px !important;
+    bottom: 10px !important;
+    left: auto !important;
+    width: var(--side-nav-width) !important;
+    height: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+    padding: 8px !important;
+    background: #0d1117 !important;
+    border: 1px solid var(--border-strong) !important;
+    border-radius: 18px !important;
+    z-index: 1200 !important;
     overflow: hidden !important;
-    scroll-padding-bottom: 0 !important;
+  }
+
+  .nav-btn {
+    min-width: 0 !important;
+    width: 100% !important;
+    min-height: 48px !important;
+    padding: 5px 4px !important;
+    flex-direction: column !important;
+    gap: 3px !important;
+    font-size: 10.5px !important;
+    line-height: 1.15 !important;
+    border-radius: 13px !important;
+    white-space: normal !important;
+  }
+
+  .app-content {
+    height: calc(100vh - var(--topbar-height)) !important;
+    overflow: hidden !important;
+    padding: 10px calc(var(--side-nav-width) + 20px) 10px 12px !important;
   }
 
   .main-layout.quote-workspace {
-    width: 100% !important;
-    height: 100% !important;
-    min-height: 0 !important;
-    display: grid !important;
     grid-template-columns: var(--summary-width) minmax(0, 1fr) !important;
-    grid-template-rows: minmax(0, 1fr) !important;
     gap: var(--workspace-gap) !important;
-    align-items: stretch !important;
     direction: ltr !important;
     overflow: hidden !important;
   }
 
   .quote-summary-column {
     grid-column: 1 !important;
-    grid-row: 1 !important;
-    min-width: 0 !important;
-    min-height: 0 !important;
-    height: 100% !important;
     direction: rtl !important;
     overflow: hidden !important;
   }
 
   .quote-inputs-column {
     grid-column: 2 !important;
-    grid-row: 1 !important;
-    min-width: 0 !important;
-    min-height: 0 !important;
-    height: 100% !important;
     display: grid !important;
-    grid-template-columns: minmax(360px, .9fr) minmax(470px, 1.1fr) !important;
+    grid-template-columns: minmax(370px, .92fr) minmax(470px, 1.08fr) !important;
     grid-template-rows: auto minmax(0, 1fr) !important;
     gap: var(--workspace-gap) !important;
     overflow: hidden !important;
@@ -2690,25 +2438,13 @@ select option[value="__new__"] {
     grid-column: 1 / -1 !important;
     grid-row: 1 !important;
     min-height: 0 !important;
+    height: auto !important;
     overflow: visible !important;
     padding: 13px 15px !important;
   }
 
-  .material-usage-card {
-    grid-column: 2 !important;
-    grid-row: 2 !important;
-  }
-
-  .pricing-details-card {
-    grid-column: 1 !important;
-    grid-row: 2 !important;
-  }
-
-  .material-usage-card,
-  .pricing-details-card {
-    min-height: 0 !important;
-    height: 100% !important;
-    overflow: hidden !important;
+  .order-notes-field {
+    display: none !important;
   }
 
   .compact-section-head {
@@ -2718,28 +2454,21 @@ select option[value="__new__"] {
   .compact-section-head h3,
   .result-card .section-head h3 {
     font-size: 20px !important;
-    line-height: 1.05 !important;
+    line-height: 1.08 !important;
   }
 
   .compact-section-head .section-subtext,
   .result-card .section-subtext {
     font-size: 11.5px !important;
-    line-height: 1.25 !important;
+    line-height: 1.3 !important;
     margin-top: 4px !important;
   }
 
   .compact-order-grid {
     display: grid !important;
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    gap: 9px 11px !important;
+    gap: 8px 10px !important;
     align-content: start !important;
-  }
-
-  .compact-order-grid .span-2 { grid-column: span 2 !important; }
-  .compact-order-grid .span-4 { grid-column: span 4 !important; }
-
-  .order-notes-field {
-    display: none !important;
   }
 
   .compact-card input,
@@ -2748,8 +2477,8 @@ select option[value="__new__"] {
   .compact-order-grid select,
   .compact-pricing-grid input,
   .compact-pricing-grid select {
-    height: 38px !important;
-    min-height: 38px !important;
+    height: 36px !important;
+    min-height: 36px !important;
     padding: 7px 10px !important;
     font-size: 13px !important;
   }
@@ -2758,27 +2487,41 @@ select option[value="__new__"] {
   .compact-order-grid .form-group label,
   .compact-pricing-grid .form-group label {
     margin-bottom: 4px !important;
-    font-size: 11.5px !important;
+    font-size: 11.3px !important;
     line-height: 1.15 !important;
   }
 
+  .pricing-details-card {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+  }
+
+  .material-usage-card {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+  }
+
+  .pricing-details-card,
+  .material-usage-card {
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+
   .compact-pricing-grid {
-    display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 10px !important;
-    align-content: start !important;
+    gap: 9px 10px !important;
   }
 
   .compact-helper {
     margin-top: auto !important;
-    padding: 10px 11px !important;
-    font-size: 11.5px !important;
-    line-height: 1.55 !important;
+    padding: 9px 10px !important;
+    font-size: 11px !important;
+    line-height: 1.45 !important;
   }
 
   .materials-picker-bar {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) 118px 104px !important;
+    grid-template-columns: minmax(0, 1fr) 122px 108px !important;
     gap: 8px !important;
   }
 
@@ -2795,65 +2538,38 @@ select option[value="__new__"] {
     overflow: auto !important;
   }
 
-  .order-material-row,
-  .compact-material-list .material-row {
-    min-height: 56px !important;
-    padding: 8px 10px !important;
-    grid-template-columns: minmax(0, 1fr) 118px 34px !important;
-  }
-
   .result-card {
-    position: static !important;
     height: 100% !important;
     min-height: 0 !important;
-    max-height: none !important;
-    display: flex !important;
-    flex-direction: column !important;
-    padding: 12px !important;
     overflow: hidden !important;
+    padding: 12px !important;
   }
 
   .result-card .section-head {
-    flex: 0 0 auto !important;
     padding-bottom: 8px !important;
     margin-bottom: 8px !important;
   }
 
   .result-card .summary-main,
   .result-card .summary-main.summary-redesign {
-    flex: 1 1 auto !important;
-    min-height: 0 !important;
-    overflow: hidden !important;
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 6px !important;
-    padding-inline-end: 0 !important;
-  }
-
-  .summary-quick-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
     gap: 7px !important;
+    padding-inline-end: 3px !important;
   }
 
   .summary-tile {
-    min-height: 47px !important;
+    min-height: 48px !important;
     padding: 7px 8px !important;
   }
 
   .summary-tile .summary-label {
     font-size: 11px !important;
-    line-height: 1.1 !important;
     margin-bottom: 4px !important;
   }
 
   .summary-tile .summary-value {
     font-size: 14px !important;
-    line-height: 1.08 !important;
-  }
-
-  .summary-section-block {
-    border-radius: 11px !important;
-    flex: 0 0 auto !important;
   }
 
   .summary-section-title {
@@ -2861,13 +2577,8 @@ select option[value="__new__"] {
     padding: 5px 8px !important;
   }
 
-  .summary-section-title strong {
-    font-size: 12px !important;
-  }
-
-  .summary-section-title span {
-    font-size: 10px !important;
-  }
+  .summary-section-title strong { font-size: 12px !important; }
+  .summary-section-title span { font-size: 10px !important; }
 
   .summary-section-rows {
     display: grid !important;
@@ -2881,7 +2592,6 @@ select option[value="__new__"] {
     min-height: 21px !important;
     padding: 1px 0 !important;
     gap: 5px !important;
-    grid-template-columns: minmax(0, 1fr) max-content !important;
   }
 
   .summary-redesign .summary-label,
@@ -2894,14 +2604,11 @@ select option[value="__new__"] {
   .result-card .summary-value {
     font-size: 11px !important;
     line-height: 1.08 !important;
-    text-align: left !important;
   }
 
   .summary-finals {
-    display: grid !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 7px !important;
-    margin-top: 1px !important;
   }
 
   .summary-redesign .final-stat,
@@ -2923,62 +2630,38 @@ select option[value="__new__"] {
   }
 
   .result-card .inline-actions {
-    flex: 0 0 auto !important;
-    display: grid !important;
     grid-template-columns: 1fr !important;
     margin-top: 8px !important;
     gap: 0 !important;
   }
 
-  .result-card .inline-actions .btn,
   .result-card .inline-actions .btn-save {
     width: 100% !important;
     min-height: 40px !important;
-    padding: 8px 10px !important;
-    font-size: 14px !important;
   }
 }
 
 @media (min-width: 1181px) and (max-height: 820px) {
   :root {
-    --topbar-height: 58px;
-    --summary-width: 330px;
+    --topbar-height: 66px;
+    --summary-width: 360px;
   }
 
-  .app-topbar { padding: 6px 12px !important; }
-  .app-title { font-size: 20px !important; }
-  .app-subtitle { font-size: 11px !important; }
-  .app-topbar .topbar-actions .btn { min-height: 30px !important; padding: 6px 9px !important; font-size: 11px !important; }
-  .order-code-chip { min-height: 30px !important; padding: 6px 10px !important; }
-  .app-content { padding: 8px !important; }
-  .quote-inputs-column { gap: 8px !important; }
-  .main-layout.quote-workspace { gap: 8px !important; }
-  .compact-section-head .section-subtext { display: none !important; }
-  .compact-section-head h3,
-  .result-card .section-head h3 { font-size: 18px !important; }
-  .compact-order-grid { gap: 7px 9px !important; }
-  .compact-card input,
-  .compact-card select,
-  .compact-order-grid input,
-  .compact-order-grid select,
-  .compact-pricing-grid input,
-  .compact-pricing-grid select { height: 34px !important; min-height: 34px !important; }
-  .compact-card .form-group label,
-  .compact-order-grid .form-group label,
-  .compact-pricing-grid .form-group label { font-size: 10.6px !important; }
-  .compact-pricing-grid { gap: 8px !important; }
-  .compact-helper { font-size: 10.6px !important; line-height: 1.35 !important; padding: 8px 9px !important; }
-  .summary-tile { min-height: 40px !important; padding: 5px 7px !important; }
-  .summary-section-title { min-height: 24px !important; padding: 4px 7px !important; }
-  .result-card .summary-stat,
-  .summary-redesign .summary-stat { min-height: 18px !important; }
+  .compact-section-head .section-subtext {
+    display: none !important;
+  }
+
+  .quote-inputs-column {
+    grid-template-columns: minmax(350px, .9fr) minmax(450px, 1.1fr) !important;
+  }
+
   .summary-redesign .summary-label,
-  .result-card .summary-label { font-size: 9.6px !important; }
+  .result-card .summary-label {
+    font-size: 9.8px !important;
+  }
+
   .summary-redesign .summary-value,
-  .result-card .summary-value { font-size: 10.3px !important; }
-  .summary-redesign .final-stat,
-  .summary-redesign .profit-stat,
-  .result-card .final-stat,
-  .result-card .profit-stat { min-height: 36px !important; padding: 6px 7px !important; }
-  .result-card .inline-actions .btn-save { min-height: 36px !important; }
+  .result-card .summary-value {
+    font-size: 10.5px !important;
+  }
 }
