@@ -1,3 +1,22 @@
+
+function getAssetsHourlyDepreciation() {
+  const assets = Array.isArray(dashboardData.assets) ? dashboardData.assets : [];
+  const fromAssets = assets.reduce((sum, asset) => {
+    const cost = toPositiveNumber(asset.cost, 0);
+    const hours = toPositiveNumber(asset.depreciationHours, 0);
+    return hours > 0 ? sum + (cost / hours) : sum;
+  }, 0);
+
+  return fromAssets;
+}
+
+function getMaintenanceCostPerHour() {
+  const everyHours = getConfigNumber('maintenanceEveryHours');
+  const maintenanceCost = getConfigNumber('maintenanceCost');
+  if (everyHours <= 0) return 0;
+  return maintenanceCost / everyHours;
+}
+
 function calc() {
   const materialUsage = getMaterialUsageFromInputs();
   const quantity = MOO3DPricing.toPositiveInteger(getValue('pieceQuantity'), 1);
@@ -12,7 +31,8 @@ function calc() {
   const accessoriesCost = toPositiveNumber(getValue('accessoriesCost'), getConfigNumber('accessoriesCost'));
   const shippingCost = toPositiveNumber(getValue('shippingCost'), getConfigNumber('shippingCost'));
   const laborRate = toPositiveNumber(getValue('laborRate'), getConfigNumber('laborRate'));
-  const electricityCostPerHour = toPositiveNumber(getValue('electricityCostPerHour'), getConfigNumber('electricityCostPerHour'));
+  const electricityPricePerKwh = toPositiveNumber(getValue('electricityCostPerHour'), getConfigNumber('electricityCostPerHour'));
+  const printerPowerKw = toPositiveNumber(getValue('printerPowerKw'), getConfigNumber('printerPowerKw'));
   const failurePercent = toPositiveNumber(getValue('failurePercent'), getConfigNumber('failurePercent'));
   const wasteWeight = toPositiveNumber(getValue('wasteWeight'), getConfigNumber('defaultWasteWeight'));
   const minimumOrderPrice = toPositiveNumber(getValue('minimumOrderPrice'), getConfigNumber('minimumOrderPrice'));
@@ -26,9 +46,17 @@ function calc() {
 
   const selectedPrinterId = getValue('selectedPrinter');
   const printer = selectedPrinterId ? getPrinterById(selectedPrinterId) : null;
-  const machineHourCost = toPositiveNumber(printer?.hourlyDepreciation, 0);
-  const depreciationCost = printHours * machineHourCost;
-  const electricityCost = printHours * electricityCostPerHour;
+  // منطق التسعير النهائي:
+  // تكلفة ساعة الطابعة هنا = تشغيل فقط.
+  // إهلاك الأصول ونصيب الصيانة يتحسبوا كبنود منفصلة مرة واحدة فقط.
+  // كده لا نظلم العميل بتضخيم السعر، ولا نظلم الشغل بإهمال هلاك الأصل والصيانة.
+  const machineRunCost = printHours * toPositiveNumber(printer?.hourlyDepreciation, 0);
+  const assetsHourlyDepreciation = getAssetsHourlyDepreciation();
+  const assetDepreciationCost = printHours * assetsHourlyDepreciation;
+  const maintenanceCostPerHour = getMaintenanceCostPerHour();
+  const maintenanceShareCost = printHours * maintenanceCostPerHour;
+  const depreciationCost = machineRunCost + assetDepreciationCost + maintenanceShareCost;
+  const electricityCost = printHours * electricityPricePerKwh * printerPowerKw;
   const laborCost = (manualMinutes / 60) * laborRate;
 
   const pricing = calculateMoo3dPricing({
@@ -71,6 +99,9 @@ function calc() {
   setText('resUnitFinal', formatMoney(pricing.unitFinalPrice));
   setText('resMat', formatMoney(totalMaterialCost));
   setText('resWaste', formatMoney(totalWasteCost));
+  setText('resMachineRun', formatMoney(machineRunCost));
+  setText('resAssetDep', formatMoney(assetDepreciationCost));
+  setText('resMaintenance', formatMoney(maintenanceShareCost));
   setText('resDep', formatMoney(totalDepreciationCost));
   setText('resElectricity', formatMoney(totalElectricityCost));
   setText('resLabor', formatMoney(totalLaborCost));
@@ -95,6 +126,11 @@ function calc() {
     wasteWeight: roundMoney(wasteWeight),
     wasteCost: roundMoney(totalWasteCost),
     depreciationCost: roundMoney(totalDepreciationCost),
+    machineRunCost: roundMoney(machineRunCost),
+    assetDepreciationCost: roundMoney(assetDepreciationCost),
+    maintenanceShareCost: roundMoney(maintenanceShareCost),
+    electricityPricePerKwh: roundMoney(electricityPricePerKwh),
+    printerPowerKw: roundMoney(printerPowerKw),
     electricityCost: roundMoney(totalElectricityCost),
     laborCost: roundMoney(totalLaborCost),
     packagingCost: roundMoney(totalPackagingCost),
@@ -125,6 +161,9 @@ function resetResultsPanel() {
   setText('resUnitFinal', formatMoney(0));
   setText('resMat', formatMoney(0));
   setText('resWaste', formatMoney(0));
+  setText('resMachineRun', formatMoney(0));
+  setText('resAssetDep', formatMoney(0));
+  setText('resMaintenance', formatMoney(0));
   setText('resDep', formatMoney(0));
   setText('resElectricity', formatMoney(0));
   setText('resLabor', formatMoney(0));
@@ -319,6 +358,11 @@ function buildCurrentOrderPayload(code) {
     wasteWeight: currentCalc.wasteWeight,
     wasteCost: currentCalc.wasteCost,
     depreciationCost: currentCalc.depreciationCost,
+    machineRunCost: currentCalc.machineRunCost,
+    assetDepreciationCost: currentCalc.assetDepreciationCost,
+    maintenanceShareCost: currentCalc.maintenanceShareCost,
+    electricityPricePerKwh: currentCalc.electricityPricePerKwh,
+    printerPowerKw: currentCalc.printerPowerKw,
     electricityCost: currentCalc.electricityCost,
     laborCost: currentCalc.laborCost,
     packagingCost: currentCalc.packagingCost,

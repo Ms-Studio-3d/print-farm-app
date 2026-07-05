@@ -245,6 +245,7 @@ function applyConfigToInputs() {
   const defaultManualMinutes = String(toPositiveNumber(dashboardData.config.defaultManualMinutes, DEFAULT_CONFIG.defaultManualMinutes));
   const laborRate = String(toPositiveNumber(dashboardData.config.laborRate, DEFAULT_CONFIG.laborRate));
   const electricityCostPerHour = String(toPositiveNumber(dashboardData.config.electricityCostPerHour, DEFAULT_CONFIG.electricityCostPerHour));
+  const printerPowerKw = String(toPositiveNumber(dashboardData.config.printerPowerKw, DEFAULT_CONFIG.printerPowerKw));
   const packagingCost = String(toPositiveNumber(dashboardData.config.packagingCost, DEFAULT_CONFIG.packagingCost));
   const failurePercent = String(toPositiveNumber(dashboardData.config.failurePercent, DEFAULT_CONFIG.failurePercent));
   const defaultWasteWeight = String(toPositiveNumber(dashboardData.config.defaultWasteWeight, DEFAULT_CONFIG.defaultWasteWeight));
@@ -270,6 +271,7 @@ function applyConfigToInputs() {
   setValue('discountValue', defaultDiscount);
   setValue('laborRate', laborRate);
   setValue('electricityCostPerHour', electricityCostPerHour);
+  setValue('printerPowerKw', printerPowerKw);
   setValue('packagingCost', packagingCost);
   setValue('failurePercent', failurePercent);
   setValue('wasteWeight', defaultWasteWeight);
@@ -282,6 +284,7 @@ function applyConfigToInputs() {
   setValue('settingsDefaultManualMinutes', defaultManualMinutes);
   setValue('settingsLaborRate', laborRate);
   setValue('settingsElectricityCostPerHour', electricityCostPerHour);
+  setValue('settingsPrinterPowerKw', printerPowerKw);
   setValue('settingsPackagingCost', packagingCost);
   setValue('settingsFailurePercent', failurePercent);
   setValue('settingsDefaultWasteWeight', defaultWasteWeight);

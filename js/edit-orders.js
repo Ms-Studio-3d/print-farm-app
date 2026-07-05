@@ -28,8 +28,17 @@ function recalculateEditedOrderCosts(oldOrder, printHours, manualMinutes, printe
 
   const previousMachineHourCost = safeDivide(oldDepreciationCost, oldPrintHours, 0);
   const selectedPrinter = printerId ? getPrinterById(printerId) : null;
+  const machineRunHourCost = selectedPrinter
+    ? toPositiveNumber(selectedPrinter.hourlyDepreciation, 0)
+    : previousMachineHourCost;
+  const assetHourCost = selectedPrinter && typeof getAssetsHourlyDepreciation === 'function'
+    ? getAssetsHourlyDepreciation()
+    : 0;
+  const maintenanceHourCost = selectedPrinter && typeof getMaintenanceCostPerHour === 'function'
+    ? getMaintenanceCostPerHour()
+    : 0;
   const machineHourCost = selectedPrinter
-    ? toPositiveNumber(selectedPrinter.hourlyDepreciation, previousMachineHourCost)
+    ? machineRunHourCost + assetHourCost + maintenanceHourCost
     : previousMachineHourCost;
 
   const electricityCostPerHour = safeDivide(oldElectricityCost, oldPrintHours, getConfigNumber('electricityCostPerHour'));
