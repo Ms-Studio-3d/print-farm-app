@@ -33,9 +33,8 @@ function bindLiveCalculationInputs() {
   });
 }
 
-function bindPaymentInputs() {
-  // النسخة المبسطة تعتبر كل أوردر مدفوع بالكامل، لذلك لا توجد حقول تحصيل في الواجهة.
-}
+function bindPaymentInputs() {}
+
 function bindSettingsLiveInputs() {
   [
     'farmName',
@@ -66,7 +65,13 @@ function bindSettingsLiveInputs() {
     el.addEventListener('input', () => {
       if (id === 'farmName') {
         const appTitle = document.querySelector('.app-title');
-        if (appTitle) appTitle.innerText = getTrimmedValue('farmName', DEFAULT_CONFIG.farmName);
+
+        if (appTitle) {
+          appTitle.innerText = getTrimmedValue(
+            'farmName',
+            DEFAULT_CONFIG.farmName
+          );
+        }
       }
     });
   });
@@ -79,7 +84,10 @@ function bindGlobalKeyboardShortcuts() {
       setActiveNav('order');
     }
 
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+    if (
+      (event.ctrlKey || event.metaKey) &&
+      event.key.toLowerCase() === 's'
+    ) {
       event.preventDefault();
 
       if (isModalOpen('settingsModal')) {
@@ -91,6 +99,7 @@ function bindGlobalKeyboardShortcuts() {
 
 function bindImportInput() {
   const input = $('importBackupInput');
+
   if (input) {
     input.addEventListener('change', importBackupFromFile);
   }
@@ -130,3 +139,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await loadDashboardData();
 });
+
+/* ربط الدوال المستخدمة من HTML */
+window.openEditSale = openEditSale;
+window.saveEditSale = saveEditSale;
+window.deleteSale = deleteSale;
