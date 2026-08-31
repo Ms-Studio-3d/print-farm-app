@@ -328,3 +328,32 @@ async function saveEditSale() {
     savingEdit = false;
   }
 }
+async function deleteSale(code) {
+  const confirmed = await askConfirm(
+    `هل تريد حذف الأوردر ${code}؟ سيتم استرجاع الخامات للمخزون.`
+  );
+
+  if (!confirmed) return;
+
+  const response = await window.farmAPI.deleteOrder(code);
+
+  if (!response?.success) {
+    showToast(
+      response?.message || 'فشل في حذف الأوردر',
+      'error'
+    );
+    return;
+  }
+
+  showToast('تم حذف الأوردر واسترجاع المخزون');
+
+  await loadDashboardData();
+
+  if (isModalOpen('reportsModal')) {
+    renderReportsTable();
+  }
+
+  if (isModalOpen('pipelineModal')) {
+    renderPipeline();
+  }
+}
