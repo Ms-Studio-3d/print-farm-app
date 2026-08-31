@@ -171,7 +171,7 @@ function createMainWindow() {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
-      devTools: !app.isPackaged
+      devTools: true
     }
   });
 
