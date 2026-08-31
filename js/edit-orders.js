@@ -231,7 +231,7 @@ async function deleteSale(code) {
 
   if (!confirmed) return;
 
-  const response = await window.farmAPI.deleteOrder(code);
+  const response = await window.farmAPI.deleteOrder({ code });
 
   if (!response?.success) {
     showToast(response?.message || 'فشل في حذف الأوردر', 'error');
