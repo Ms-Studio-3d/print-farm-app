@@ -341,11 +341,50 @@ function showToast(message, type = 'success') {
   }, 2600);
 }
 
-async function askConfirm(message) {
-  try {
-    const response = await window.farmAPI.confirm(message);
-    return !!response?.success && !!response?.confirmed;
-  } catch {
-    return false;
-  }
+async function askConfirm(message) { 
+  try { 
+    const response = await window.farmAPI.confirm(message); 
+    return !!response?.success && !!response?.confirmed; 
+  } catch { 
+    return false; 
+  } 
 }
+
+// ======================================
+// Expose functions globally
+// ======================================
+
+window.$ = $;
+
+window.normalizeDigits = normalizeDigits;
+window.toNumber = toNumber;
+window.toPositiveNumber = toPositiveNumber;
+
+window.formatMoney = formatMoney;
+window.formatNumber = formatNumber;
+window.formatDateTime = formatDateTime;
+window.formatHoursMinutes = formatHoursMinutes;
+
+window.setText = setText;
+window.setValue = setValue;
+window.getValue = getValue;
+window.getTrimmedValue = getTrimmedValue;
+
+window.getPrinterById = getPrinterById;
+window.getDefaultPrinterId = getDefaultPrinterId;
+window.getMaterialById = getMaterialById;
+window.getOrderByCode = getOrderByCode;
+
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.isModalOpen = isModalOpen;
+
+window.closeMainPanels = closeMainPanels;
+window.closeAllModals = closeAllModals;
+window.closeAllPanels = closeAllPanels;
+
+window.returnToOrderNav = returnToOrderNav;
+window.setActiveNav = setActiveNav;
+
+window.showToast = showToast;
+window.askConfirm = askConfirm;
