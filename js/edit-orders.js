@@ -259,46 +259,54 @@ async function saveEditSale() {
     const quantity = Math.max(1, recalculated.quantity);
 
     const payload = {
-      code: editingOrderCode,
-      date,
-      itemName,
-      customerName: getTrimmedValue('editCustomerName'),
-      printerId,
-      status: oldOrder.status || 'delivered',
-      quantity,
-      printHours,
-      manualMinutes,
-      notes: getTrimmedValue('editNotes'),
+  code: editingOrderCode,
+  date,
+  itemName,
+  customerName: getTrimmedValue('editCustomerName'),
+  printerId,
+  status: oldOrder.status || 'delivered',
+  quantity,
+  printHours,
+  manualMinutes,
+  notes: getTrimmedValue('editNotes'),
 
-      materialCost: recalculated.materialCost,
-      wasteWeight: recalculated.wasteWeight,
-      wasteCost: recalculated.wasteCost,
-      depreciationCost: recalculated.depreciationCost,
-      electricityCost: recalculated.electricityCost,
-      laborCost: recalculated.laborCost,
-      packagingCost: recalculated.packagingCost,
-      accessoriesCost: recalculated.accessoriesCost,
-      shippingCost: recalculated.shippingCost,
-      riskCost: recalculated.riskCost,
-      taxCost: recalculated.taxCost,
-      totalCost: recalculated.totalCost,
+  materialCost: recalculated.materialCost,
+  wasteWeight: recalculated.wasteWeight,
+  wasteCost: recalculated.wasteCost,
+  depreciationCost: recalculated.depreciationCost,
+  electricityCost: recalculated.electricityCost,
+  laborCost: recalculated.laborCost,
+  packagingCost: recalculated.packagingCost,
+  accessoriesCost: recalculated.accessoriesCost,
+  shippingCost: recalculated.shippingCost,
+  riskCost: recalculated.riskCost,
+  taxCost: recalculated.taxCost,
+  totalCost: recalculated.totalCost,
 
-      priceBeforeDiscount: finalPrice,
-      discountValue: 0,
-      priceAfterDiscount: finalPrice,
+  priceBeforeDiscount: finalPrice,
+  discountValue: 0,
+  priceAfterDiscount: finalPrice,
 
-      minimumOrderPrice: Number(oldOrder.minimumOrderPrice || 0),
-      roundedAdjustment: 0,
+  minimumOrderPrice: Number(oldOrder.minimumOrderPrice || 0),
+  roundedAdjustment: 0,
 
-      finalPrice,
-      profit,
+  finalPrice,
+  profit,
 
-      unitFinalPrice: roundMoney(finalPrice / quantity),
-      unitTotalCost: roundMoney(recalculated.totalCost / quantity),
-      unitProfit: roundMoney(profit / quantity)
-    };
+  unitFinalPrice: roundMoney(finalPrice / quantity),
+  unitTotalCost: roundMoney(recalculated.totalCost / quantity),
+  unitProfit: roundMoney(profit / quantity),
 
-    const response = await window.farmAPI.updateOrder(payload);
+  // أضف دول
+  replaceMaterialUsage: false,
+  materialUsage: oldOrder.materialUsage || []
+};
+
+    console.log('UPDATE PAYLOAD', payload);
+
+const response = await window.farmAPI.updateOrder(payload);
+
+console.log('UPDATE RESPONSE', response);
 
     if (!response?.success) {
       showToast(
@@ -357,3 +365,6 @@ async function deleteSale(code) {
     renderPipeline();
   }
 }
+window.saveEditSale = saveEditSale;
+window.deleteSale = deleteSale;
+window.openEditSale = openEditSale;
