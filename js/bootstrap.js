@@ -1,5 +1,6 @@
 function scheduleCalc() {
   clearTimeout(window.__moo3dCalcTimer);
+
   window.__moo3dCalcTimer = setTimeout(() => {
     if (typeof calc === 'function') calc();
   }, 220);
@@ -129,8 +130,16 @@ function initializeDates() {
   }
 }
 
+
+/* ربط الدوال المستخدمة من HTML قبل أي تشغيل */
+window.openEditSale = openEditSale;
+window.saveEditSale = saveEditSale;
+window.deleteSale = deleteSale;
+
+
 document.addEventListener('DOMContentLoaded', async () => {
   initializeDates();
+
   bindLiveCalculationInputs();
   bindSettingsLiveInputs();
   bindPaymentInputs();
@@ -139,8 +148,3 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await loadDashboardData();
 });
-
-/* ربط الدوال المستخدمة من HTML */
-window.openEditSale = openEditSale;
-window.saveEditSale = saveEditSale;
-window.deleteSale = deleteSale;
