@@ -41,7 +41,10 @@ function escapeHtml(value) {
 }
 
 function jsStringArg(value) {
-  return escapeHtml(JSON.stringify(String(value ?? '')));
+  // نحمي النص داخل JavaScript، ثم علامات التنصيص داخل HTML.
+  return escapeHtml(JSON.stringify(String(value ?? '')))
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function getCurrency() {
