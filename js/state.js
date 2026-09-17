@@ -79,6 +79,7 @@ const MAIN_PANEL_IDS = [
 ];
 
 const MODAL_IDS = [
+  'freshStartModal',
   'businessDashboardModal',
   'reportsModal',
   'editModal',

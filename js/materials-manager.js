@@ -67,11 +67,8 @@ async function saveMaterialAction() {
     return;
   }
 
-  if (remaining > weight) {
-    showToast('المتبقي لا يمكن أن يكون أكبر من وزن البكرة', 'error');
-    $('materialRemaining')?.focus();
-    return;
-  }
+  // Total stock may contain multiple packs; pack weight still defines price per gram.
+
 
   const payload = {
     id: getValue('materialId') ? Number(getValue('materialId')) : null,

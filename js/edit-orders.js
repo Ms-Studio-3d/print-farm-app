@@ -161,6 +161,13 @@ function openEditSale(code) {
   setValue('editDate', order.date || '');
   setValue('editItemName', order.itemName || '');
   setValue('editCustomerName', order.customerName || '');
+  const printerSelect = $('editPrinter');
+  if (printerSelect && order.printerId && !Array.from(printerSelect.options).some((option) => Number(option.value) === Number(order.printerId))) {
+    const option = document.createElement('option');
+    option.value = String(order.printerId);
+    option.textContent = `${order.printerName || 'الطابعة السابقة'} (مؤرشفة — مرتبطة بهذا الأوردر)`;
+    printerSelect.appendChild(option);
+  }
   setValue('editPrinter', order.printerId || '');
 
   const printParts = splitHoursToParts(order.printHours || 0);
@@ -231,12 +238,17 @@ async function saveEditSale() {
       return;
     }
 
-    const recalculated = recalculateEditedOrderCosts(
-      oldOrder,
-      printHours,
-      manualMinutes,
-      printerId
-    );
+    // A customer/name/date edit must not reprice an old sale with today's settings.
+    const unchangedCostInputs = Number(printerId) === Number(oldOrder.printerId)
+      && Math.abs(printHours - Number(oldOrder.printHours || 0)) < 0.0001
+      && manualMinutes === Number(oldOrder.manualMinutes || 0);
+    const recalculated = unchangedCostInputs
+      ? {
+          ...oldOrder,
+          quantity: Math.max(1, Number(oldOrder.quantity || 1)),
+          directAddOnsCost: Number(oldOrder.accessoriesCost || 0) + Number(oldOrder.shippingCost || 0)
+        }
+      : recalculateEditedOrderCosts(oldOrder, printHours, manualMinutes, printerId);
 
     const minimumNoLossPrice =
       recalculated.totalCost +
@@ -302,11 +314,22 @@ async function saveEditSale() {
   materialUsage: oldOrder.materialUsage || []
 };
 
-    console.log('UPDATE PAYLOAD', payload);
+    if (unchangedCostInputs && finalPrice === Number(oldOrder.finalPrice || 0)) {
+      // Preserve historical discounts, rounding, rates and financial breakdown.
+      Object.assign(payload, oldOrder, {
+        code: editingOrderCode,
+        date,
+        itemName,
+        customerName: getTrimmedValue('editCustomerName'),
+        printerId,
+        notes: getTrimmedValue('editNotes'),
+        replaceMaterialUsage: false
+      });
+    }
 
 const response = await window.farmAPI.updateOrder(payload);
 
-console.log('UPDATE RESPONSE', response);
+
 
     if (!response?.success) {
       showToast(
@@ -325,44 +348,46 @@ console.log('UPDATE RESPONSE', response);
     await loadDashboardData();
 
     if (isModalOpen('reportsModal')) {
-      renderReportsTable();
+      await renderReportsTable();
     }
 
     if (isModalOpen('pipelineModal')) {
-      renderPipeline();
+      await renderPipeline();
     }
 
+  } catch (error) {
+    showToast(error?.message || 'تعذر إتمام التعديل. راجع السجل قبل إعادة المحاولة.', 'error');
   } finally {
     savingEdit = false;
   }
 }
+const deletingSaleCodes = new Set();
 async function deleteSale(code) {
-  const confirmed = await askConfirm(
-    `هل تريد حذف الأوردر ${code}؟ سيتم استرجاع الخامات للمخزون.`
-  );
-
-  if (!confirmed) return;
-
-  const response = await window.farmAPI.deleteOrder(code);
-
-  if (!response?.success) {
-    showToast(
-      response?.message || 'فشل في حذف الأوردر',
-      'error'
-    );
+  const cleanCode = String(code || '').trim();
+  if (!cleanCode) {
+    showToast('كود الأوردر غير صالح', 'error');
     return;
   }
-
-  showToast('تم حذف الأوردر واسترجاع المخزون');
-
-  await loadDashboardData();
-
-  if (isModalOpen('reportsModal')) {
-    renderReportsTable();
-  }
-
-  if (isModalOpen('pipelineModal')) {
-    renderPipeline();
+  if (deletingSaleCodes.has(cleanCode)) return;
+  deletingSaleCodes.add(cleanCode);
+  try {
+    const confirmed = await askConfirm(
+      `حذف الأوردر ${cleanCode} لتصحيح تسجيل خاطئ؟ سيتم حذف البيع وإرجاع خاماته للمخزون. لو الخامة اتستهلكت فعلًا، الحذف بهذه الطريقة لا يمثل المخزون الحقيقي.`
+    );
+    if (!confirmed) return;
+    const response = await window.farmAPI.deleteOrder(cleanCode);
+    if (!response?.success) {
+      showToast(response?.message || 'فشل في حذف الأوردر', 'error');
+      return;
+    }
+    showToast('تم حذف الأوردر واسترجاع المخزون');
+    await loadDashboardData();
+    if (isModalOpen('reportsModal')) await renderReportsTable();
+    if (isModalOpen('pipelineModal')) await renderPipeline();
+  } catch (error) {
+    showToast(error?.message || 'تعذر إتمام الحذف. راجع سجل المبيعات قبل إعادة المحاولة.', 'error');
+  } finally {
+    deletingSaleCodes.delete(cleanCode);
   }
 }
 window.saveEditSale = saveEditSale;

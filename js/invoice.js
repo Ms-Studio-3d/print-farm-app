@@ -68,66 +68,6 @@ function renderInvoice(order) {
         </div>
       </div>
 
-      <div class="invoice-section">
-        <h3>تفاصيل التكلفة</h3>
-        <div class="invoice-grid">
-          <div class="invoice-box">
-            <span>الخامة</span>
-            <strong>${formatMoney(order.materialCost || 0)}</strong>
-          </div>
-
-          <div class="invoice-box">
-            <span>هالك وزن (${formatNumber(order.wasteWeight || 0)}g)</span>
-            <strong>${formatMoney(order.wasteCost || 0)}</strong>
-          </div>
-
-          <div class="invoice-box">
-            <span>تكلفة الماكينة</span>
-            <strong>${formatMoney(order.depreciationCost || 0)}</strong>
-          </div>
-
-          <div class="invoice-box">
-            <span>الكهرباء</span>
-            <strong>${formatMoney(order.electricityCost || 0)}</strong>
-          </div>
-
-          <div class="invoice-box">
-            <span>الشغل اليدوي</span>
-            <strong>${formatMoney(order.laborCost || 0)}</strong>
-          </div>
-
-          <div class="invoice-box">
-            <span>التغليف</span>
-            <strong>${formatMoney(order.packagingCost || 0)}</strong>
-          </div>
-
-          <div class="invoice-box">
-            <span>إكسسوارات</span>
-            <strong>${formatMoney(order.accessoriesCost || 0)}</strong>
-          </div>
-
-          <div class="invoice-box">
-            <span>شحن</span>
-            <strong>${formatMoney(order.shippingCost || 0)}</strong>
-          </div>
-
-          <div class="invoice-box">
-            <span>نسبة الفشل / المخاطرة</span>
-            <strong>${formatMoney(order.riskCost || 0)}</strong>
-          </div>
-
-          <div class="invoice-box">
-            <span>الضريبة</span>
-            <strong>${formatMoney(order.taxCost || 0)}</strong>
-          </div>
-
-          <div class="invoice-box">
-            <span>إجمالي التكلفة</span>
-            <strong>${formatMoney(order.totalCost || 0)}</strong>
-          </div>
-        </div>
-      </div>
-
       <div class="invoice-total">
         <div>
           <span>سعر القطعة تقريبيًا</span>
@@ -138,16 +78,12 @@ function renderInvoice(order) {
           <strong>${formatMoney(order.finalPrice || 0)}</strong>
         </div>
         <div>
-          <span>صافي الربح الداخلي</span>
-          <strong>${formatMoney(order.profit || 0)}</strong>
+          <span>المبلغ المحصل</span>
+          <strong>${formatMoney(getOrderPaidAmount(order))}</strong>
         </div>
       </div>
 
-      ${
-        order.notes
-          ? `<div class="invoice-notes"><strong>ملاحظات:</strong><br>${escapeHtml(order.notes)}</div>`
-          : ''
-      }
+      <p class="invoice-notes">نسخة العميل — لا تتضمن تكاليف التشغيل أو الربح أو الملاحظات الداخلية.</p>
     </div>
   `;
 }

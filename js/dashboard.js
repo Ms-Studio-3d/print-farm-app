@@ -349,12 +349,15 @@ async function setNextOrderCode() {
   setText('nextOrderCode', nextCode.replace('ORD-', ''));
 }
 
+let dashboardLoadRequest = 0;
 async function loadDashboardData() {
+  const requestId = ++dashboardLoadRequest;
   const response = await window.farmAPI.getDashboardData();
+  if (requestId !== dashboardLoadRequest) return false;
 
   if (!response?.success) {
     showToast(response?.message || 'فشل في تحميل البيانات', 'error');
-    return;
+    return false;
   }
 
   dashboardData = {
@@ -370,6 +373,8 @@ async function loadDashboardData() {
     meta: response.data?.meta || {}
   };
 
+  Object.values(orderQueryViews).forEach((view) => { view.requestId += 1; });
+  customersQueryView.requestId += 1;
   orderQueryViews = {
     reports: { filtersKey: '', items: [], meta: {}, summary: null, loading: false, requestId: 0 },
     pipeline: { filtersKey: '', items: [], meta: {}, summary: null, loading: false, requestId: 0 }
@@ -400,8 +405,7 @@ async function loadDashboardData() {
   if (isModalOpen('quotesModal') && typeof renderQuotes === 'function') renderQuotes();
 
   // تحديث رقم الأوردر والحساب بعد الرسم الأساسي حتى لا يتأخر فتح الشاشة.
-  setTimeout(() => {
-    setNextOrderCode();
-    calc();
-  }, 0);
+  await setNextOrderCode();
+  calc();
+  return true;
 }

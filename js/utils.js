@@ -331,26 +331,33 @@ function showToast(message, type = 'success') {
   toast.id = 'toastMsg';
   toast.className = `toast ${type}`;
   toast.innerText = message;
+  toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  const visibleMs = type === 'error' ? 7000 : 3500;
 
   document.body.appendChild(toast);
 
   setTimeout(() => {
     toast.style.opacity = '0';
     toast.style.transform = 'translateY(-8px)';
-  }, 2200);
+  }, visibleMs);
 
   setTimeout(() => {
     if (toast.parentNode) toast.remove();
-  }, 2600);
+  }, visibleMs + 400);
 }
 
-async function askConfirm(message) { 
-  try { 
-    const response = await window.farmAPI.confirm(message); 
-    return !!response?.success && !!response?.confirmed; 
-  } catch { 
-    return false; 
-  } 
+async function askConfirm(message) {
+  try {
+    const response = await window.farmAPI.confirm(message);
+    if (!response?.success) {
+      showToast(response?.message || 'تعذر فتح نافذة التأكيد. العملية لم تُنفذ.', 'error');
+      return false;
+    }
+    return !!response.confirmed;
+  } catch (error) {
+    showToast(error?.message || 'تعذر فتح نافذة التأكيد. العملية لم تُنفذ.', 'error');
+    return false;
+  }
 }
 
 // ======================================

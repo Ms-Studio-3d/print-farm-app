@@ -216,8 +216,16 @@ async function importBackupFromFile(event) {
       return;
     }
 
+    editingOrderCode = null;
+    currentInvoiceOrderCode = null;
+    editingPurchaseId = null;
+    editingAssetId = null;
+    selectedOrderMaterialIds = [];
+    if ($('amsInputs')) $('amsInputs').innerHTML = '';
+    MODAL_IDS.filter((id) => id !== 'settingsModal').forEach(closeModal);
     showToast('تم استيراد النسخة الاحتياطية بنجاح');
     await loadDashboardData();
+    resetOrderForm();
   } catch (error) {
     showToast('ملف النسخة الاحتياطية غير صالح', 'error');
   } finally {

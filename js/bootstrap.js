@@ -81,6 +81,7 @@ function bindSettingsLiveInputs() {
 function bindGlobalKeyboardShortcuts() {
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
+      if (typeof freshStartRunning !== 'undefined' && freshStartRunning) return;
       closeAllModals();
       setActiveNav('order');
     }

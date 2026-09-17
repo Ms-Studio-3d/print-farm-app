@@ -336,14 +336,14 @@ function validateOrderBeforeSave(options = {}) {
 async function saveSale() {
   if (savingOrder) return;
   savingOrder = true;
+  let committed = false;
 
   try {
     calc();
     const validation = validateOrderBeforeSave();
     if (!validation.valid) return;
 
-    const confirmResponse = await window.farmAPI.confirm('هل تم استلام المبلغ كاملًا؟ سيتم تسجيل الأوردر وخصم المخزون');
-    if (!confirmResponse?.confirmed) return;
+    if (!await askConfirm('هل تم استلام المبلغ كاملًا؟ سيتم تسجيل الأوردر وخصم المخزون')) return;
 
     const responseCode = await window.farmAPI.getNextOrderCode();
     if (!responseCode?.success) {
@@ -362,10 +362,15 @@ async function saveSale() {
       return;
     }
 
-    showToast('تم تسجيل الأوردر المدفوع وخصم المخزون بنجاح');
-    applySavedOrderLocally(payload);
+    committed = true;
     resetOrderForm();
+    showToast('تم تسجيل الأوردر المدفوع وخصم المخزون بنجاح');
+    await loadDashboardData();
     setActiveNav('order');
+  } catch (error) {
+    showToast(committed
+      ? 'تم حفظ البيعة، لكن تعذر تحديث العرض. لا تسجلها مرة أخرى؛ اقفل البرنامج وافتحه وراجع المبيعات.'
+      : (error?.message || 'تعذر تأكيد الحفظ. راجع المبيعات قبل إعادة المحاولة.'), 'error');
   } finally {
     savingOrder = false;
   }
