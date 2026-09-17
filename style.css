@@ -2996,3 +2996,20 @@ button[onclick="saveQuote()"] {
     padding: 7px 9px !important;
   }
 }
+
+/* MOO3D_STABILITY_STAGE1_20260917: notifications must be above app panels (10000+). */
+.toast { z-index: 2147483647 !important; }
+#reportsModal .table-wrap { overflow: auto; }
+#reportsModal tbody td:last-child { white-space: nowrap; }
+
+/* Stability release: keyboard focus, safe reset, and actions remain accessible. */
+.btn-danger { background: #8f2638; border: 1px solid #f28a99; color: #fff; }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.fresh-start-content { max-height: calc(100vh - 32px); overflow-y: auto !important; }
+.reset-options { display: grid; gap: 14px; margin: 20px 0; padding: 18px; border: 1px solid var(--border-strong); border-radius: 12px; }
+.reset-options label { display: flex; align-items: flex-start; gap: 12px; line-height: 1.8; }
+.reset-options input[type="checkbox"] { width: 20px; height: 20px; min-height: 20px; flex: 0 0 20px; margin-top: 5px; }
+.reset-result { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; user-select: text; }
+.reset-warning p { margin-top: 8px; line-height: 1.8; }
+#reportsModal tbody td:last-child { min-width: 220px; }
+#editModal .modal-content, #settingsModal .modal-content { max-height: calc(100vh - 24px); overflow-y: auto !important; }

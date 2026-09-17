@@ -13,8 +13,8 @@ function createNodeSqliteCompatDriver() {
   const { DatabaseSync } = require('node:sqlite');
 
   return class NodeSqliteCompatDatabase {
-    constructor(filename) {
-      this.database = new DatabaseSync(filename);
+    constructor(filename, options = {}) {
+      this.database = new DatabaseSync(filename, { readOnly: options.readonly === true });
     }
 
     prepare(sql) {
@@ -82,17 +82,18 @@ function setDatabasePathForTests(dbPath) {
   process.env.MOO3D_DB_PATH = String(dbPath || '').trim();
 }
 
-function getDb() {
+function getDb(options = {}) {
   if (db) return db;
 
   let Database = getDatabaseDriver();
   try {
-    db = new Database(getDatabasePath());
+    db = new Database(getDatabasePath(), options.readonly ? { readonly: true, fileMustExist: true } : {});
   } catch (_) {
     DatabaseDriver = createNodeSqliteCompatDriver();
     Database = DatabaseDriver;
-    db = new Database(getDatabasePath());
+    db = new Database(getDatabasePath(), options.readonly ? { readonly: true, fileMustExist: true } : {});
   }
+  if (options.readonly) return db;
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
   db.pragma('synchronous = NORMAL');
@@ -373,6 +374,9 @@ function seedDefaults() {
     insertConfig.run(key, String(value));
   });
 
+  // Empty tables can be intentional. Never resurrect deleted demonstration data.
+  if (db.prepare("SELECT value FROM app_config WHERE key = 'initialDataSeeded'").get()?.value === '1') return;
+
   const currentFarmName = db.prepare(`SELECT value FROM app_config WHERE key = 'farmName'`).get();
 
   if (!currentFarmName || !String(currentFarmName.value || '').trim()) {
@@ -512,6 +516,7 @@ function seedDefaults() {
       'أصل افتراضي أضيف لضمان حساب إهلاك الطابعة مرة واحدة داخل التسعير'
     );
   }
+  setConfig('initialDataSeeded', '1');
 }
 
 function getAllConfig() {
@@ -1242,7 +1247,8 @@ function getNextOrderCode() {
   `).get();
 
   const maxNumber = Number(row && row.maxNumber ? row.maxNumber : 0);
-  return `ORD-${Math.max(1000, maxNumber) + 1}`;
+  const floor = Number(database.prepare("SELECT value FROM app_config WHERE key = 'orderCodeFloor'").get()?.value || 0);
+  return `ORD-${Math.max(1000, maxNumber, floor) + 1}`;
 }
 
 function getNextQuoteCode() {
@@ -1255,7 +1261,8 @@ function getNextQuoteCode() {
   `).get();
 
   const maxNumber = Number(row && row.maxNumber ? row.maxNumber : 0);
-  return `Q-${Math.max(1000, maxNumber) + 1}`;
+  const floor = Number(database.prepare("SELECT value FROM app_config WHERE key = 'quoteCodeFloor'").get()?.value || 0);
+  return `Q-${Math.max(1000, maxNumber, floor) + 1}`;
 }
 
 function generateUniqueOrderCode(preferredCode) {
@@ -1549,6 +1556,9 @@ function insertOrderWithStock(data) {
     );
   }
 
+  const codeNumber = Number(String(cleanCode).replace(/^ORD-/, ''));
+  const previousFloor = Number(db.prepare("SELECT value FROM app_config WHERE key = 'orderCodeFloor'").get()?.value || 0);
+  if (Number.isSafeInteger(codeNumber)) setConfig('orderCodeFloor', String(Math.max(previousFloor, codeNumber)));
   return orderId;
 }
 
@@ -1602,7 +1612,7 @@ function updateOrder(payload) {
   }
 
   const transaction = db.transaction((data) => {
-    const existingOrder = db.prepare('SELECT id, code FROM orders WHERE code = ?').get(code);
+    const existingOrder = db.prepare('SELECT id, code, printer_id AS printerId FROM orders WHERE code = ?').get(code);
 
     if (!existingOrder) {
       throw new Error('الأوردر غير موجود');
@@ -1632,13 +1642,15 @@ function updateOrder(payload) {
         throw new Error('الطابعة المحددة غير موجودة');
       }
 
-      if (Number(printer.is_archived || 0) === 1) {
+      if (Number(printer.is_archived || 0) === 1 && Number(data.printerId) !== Number(existingOrder.printerId)) {
         throw new Error('الطابعة المحددة مؤرشفة ولا يمكن استخدامها');
       }
     }
 
-    const shouldReplaceMaterialUsage = Boolean(data.replaceMaterialUsage);
-    const replaceMaterialUsage = shouldReplaceMaterialUsage || Array.isArray(data.materialUsage);
+    // Explicit false must leave stored consumption and stock movements untouched.
+    const replaceMaterialUsage = data.replaceMaterialUsage === undefined
+      ? Array.isArray(data.materialUsage)
+      : data.replaceMaterialUsage === true;
 
     if (replaceMaterialUsage) {
       if (data.materialUsage.length === 0) {
@@ -1895,6 +1907,7 @@ function deleteOrder(code) {
 
     db.prepare('DELETE FROM order_materials WHERE order_id = ?').run(order.id);
     db.prepare('DELETE FROM orders WHERE id = ?').run(order.id);
+    db.prepare("UPDATE quotes SET status = 'open', converted_order_code = '' WHERE converted_order_code = ?").run(order.code);
   });
 
   transaction();
@@ -2367,7 +2380,15 @@ function replaceAllData(data) {
     });
 
     (payload.quotes || []).forEach((quote) => {
-      const payloadJson = quote.payload ? JSON.stringify(quote.payload) : String(quote.payloadJson || '{}');
+      // IDs are reassigned on import. Remap embedded quote consumption, too.
+      const restoredPayload = quote.payload ? JSON.parse(JSON.stringify(quote.payload)) : JSON.parse(String(quote.payloadJson || '{}'));
+      if (restoredPayload.printerId != null) restoredPayload.printerId = printerIdMap.get(Number(restoredPayload.printerId)) || null;
+      if (Array.isArray(restoredPayload.materialUsage)) {
+        restoredPayload.materialUsage = restoredPayload.materialUsage.map((item) => ({
+          ...item, materialId: item.materialId == null ? null : (materialIdMap.get(Number(item.materialId)) || null)
+        }));
+      }
+      const payloadJson = JSON.stringify(restoredPayload);
       if (!String(quote.code || '').trim()) return;
       insertQuote.run(
         String(quote.code || '').trim(),
@@ -2383,10 +2404,50 @@ function replaceAllData(data) {
       );
     });
 
+    // Imported records/configuration are authoritative, including empty inventories.
+    setConfig('initialDataSeeded', '1');
     seedDefaults();
   });
 
   transaction();
+}
+
+/** All destructive statements and counter updates commit together, or roll back together. */
+function resetBusinessData(payload) {
+  const { normalizeResetOptions } = require('./reset-options');
+  const options = normalizeResetOptions(payload);
+  const database = db || getDb();
+  return database.transaction(() => {
+    const config = getAllConfig();
+    const summary = getDashboardSummary();
+    const orderFloor = Number(getNextOrderCode().slice(4)) - 1;
+    const quoteFloor = Number(getNextQuoteCode().slice(2)) - 1;
+    const counts = {};
+    for (const table of ['orders', 'materials', 'purchases', 'quotes', 'stock_movements', 'printers', 'assets']) {
+      counts[table] = Number(database.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count);
+    }
+    database.exec(`
+      DELETE FROM order_materials;
+      DELETE FROM stock_movements;
+      DELETE FROM quotes;
+      DELETE FROM purchases;
+      DELETE FROM orders;
+      DELETE FROM materials;
+    `);
+    if (options.clearPrinters) database.exec('DELETE FROM printers;');
+    if (options.clearAssets) database.exec('DELETE FROM assets;');
+    // Keep primary-key high-water marks: stale UI identifiers cannot point at new items.
+    setConfig('openingCash', '0');
+    setConfig('baseMachineHours', options.resetMachineHours ? '0' : String(
+      Number(config.baseMachineHours || 0) + Number(summary.salesMachineHours || 0)
+    ));
+    if (options.resetMachineHours) setConfig('lastMaintenanceAtHours', '0');
+    setConfig('orderCodeFloor', options.restartCodes ? '1000' : String(orderFloor));
+    setConfig('quoteCodeFloor', options.restartCodes ? '1000' : String(quoteFloor));
+    setConfig('initialDataSeeded', '1');
+    setConfig('lastFreshStartAt', new Date().toISOString());
+    return { removed: { ...counts, printers: options.clearPrinters ? counts.printers : 0, assets: options.clearAssets ? counts.assets : 0 }, options, nextOrderCode: getNextOrderCode() };
+  })();
 }
 
 function exportBackupData() {
@@ -2489,5 +2550,6 @@ module.exports = {
   deleteQuote,
   convertQuoteToOrder,
   replaceAllData,
+  resetBusinessData,
   exportBackupData
 };

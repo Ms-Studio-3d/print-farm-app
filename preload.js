@@ -26,6 +26,8 @@ const CHANNELS = {
 
   exportBackup: 'db:exportBackup',
   importBackup: 'db:importBackup',
+  resetBusinessData: 'db:resetBusinessData',
+  openSafetyBackups: 'backup:openSafetyBackups',
 
   confirmDialog: 'dialog:confirm'
 };
@@ -126,6 +128,14 @@ contextBridge.exposeInMainWorld('farmAPI', {
 
   importBackup(data) {
     return safeInvoke(CHANNELS.importBackup, data);
+  },
+
+  resetBusinessData(options) {
+    return safeInvoke(CHANNELS.resetBusinessData, options);
+  },
+
+  openSafetyBackups() {
+    return safeInvoke(CHANNELS.openSafetyBackups);
   },
 
   confirm(message) {

@@ -27,14 +27,18 @@ const {
   deleteQuote,
   convertQuoteToOrder,
   replaceAllData,
+  resetBusinessData,
   exportBackupData
 } = require('./database');
+const { normalizeResetOptions } = require('./reset-options');
+const { writeVerifiedBackup } = require('./backup-safety');
 
 let mainWindow = null;
 let ipcHandlersRegistered = false;
 let autoBackupTimer = null;
 let autoBackupRunning = false;
 let shutdownBackupDone = false;
+let maintenanceBusy = false;
 
 function writeStartupError(error) {
   try {
@@ -82,6 +86,8 @@ const CHANNELS = {
   convertQuoteToOrder: 'db:convertQuoteToOrder',
   exportBackup: 'db:exportBackup',
   importBackup: 'db:importBackup',
+  resetBusinessData: 'db:resetBusinessData',
+  openSafetyBackups: 'backup:openSafetyBackups',
   confirmDialog: 'dialog:confirm'
 };
 
@@ -216,6 +222,7 @@ function createMainWindow() {
 function handleIpc(channel, handler, fallbackMessage) {
   ipcMain.handle(channel, async (_event, payload) => {
     try {
+      if (maintenanceBusy) throw new Error('جاري تأمين البيانات. أعد المحاولة بعد انتهاء الاستيراد أو البداية الجديدة.');
       ensureDbReady();
       return await handler(payload);
     } catch (error) {
@@ -306,7 +313,9 @@ function normalizeOrderPayload(payload) {
     unitFinalPrice: asPositiveNumber(data.unitFinalPrice, finalPrice / Math.max(1, asPositiveNumber(data.quantity, 1))),
     unitTotalCost: asPositiveNumber(data.unitTotalCost, asPositiveNumber(data.totalCost, 0) / Math.max(1, asPositiveNumber(data.quantity, 1))),
     unitProfit: asNumber(data.unitProfit, asNumber(data.profit, 0) / Math.max(1, asPositiveNumber(data.quantity, 1))),
-    replaceMaterialUsage: Array.isArray(data.materialUsage),
+    replaceMaterialUsage: data.replaceMaterialUsage === undefined
+      ? Array.isArray(data.materialUsage)
+      : data.replaceMaterialUsage === true,
     materialUsage: Array.isArray(data.materialUsage)
       ? data.materialUsage.map(normalizeMaterialUsageItem)
       : []
@@ -326,7 +335,8 @@ function normalizePurchasePayload(payload) {
     amount: asPositiveNumber(data.amount, 0),
     supplier: asTrimmedString(data.supplier),
     notes: asTrimmedString(data.notes),
-    materialId: asNullableId(data.materialId)
+    materialId: asNullableId(data.materialId),
+    createMaterial: data.createMaterial === true
   };
 }
 
@@ -347,7 +357,7 @@ function validatePurchasePayload(data) {
   if (!data.date) throw new Error('تاريخ المشتريات مطلوب');
   if (!data.item) throw new Error('اسم بند المشتريات مطلوب');
   if (data.quantity <= 0) throw new Error('كمية المشتريات لازم تكون أكبر من صفر');
-  if (data.category === 'خامات' && data.materialId && data.gramsPerUnit <= 0) {
+  if (data.category === 'خامات' && (data.materialId || data.createMaterial) && data.gramsPerUnit <= 0) {
     throw new Error('اكتب جرام للواحدة/البكرة عشان المخزون يزيد صح');
   }
 }
@@ -365,7 +375,7 @@ function validatePrinterPayload(data) {
 function validateMaterialPayload(data) {
   if (!data.name) throw new Error('اسم الخامة مطلوب');
   if (data.weight <= 0) throw new Error('وزن الخامة لازم يكون أكبر من صفر');
-  if (data.remaining > data.weight) throw new Error('المتبقي لا يمكن أن يكون أكبر من وزن البكرة');
+  // Remaining is total stock; weight is the reference pack size used in gram pricing.
 }
 
 function validateCreateOrderPayload(data) {
@@ -476,7 +486,7 @@ function createAutomaticBackup(reason = 'auto') {
       });
 
       worker.on('exit', (code) => {
-        if (!settled && code !== 0) {
+        if (!settled) {
           console.warn('[AUTO BACKUP FAILED]', `worker exited with code ${code}`);
           finish(null);
         }
@@ -488,6 +498,13 @@ function createAutomaticBackup(reason = 'auto') {
       resolve(null);
     }
   });
+}
+
+function createProtectedBackup(reason) {
+  const database = getDb();
+  const check = database.prepare('PRAGMA quick_check').get();
+  if (!check || Object.values(check)[0] !== 'ok') throw new Error('فحص قاعدة البيانات لم ينجح. تم إيقاف العملية دون مسح.');
+  return writeVerifiedBackup(exportBackupData(), path.join(ensureBackupsDir(), 'Protected'), reason, validateBackupPayload);
 }
 
 function scheduleAutomaticBackup(reason = 'auto', delayMs = 2000) {
@@ -520,7 +537,7 @@ function validateBackupPayload(payload) {
     throw new Error('ملف النسخة الاحتياطية لا يبدو أنه خاص بالبرنامج');
   }
 
-  if (!Number.isFinite(schemaVersion) || schemaVersion < 7) {
+  if (!Number.isInteger(schemaVersion) || schemaVersion < 7 || schemaVersion > 9) {
     throw new Error('إصدار النسخة الاحتياطية قديم أو غير صالح');
   }
 
@@ -529,6 +546,9 @@ function validateBackupPayload(payload) {
   }
 
   ['printers', 'materials', 'orders', 'orderMaterials', 'stockMovements', 'purchases', 'assets'].forEach((key) => {
+    if (schemaVersion >= 9 && !Array.isArray(data[key])) {
+      throw new Error(`النسخة الاحتياطية ناقصة: ${key}. لم يتم استبدال البيانات.`);
+    }
     if (data[key] !== undefined && !Array.isArray(data[key])) {
       throw new Error(`بنية النسخة الاحتياطية غير صالحة في: ${key}`);
     }
@@ -547,10 +567,55 @@ function validateBackupPayload(payload) {
   const assets = Array.isArray(data.assets) ? data.assets : [];
   const quotes = Array.isArray(data.quotes) ? data.quotes : [];
 
+  const numericFields = {
+    printers: ['hourlyDepreciation'],
+    materials: ['weight', 'remaining', 'price', 'lowStockThreshold'],
+    orders: ['quantity', 'printHours', 'manualMinutes', 'materialCost', 'wasteWeight', 'wasteCost',
+      'depreciationCost', 'electricityCost', 'laborCost', 'packagingCost', 'accessoriesCost',
+      'shippingCost', 'riskCost', 'taxCost', 'totalCost', 'priceBeforeDiscount', 'discountValue',
+      'priceAfterDiscount', 'minimumOrderPrice', 'roundedAdjustment', 'finalPrice', 'profit',
+      'unitFinalPrice', 'unitTotalCost', 'unitProfit', 'paidAmount'],
+    orderMaterials: ['grams', 'pricePerGram', 'totalCost'], stockMovements: ['quantity'],
+    purchases: ['quantity', 'gramsPerUnit', 'amount'], assets: ['cost', 'depreciationHours'],
+    quotes: ['quantity', 'finalPrice', 'profit']
+  };
+  for (const [key, fields] of Object.entries(numericFields)) {
+    for (const row of (data[key] || [])) {
+      if (!row || typeof row !== 'object' || Array.isArray(row)) throw new Error(`سجل غير صالح في: ${key}`);
+      for (const field of fields) {
+        if (row[field] !== undefined && (row[field] === null || row[field] === '' || !Number.isFinite(Number(row[field])))) {
+          throw new Error(`رقم غير صالح في النسخة الاحتياطية: ${key}.${field}`);
+        }
+      }
+    }
+  }
+  for (const key of ['printers', 'materials', 'orders']) {
+    const seen = new Set();
+    for (const row of data[key] || []) {
+      if (!Number.isSafeInteger(Number(row.id)) || Number(row.id) <= 0 || seen.has(Number(row.id))) {
+        throw new Error(`معرف مفقود أو مكرر في: ${key}`);
+      }
+      seen.add(Number(row.id));
+    }
+  }
+  const ids = (rows) => new Set(rows.map((row) => Number(row.id)));
+  const printerIds = ids(printers), materialIds = ids(materials), orderIds = ids(orders);
+  const checkReference = (value, allowed, label, required = false) => {
+    if (value == null && !required) return;
+    if (!allowed.has(Number(value))) throw new Error(`مرجع مفقود في النسخة الاحتياطية: ${label}`);
+  };
+  orders.forEach((row) => checkReference(row.printerId, printerIds, 'طابعة الأوردر'));
+  orderMaterials.forEach((row) => {
+    checkReference(row.orderId, orderIds, 'استهلاك الأوردر', true);
+    checkReference(row.materialId, materialIds, 'خامة الأوردر');
+  });
+  stockMovements.forEach((row) => checkReference(row.materialId, materialIds, 'حركة الخامة'));
+  purchases.forEach((row) => checkReference(row.materialId, materialIds, 'خامة المشتريات'));
+
   const allowedPrinterStatuses = new Set(['idle', 'printing', 'maintenance', 'offline']);
   const allowedOrderStatuses = new Set(['new', 'printing', 'finished', 'delivered', 'cancelled']);
   const allowedQuoteStatuses = new Set(['open', 'converted']);
-  const allowedStockMovements = new Set(['in', 'out', 'purchase', 'sale', 'adjust_in', 'adjust_out', 'manual', 'correction']);
+  const allowedStockMovements = new Set(['in', 'out', 'return', 'purchase', 'sale', 'adjust_in', 'adjust_out', 'manual', 'correction']);
 
   printers.forEach((printer, index) => {
     if (!asTrimmedString(printer.name)) throw new Error(`طابعة بدون اسم في النسخة الاحتياطية رقم ${index + 1}`);
@@ -564,7 +629,7 @@ function validateBackupPayload(payload) {
     if (asPositiveNumber(material.weight, 0) !== asNumber(material.weight, 0)) throw new Error('وزن خامة غير صالح');
     if (asPositiveNumber(material.remaining, 0) !== asNumber(material.remaining, 0)) throw new Error('كمية خامة متبقية غير صالحة');
     if (asPositiveNumber(material.price, 0) !== asNumber(material.price, 0)) throw new Error('سعر خامة غير صالح');
-    if (Number(material.remaining || 0) > Number(material.weight || 0)) throw new Error(`المتبقي أكبر من وزن الخامة: ${asTrimmedString(material.name)}`);
+    // Restocking can exceed the reference pack weight. Do not change weight or price: both define the existing gram price.
   });
 
   orders.forEach((order, index) => {
@@ -817,23 +882,63 @@ function registerIpcHandlers() {
     CHANNELS.importBackup,
     async (payload) => {
       const data = validateBackupPayload(payload);
-      await createAutomaticBackup('before-import');
-      replaceAllData(data);
-      scheduleAutomaticBackup('after-import');
-      return ok();
+      maintenanceBusy = true;
+      try {
+        const backupPath = createProtectedBackup('before-import');
+        replaceAllData(data);
+        scheduleAutomaticBackup('after-import');
+        return ok({ backupPath });
+      } finally { maintenanceBusy = false; }
     },
     'فشل في استيراد النسخة الاحتياطية'
   );
 
+  handleIpc(CHANNELS.resetBusinessData, async (payload) => {
+    const options = normalizeResetOptions(payload);
+    maintenanceBusy = true;
+    try {
+      const details = [
+        'سيتم مسح كل المبيعات وعروض الأسعار والمشتريات والخامات وحركات المخزون وتصفير كاش البداية.',
+        options.clearPrinters ? 'سيتم حذف الطابعات أيضًا.' : 'سيتم الاحتفاظ بالطابعات.',
+        options.clearAssets ? 'سيتم حذف الأصول؛ هذا يغير قيم مدخلات الإهلاك.' : 'سيتم الاحتفاظ بالأصول.',
+        options.resetMachineHours ? 'سيتم تصفير ساعات الماكينة وآخر صيانة.' : 'سيتم الحفاظ على إجمالي ساعات الماكينة وآخر صيانة.',
+        options.restartCodes ? 'ستبدأ أرقام الأوردرات من ORD-1001. استخدم هذا للبيانات التجريبية فقط.' : 'لن تبدأ أرقام الأوردرات من جديد.',
+        'معادلة التسعير وإعدادات تكاليف التشغيل لا تتغير. ستُحفظ نسخة أمان مؤكدة قبل المسح.'
+      ].join('\n\n');
+      const optionsDialog = { type: 'warning', title: 'تأكيد البداية الجديدة',
+        buttons: ['إلغاء', 'حفظ نسخة أمان ثم المسح'], defaultId: 0, cancelId: 0, noLink: true,
+        message: 'هذه العملية تمسح البيانات الحالية. هل أنت متأكد؟', detail: details };
+      const owner = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
+      const confirmation = owner ? await dialog.showMessageBox(owner, optionsDialog) : await dialog.showMessageBox(optionsDialog);
+      if (confirmation.response !== 1) return ok({ cancelled: true });
+      const backupPath = createProtectedBackup('before-reset');
+      const result = resetBusinessData(options);
+      scheduleAutomaticBackup('after-reset');
+      return ok({ ...result, backupPath });
+    } finally { maintenanceBusy = false; }
+  }, 'تعذر تنفيذ البداية الجديدة');
+
+  handleIpc(CHANNELS.openSafetyBackups, async () => {
+    const directory = path.join(ensureBackupsDir(), 'Protected');
+    fs.mkdirSync(directory, { recursive: true });
+    const error = await shell.openPath(directory);
+    if (error) throw new Error(error);
+    return ok();
+  }, 'تعذر فتح مجلد نسخ الأمان');
+
   ipcMain.handle(CHANNELS.confirmDialog, async (_event, payload) => {
-    const result = await dialog.showMessageBox({
+    const confirmOptions = {
       type: 'question',
       buttons: ['نعم', 'إلغاء'],
       defaultId: 0,
       cancelId: 1,
       title: 'تأكيد',
       message: asTrimmedString(asObject(payload).message, 'هل أنت متأكد؟')
-    });
+    };
+    const owner = mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
+    const result = owner
+      ? await dialog.showMessageBox(owner, confirmOptions)
+      : await dialog.showMessageBox(confirmOptions);
 
     return {
       success: true,
@@ -843,8 +948,18 @@ function registerIpcHandlers() {
 }
 
 app.disableHardwareAcceleration();
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) app.quit();
+app.on('second-instance', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  }
+});
 
 app.whenReady().then(() => {
+  if (!hasSingleInstanceLock) return;
   try {
     ensureDbReady();
     scheduleAutomaticBackup('startup', 8000);
@@ -871,6 +986,7 @@ app.on('web-contents-created', (_event, contents) => {
 });
 
 app.on('before-quit', (event) => {
+  if (!hasSingleInstanceLock) return;
   if (shutdownBackupDone) return;
 
   event.preventDefault();

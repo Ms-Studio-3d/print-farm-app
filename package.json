@@ -1,6 +1,6 @@
 {
   "name": "printing-business-manager",
-  "version": "1.8.10",
+  "version": "1.8.11",
   "description": "MOO3D desktop app for 3D printing pricing, orders, inventory, and local data management",
   "main": "main.js",
   "author": "Ms-Studio-3d",
@@ -22,7 +22,8 @@
     "dist:win": "electron-builder --win nsis --publish never",
     "dist:installer": "electron-builder --win nsis --publish never",
     "dist:portable": "electron-builder --win portable --publish never",
-    "test": "node tests/pricing.test.js && node tests/syntax.test.js && node tests/database.test.js && node tests/inventory.test.js && node tests/performance.test.js && node tests/ui.test.js && node tests/integration.test.js && node tests/concurrent-load.test.js"
+    "test": "node tests/pricing.test.js && node tests/syntax.test.js && node tests/database.test.js && node tests/inventory.test.js && node tests/performance.test.js && node tests/ui.test.js && node tests/integration.test.js && node tests/concurrent-load.test.js && node tests/stability.test.js && node tests/pricing-preservation.test.js",
+    "test:stability": "node tests/stability.test.js"
   },
   "dependencies": {
     "better-sqlite3": "11.8.1"
@@ -45,6 +46,8 @@
       "preload.js",
       "database.js",
       "backup-worker.js",
+      "backup-safety.js",
+      "reset-options.js",
       "index.html",
       "style.css",
       "package.json",
@@ -100,5 +103,5 @@
       "node_modules/**/*.node"
     ]
   },
-  "packageManager": "pnpm@9.15.9"
+  "packageManager": "npm@10.9.2"
 }
