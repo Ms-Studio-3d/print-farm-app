@@ -17,7 +17,7 @@ mustInclude(updateOrderSource, "throw new Error('اختار الطابعة ال�
 mustInclude(updateOrderSource, "throw new Error('عدد القطع لازم يكون رقم صحيح موجب')", 'update order quantity validation');
 mustInclude(updateOrderSource, "throw new Error('وقت الطباعة لازم يكون أكبر من صفر')", 'update order print time validation');
 mustInclude(updateOrderSource, "throw new Error('كمية الخامة لازم تكون أكبر من صفر')", 'update order material usage validation');
-mustInclude(updateOrderSource, 'const shouldReplaceMaterialUsage = Boolean(data.replaceMaterialUsage);', 'optional material replacement flag');
+mustInclude(updateOrderSource, 'data.replaceMaterialUsage === undefined', 'optional material replacement flag');
 mustInclude(updateOrderSource, 'existingUsage', 'existing material usage validation when not replacing materials');
 mustInclude(updateOrderSource, 'const quantity = requestedQuantity;', 'validated quantity is persisted');
 

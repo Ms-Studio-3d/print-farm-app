@@ -62,7 +62,7 @@ mustMatch(
 );
 
 mustInclude(preload, 'getDataPage(kind, options = {})', 'renderer can request pages');
-mustInclude(worker, 'fs.writeFile(filePath', 'worker writes backup asynchronously');
+mustInclude(worker, 'await handle.writeFile(text', 'worker writes backup asynchronously');
 mustInclude(worker, 'exportBackupData()', 'worker exports backup payload');
 
 assert.ok(
